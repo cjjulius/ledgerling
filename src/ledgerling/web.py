@@ -487,8 +487,18 @@ async function boot() {
   const d = await fetch('/api/describe').then(r => r.json());
   COMMANDS = d.commands; CURRENCY = d.currency || '$';
   document.getElementById('ver').textContent = 'v' + d.version;
-  document.getElementById('filter').addEventListener('input',
-    e => renderList(e.target.value));
+  const filter = document.getElementById('filter');
+  filter.addEventListener('input', e => renderList(e.target.value));
+  filter.addEventListener('keydown', e => {
+    if (e.key === 'Enter') {          // open the first matching command
+      const q = filter.value.trim().toLowerCase();
+      const first = COMMANDS.find(c => !q || c.name.includes(q) ||
+        (c.help || '').toLowerCase().includes(q));
+      if (first) { e.preventDefault(); selectCmd(first); }
+    } else if (e.key === 'Escape') {  // clear and unfocus
+      filter.value = ''; renderList(''); filter.blur();
+    }
+  });
   document.getElementById('newbtn').onclick = () => {
     const a = findCmd('add'); if (a) selectCmd(a);
   };

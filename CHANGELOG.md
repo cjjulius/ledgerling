@@ -4,6 +4,14 @@ All notable changes to Ledgerling are documented here. The format is based on
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and this project
 adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.74.0] - 2026-09-30
+
+### Changed
+
+- Web UI: pressing Enter in the command filter opens the first matching command,
+  and Escape clears the filter. With the `/` shortcut, you can now jump to any
+  command entirely from the keyboard (`/`, type, Enter).
+
 ## [1.73.0] - 2026-09-30
 
 ### Added
@@ -734,6 +742,7 @@ file, standard library only, strictly confined to its own folder.
   guard (`_within_app`) that refuses any path escaping the app folder; imports
   and restores are reduced to a basename and looked up only within the folder.
 
+[1.74.0]: #1740---2026-09-30
 [1.73.0]: #1730---2026-09-30
 [1.72.0]: #1720---2026-09-30
 [1.71.0]: #1710---2026-09-30
