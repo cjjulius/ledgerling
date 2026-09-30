@@ -309,6 +309,7 @@ INDEX_HTML = r"""<!doctype html>
     background:var(--accent); color:var(--accent-ink); font-weight:600; cursor:pointer;
     font-size:14px; box-shadow:var(--shadow); }
   button.run:hover { background:var(--accent2); }
+  button.run:disabled { opacity:.6; cursor:default; }
   .out { margin-top:18px; }
   pre { background:var(--code); color:var(--code-ink); padding:15px 17px;
     border-radius:11px; overflow:auto; font:13px/1.5 ui-monospace,SFMono-Regular,
@@ -851,10 +852,18 @@ async function runCmd(c, form) {
   const pre = document.getElementById('outpre');
   const tableEl = document.getElementById('outtable');
   const tabs = document.getElementById('tabs');
+  const btn = form.querySelector('button.run');
+  const btnLabel = btn ? btn.textContent : '';
+  if (btn) { btn.disabled = true; btn.textContent = 'Running…'; }
   pre.className = ''; pre.textContent = 'running...';
   tableEl.style.display = 'none'; tabs.innerHTML = '';
   const argv = buildArgv(c, form);
-  const res = await postRun(argv);
+  let res;
+  try {
+    res = await postRun(argv);
+  } finally {
+    if (btn) { btn.disabled = false; btn.textContent = btnLabel; }
+  }
   const chartEl = document.getElementById('outchart');
   chartEl.style.display = 'none';
   document.getElementById('outcal').style.display = 'none';

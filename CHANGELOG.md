@@ -4,6 +4,14 @@ All notable changes to Ledgerling are documented here. The format is based on
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and this project
 adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.76.0] - 2026-09-30
+
+### Changed
+
+- Web UI: while a command runs, the Run button is disabled and shows "Running…",
+  then restores — clear feedback on slower operations and no accidental
+  double-submits.
+
 ## [1.75.0] - 2026-09-30
 
 ### Added
@@ -751,6 +759,7 @@ file, standard library only, strictly confined to its own folder.
   guard (`_within_app`) that refuses any path escaping the app folder; imports
   and restores are reduced to a basename and looked up only within the folder.
 
+[1.76.0]: #1760---2026-09-30
 [1.75.0]: #1750---2026-09-30
 [1.74.0]: #1740---2026-09-30
 [1.73.0]: #1730---2026-09-30
