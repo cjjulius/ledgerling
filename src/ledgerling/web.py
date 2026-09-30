@@ -181,12 +181,18 @@ INDEX_HTML = r"""<!doctype html>
     --pos:#2f8f5b; --neg:#c8503a; --code:#0f1720; --code-ink:#d7e3d9;
     --shadow:0 1px 2px rgba(20,30,45,.06), 0 6px 18px rgba(20,30,45,.06);
   }
+  /* Dark tokens: applied when the OS is dark (unless the user forced light),
+     or whenever the user explicitly picks dark via the header toggle. */
   @media (prefers-color-scheme: dark) {
-    :root { --bg:#0e1217; --panel:#171d24; --panel2:#1d242c; --ink:#e6ebf0;
-      --muted:#98a4b0; --line:#2a323c; --accent:#4f9e73; --accent2:#5fae83;
+    :root:not([data-theme="light"]) { --bg:#0e1217; --panel:#171d24; --panel2:#1d242c;
+      --ink:#e6ebf0; --muted:#98a4b0; --line:#2a323c; --accent:#4f9e73; --accent2:#5fae83;
       --accent-ink:#08120c; --pos:#5cba86; --neg:#e88b76; --code:#0b0f14;
       --code-ink:#cfe6d8; --shadow:0 1px 2px rgba(0,0,0,.3), 0 8px 22px rgba(0,0,0,.35); }
   }
+  :root[data-theme="dark"] { --bg:#0e1217; --panel:#171d24; --panel2:#1d242c;
+    --ink:#e6ebf0; --muted:#98a4b0; --line:#2a323c; --accent:#4f9e73; --accent2:#5fae83;
+    --accent-ink:#08120c; --pos:#5cba86; --neg:#e88b76; --code:#0b0f14;
+    --code-ink:#cfe6d8; --shadow:0 1px 2px rgba(0,0,0,.3), 0 8px 22px rgba(0,0,0,.35); }
   * { box-sizing:border-box; }
   body { margin:0; font:15px/1.45 system-ui,-apple-system,Segoe UI,Roboto,sans-serif;
     background:var(--bg); color:var(--ink); }
@@ -203,6 +209,10 @@ INDEX_HTML = r"""<!doctype html>
     display:flex; align-items:center; gap:6px; }
   header .tag::before { content:""; width:8px; height:8px; border-radius:50%;
     background:var(--pos); box-shadow:0 0 0 3px color-mix(in srgb,var(--pos) 25%,transparent); }
+  header .themebtn { margin-left:14px; width:32px; height:32px; flex:none;
+    border:1px solid var(--line); border-radius:9px; background:var(--panel2);
+    color:var(--ink); cursor:pointer; font-size:15px; line-height:1; }
+  header .themebtn:hover { border-color:var(--accent); }
   .wrap { display:grid; grid-template-columns:264px 1fr; gap:0;
     height:calc(100vh - 52px); }
   .side { border-right:1px solid var(--line); background:var(--panel);
@@ -373,6 +383,7 @@ INDEX_HTML = r"""<!doctype html>
   <div class="brand"><span class="logo"></span><h1>Ledgerling</h1>
     <span class="ver" id="ver"></span></div>
   <span class="tag"><span>local &amp; sandboxed &mdash; data stays in your Ledgerling folder</span></span>
+  <button class="themebtn" id="themebtn" title="Toggle light / dark">&#9789;</button>
 </header>
 <div class="wrap">
   <nav class="side">
@@ -388,6 +399,20 @@ let COMMANDS = [], CURRENT = null, CURRENCY = '$', ACTIVE = 'home', CATEGORIES =
 let COLLAPSED = new Set();
 try { COLLAPSED = new Set(JSON.parse(localStorage.getItem('ll_collapsed') || '[]')); }
 catch (e) {}
+
+// Theme: apply a saved manual override immediately (else follow the OS).
+(function () {
+  try { const t = localStorage.getItem('ll_theme');
+    if (t) document.documentElement.dataset.theme = t; } catch (e) {}
+})();
+function toggleTheme() {
+  const root = document.documentElement;
+  const osDark = matchMedia('(prefers-color-scheme: dark)').matches;
+  const cur = root.dataset.theme || (osDark ? 'dark' : 'light');
+  const next = cur === 'dark' ? 'light' : 'dark';
+  root.dataset.theme = next;
+  try { localStorage.setItem('ll_theme', next); } catch (e) {}
+}
 function toggleGroup(g) {
   if (COLLAPSED.has(g)) COLLAPSED.delete(g); else COLLAPSED.add(g);
   try { localStorage.setItem('ll_collapsed', JSON.stringify([...COLLAPSED])); }
@@ -470,6 +495,7 @@ async function boot() {
   document.getElementById('incbtn').onclick = () => {
     const a = findCmd('income'); if (a) selectCmd(a);
   };
+  document.getElementById('themebtn').onclick = toggleTheme;
   // Press "/" anywhere (outside a field) to jump to the command filter.
   document.addEventListener('keydown', e => {
     if (e.key === '/' && !/^(INPUT|TEXTAREA|SELECT)$/.test(
