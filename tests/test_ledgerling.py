@@ -472,6 +472,16 @@ class CLI(TempAppCase):
     def test_completion_default_is_bash(self):
         self.assertEqual(self._main(["completion"]), self._main(["completion", "bash"]))
 
+    def test_streak_json(self):
+        self._main(["add", "10", "food", "a", "--date", "2026-06-01"])
+        self._main(["add", "10", "food", "b", "--date", "2026-06-03"])
+        d = json.loads(self._main(["streak", "--month", "2026-06", "--json"]))
+        self.assertEqual(d["days_considered"], 30)     # past month = full
+        self.assertEqual(d["spend_days"], 2)
+        self.assertEqual(d["no_spend_days"], 28)
+        self.assertEqual(d["longest_no_spend"], 27)    # days 4..30
+        self.assertEqual(d["current_no_spend"], 27)
+
     def test_week_json(self):
         monday = date.today() - timedelta(days=date.today().weekday())
         d0 = monday.isoformat()

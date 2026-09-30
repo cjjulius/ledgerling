@@ -27,6 +27,7 @@ Commands:
     report    Month-over-month trend and budget adherence
     stats     Analytics: extremes, averages, per-tag totals, projection
     week      This week's spending by day (Mon-Sun), income and net
+    streak    No-spend-day streaks for a month
     month     One-screen dashboard for a month (income, spend, net, budgets)
     compare   Compare two months side by side (with per-category deltas)
     trend     Monthly spending trend for one category
@@ -63,7 +64,7 @@ import sys
 import tempfile
 from datetime import datetime, date, timedelta
 
-__version__ = "1.16.0"
+__version__ = "1.17.0"
 
 # --------------------------------------------------------------------------- #
 # Sandbox + storage
@@ -1336,6 +1337,46 @@ def cmd_categories(args):
         print(f"{cat:<14} {v['count']:>3} item(s)  {money(v['total']):>12}{budget}")
 
 
+def cmd_streak(args):
+    check_month(args.month)
+    data = load()
+    today = date.today()
+    period = args.month or today.isoformat()[:7]
+    year, mon = (int(x) for x in period.split("-"))
+    days_in_month = calendar.monthrange(year, mon)[1]
+    last = today.day if period == today.isoformat()[:7] else days_in_month
+
+    spend_dates = {e["date"] for e in expenses_only(data["expenses"])
+                   if month_of(e["date"]) == period}
+
+    spend_days = no_spend_days = longest = current = 0
+    for day in range(1, last + 1):
+        iso = f"{year:04d}-{mon:02d}-{day:02d}"
+        if iso in spend_dates:
+            spend_days += 1
+            current = 0
+        else:
+            no_spend_days += 1
+            current += 1
+            longest = max(longest, current)
+
+    if getattr(args, "json", False):
+        print(json.dumps({
+            "month": period, "days_considered": last,
+            "spend_days": spend_days, "no_spend_days": no_spend_days,
+            "longest_no_spend": longest, "current_no_spend": current,
+        }, indent=2))
+        return
+
+    print(f"Spending streak for {period} (through day {last})")
+    print("=" * 48)
+    print(f"{'days considered':<24} {last}")
+    print(f"{'spend days':<24} {spend_days}")
+    print(f"{'no-spend days':<24} {no_spend_days}")
+    print(f"{'longest no-spend streak':<24} {longest} day(s)")
+    print(f"{'current no-spend streak':<24} {current} day(s)")
+
+
 def cmd_week(args):
     if args.offset < 0:
         sys.exit("error: --offset cannot be negative")
@@ -1846,6 +1887,11 @@ def build_parser():
     st.add_argument("--json", action="store_true", help="output JSON instead of text")
     st.set_defaults(func=cmd_stats)
 
+    sk = sub.add_parser("streak", help="no-spend-day streaks for a month")
+    sk.add_argument("--month", help="which month, YYYY-MM (default: current)")
+    sk.add_argument("--json", action="store_true", help="output JSON instead of text")
+    sk.set_defaults(func=cmd_streak)
+
     wk = sub.add_parser("week", help="this week's spending by day (Mon-Sun)")
     wk.add_argument("--offset", type=int, default=0,
                     help="how many weeks back (0 = this week)")
@@ -2001,7 +2047,7 @@ def main(argv=None):
     if args.command in ("list", "summary", "budget", "export", "report",
                         "stats", "search", "categories", "tags", "month",
                         "upcoming", "compare", "trend", "top", "pace",
-                        "duplicates", "week"):
+                        "duplicates", "week", "streak"):
         data = load()
         if apply_recurring(data):
             save(data)

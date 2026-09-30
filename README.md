@@ -108,6 +108,10 @@ ledgerling search --min 50 --max 200 --category food
 ledgerling week
 ledgerling week --offset 1
 
+# No-spend-day streaks for a month
+ledgerling streak
+ledgerling streak --month 2026-08
+
 # One-screen dashboard for a month (income, spend, net, top cats, budgets, goal)
 ledgerling month
 ledgerling month --month 2026-08

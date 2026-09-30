@@ -4,6 +4,13 @@ All notable changes to Ledgerling are documented here. The format is based on
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and this project
 adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.17.0] - 2026-09-29
+
+### Added
+
+- `streak` command — no-spend-day metrics for a month: spend days, no-spend
+  days, and the longest and current no-spend streaks. Supports `--json`.
+
 ## [1.16.0] - 2026-09-29
 
 ### Added
@@ -195,6 +202,7 @@ file, standard library only, strictly confined to its own folder.
   guard (`_within_app`) that refuses any path escaping the app folder; imports
   and restores are reduced to a basename and looked up only within the folder.
 
+[1.17.0]: #1170---2026-09-29
 [1.16.0]: #1160---2026-09-29
 [1.15.0]: #1150---2026-09-29
 [1.14.0]: #1140---2026-09-29
