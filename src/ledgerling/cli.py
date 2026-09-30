@@ -32,6 +32,7 @@ Commands:
     streak    No-spend-day streaks for a month
     weekday   Spending by day of week (which days you spend most)
     heatmap   Daily-spending calendar for a month (with a web calendar view)
+    cumulative  Cumulative spending by day within a month
     month     One-screen dashboard for a month (income, spend, net, budgets)
     insights  Plain-language observations about a month
     range     Totals over an arbitrary date range (start [end])
@@ -90,7 +91,7 @@ import sys
 import tempfile
 from datetime import datetime, date, timedelta
 
-__version__ = "1.49.0"
+__version__ = "1.50.0"
 
 # --------------------------------------------------------------------------- #
 # Sandbox + storage
@@ -1870,6 +1871,48 @@ def cmd_heatmap(args):
         if busiest else ""))
 
 
+def cmd_cumulative(args):
+    check_month(args.month)
+    data = load()
+    today = date.today()
+    period = args.month or today.isoformat()[:7]
+    year, mon = (int(x) for x in period.split("-"))
+    dim = calendar.monthrange(year, mon)[1]
+    last_day = today.day if period == today.isoformat()[:7] else dim
+
+    per_day = {d: 0.0 for d in range(1, last_day + 1)}
+    for e in expenses_only(data["expenses"]):
+        if month_of(e["date"]) == period:
+            d = int(e["date"][8:10])
+            if d in per_day:
+                per_day[d] = round(per_day[d] + e["amount"], 2)
+
+    rows, running = [], 0.0
+    for d in range(1, last_day + 1):
+        running = round(running + per_day[d], 2)
+        rows.append({"date": f"{period}-{d:02d}", "spending": per_day[d],
+                     "cumulative": running})
+    total = running
+
+    if getattr(args, "json", False):
+        print(json.dumps({"month": period, "days": rows, "total": total},
+                         indent=2))
+        return
+    if total == 0:
+        print(f"no spending in {period}")
+        return
+
+    print(f"Cumulative spending - {period}")
+    print("=" * 52)
+    for r in rows:
+        if r["spending"]:
+            bar_w = bar(r["cumulative"] / total) if total else ""
+            print(f"{r['date']}  +{money(r['spending']):>10}  "
+                  f"={money(r['cumulative']):>11}  {bar_w}")
+    print("-" * 52)
+    print(f"total {money(total)} over {last_day} day(s)")
+
+
 def cmd_streak(args):
     check_month(args.month)
     data = load()
@@ -2955,6 +2998,12 @@ def build_parser():
     hm.add_argument("--json", action="store_true", help="output JSON instead of text")
     hm.set_defaults(func=cmd_heatmap)
 
+    cu = sub.add_parser("cumulative",
+                        help="cumulative spending by day within a month")
+    cu.add_argument("--month", help="which month, YYYY-MM (default: current)")
+    cu.add_argument("--json", action="store_true", help="output JSON instead of text")
+    cu.set_defaults(func=cmd_cumulative)
+
     sk = sub.add_parser("streak", help="no-spend-day streaks for a month")
     sk.add_argument("--month", help="which month, YYYY-MM (default: current)")
     sk.add_argument("--json", action="store_true", help="output JSON instead of text")
@@ -3254,7 +3303,8 @@ def main(argv=None):
                         "year", "untagged", "average", "distribution",
                         "sources", "quarter", "forecast", "balance",
                         "commitments", "savings", "heatmap", "suggest",
-                        "insights", "tagtrend", "range", "matrix"):
+                        "insights", "tagtrend", "range", "matrix",
+                        "cumulative"):
         data = load()
         if apply_recurring(data):
             save(data)

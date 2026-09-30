@@ -935,6 +935,21 @@ class CLI(TempAppCase):
         with self.assertRaises(SystemExit):
             self._main(["note", "1", "x", "--clear"])
 
+    def test_cumulative_json(self):
+        self._main(["add", "10", "food", "a", "--date", "2026-05-02"])
+        self._main(["add", "20", "food", "b", "--date", "2026-05-05"])
+        self._main(["add", "30", "food", "c", "--date", "2026-05-05"])
+        self._main(["income", "999", "salary", "d", "--date", "2026-05-05"])  # excluded
+        d = json.loads(self._main(["cumulative", "--month", "2026-05", "--json"]))
+        self.assertEqual(d["month"], "2026-05")
+        self.assertEqual(len(d["days"]), 31)          # full past month
+        self.assertEqual(d["total"], 60.0)            # income excluded
+        by = {r["date"]: r for r in d["days"]}
+        self.assertEqual(by["2026-05-02"]["cumulative"], 10.0)
+        self.assertEqual(by["2026-05-04"]["cumulative"], 10.0)   # flat, no spend
+        self.assertEqual(by["2026-05-05"]["spending"], 50.0)     # 20 + 30
+        self.assertEqual(by["2026-05-05"]["cumulative"], 60.0)
+
     def test_year_json(self):
         self._main(["add", "100", "food", "a", "--date", "2026-01-15"])
         self._main(["add", "200", "food", "b", "--date", "2026-03-10"])

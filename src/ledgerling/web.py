@@ -369,7 +369,7 @@ let COMMANDS = [], CURRENT = null, CURRENCY = '$', ACTIVE = 'home';
 const GROUP_DEFS = [
   ['Record', ['add', 'income', 'edit', 'delete', 'clone', 'note']],
   ['Analyze', ['month', 'insights', 'range', 'summary', 'report', 'stats', 'week', 'day', 'year',
-    'quarter', 'weekday', 'trend', 'tagtrend', 'matrix', 'top', 'compare', 'average', 'distribution',
+    'quarter', 'weekday', 'trend', 'tagtrend', 'matrix', 'cumulative', 'top', 'compare', 'average', 'distribution',
     'balance', 'savings', 'heatmap', 'streak', 'pace', 'forecast', 'sources',
     'categories', 'tags', 'untagged', 'search', 'list']],
   ['Budgets & goals', ['budget', 'unbudget', 'goal', 'suggest', 'autobudget', 'commitments', 'upcoming']],
@@ -819,7 +819,7 @@ function renderCalendar(data) {
 }
 
 function pickValueKey(numKeys) {
-  const pref = ['total', 'spending', 'amount', 'balance', 'rate', 'net', 'value', 'count'];
+  const pref = ['total', 'cumulative', 'spending', 'amount', 'balance', 'rate', 'net', 'value', 'count'];
   for (const p of pref) if (numKeys.includes(p)) return p;  // by preference order
   return numKeys[0];
 }

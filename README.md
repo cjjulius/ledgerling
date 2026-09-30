@@ -154,6 +154,10 @@ ledgerling weekday --month 2026-09
 ledgerling heatmap
 ledgerling heatmap --month 2026-08
 
+# Cumulative (running) spending by day within a month
+ledgerling cumulative
+ledgerling cumulative --month 2026-08
+
 # One-screen dashboard for a month (income, spend, net, top cats, budgets, goal)
 ledgerling month
 ledgerling month --month 2026-08

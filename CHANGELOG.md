@@ -4,6 +4,16 @@ All notable changes to Ledgerling are documented here. The format is based on
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and this project
 adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.50.0] - 2026-09-29
+
+### Added
+
+- `cumulative` command — running (cumulative) spending by day within a month: a
+  burn-up curve of month-to-date spend. Series-shaped, so the web UI renders it
+  as a table/chart with the metric defaulting to the cumulative line. The
+  current month runs through today; a past month covers all its days. Supports
+  `--json`.
+
 ## [1.49.0] - 2026-09-29
 
 ### Added
@@ -516,6 +526,7 @@ file, standard library only, strictly confined to its own folder.
   guard (`_within_app`) that refuses any path escaping the app folder; imports
   and restores are reduced to a basename and looked up only within the folder.
 
+[1.50.0]: #1500---2026-09-29
 [1.49.0]: #1490---2026-09-29
 [1.48.0]: #1480---2026-09-29
 [1.47.0]: #1470---2026-09-29
