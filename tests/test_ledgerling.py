@@ -397,6 +397,18 @@ class CLI(TempAppCase):
         out = self._main(["pace"])
         self.assertIn("no budgets set", out)
 
+    def test_distribution_json(self):
+        for amt in (5, 8, 30, 120, 500):
+            self._main(["add", str(amt), "food", "x"])
+        d = json.loads(self._main(["distribution", "--json"]))
+        b = {x["label"]: x for x in d["buckets"]}
+        self.assertEqual(b["$0-10"]["count"], 2)      # 5, 8
+        self.assertEqual(b["$0-10"]["total"], 13.0)
+        self.assertEqual(b["$25-50"]["count"], 1)     # 30
+        self.assertEqual(b["$100-250"]["count"], 1)   # 120
+        self.assertEqual(b["$250+"]["count"], 1)      # 500
+        self.assertEqual(len(d["buckets"]), 6)
+
     def test_average_json(self):
         self._main(["add", "100", "food", "a", "--date", "2026-01-01"])
         self._main(["add", "100", "food", "b", "--date", "2026-01-11"])  # 11-day span

@@ -140,6 +140,9 @@ ledgerling top --month 2026-09 --category food
 # Average spending per day / week / month across your records
 ledgerling average
 
+# Histogram of expense sizes ($0-10, $10-25, ... $250+)
+ledgerling distribution
+
 # Monthly spending trend for one category
 ledgerling trend food --months 6
 

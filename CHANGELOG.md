@@ -4,6 +4,14 @@ All notable changes to Ledgerling are documented here. The format is based on
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and this project
 adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.25.0] - 2026-09-29
+
+### Added
+
+- `distribution` command — a histogram of expense sizes bucketed into
+  $0-10 / $10-25 / $25-50 / $50-100 / $100-250 / $250+, with counts and totals
+  (optionally filtered by `--month`). Supports `--json`.
+
 ## [1.24.0] - 2026-09-29
 
 ### Added
@@ -252,6 +260,7 @@ file, standard library only, strictly confined to its own folder.
   guard (`_within_app`) that refuses any path escaping the app folder; imports
   and restores are reduced to a basename and looked up only within the folder.
 
+[1.25.0]: #1250---2026-09-29
 [1.24.0]: #1240---2026-09-29
 [1.23.0]: #1230---2026-09-29
 [1.22.0]: #1220---2026-09-29

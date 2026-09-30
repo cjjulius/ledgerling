@@ -36,6 +36,7 @@ Commands:
     trend     Monthly spending trend for one category
     top       List your largest expenses (optionally by month/category)
     average   Average spending per day / week / month
+    distribution  Histogram of expense sizes
     upcoming  Forecast recurring charges/income due in the next N days
     categories  List categories with counts and totals
     tags      List #tags with counts and totals
@@ -70,7 +71,7 @@ import sys
 import tempfile
 from datetime import datetime, date, timedelta
 
-__version__ = "1.24.0"
+__version__ = "1.25.0"
 
 # --------------------------------------------------------------------------- #
 # Sandbox + storage
@@ -1172,6 +1173,46 @@ def cmd_pace(args):
               f"{money(c['limit'])}{proj_flag}")
 
 
+_DIST_EDGES = [10, 25, 50, 100, 250]
+_DIST_LABELS = ["$0-10", "$10-25", "$25-50", "$50-100", "$100-250", "$250+"]
+
+
+def _dist_bucket(amount):
+    for i, edge in enumerate(_DIST_EDGES):
+        if amount < edge:
+            return i
+    return len(_DIST_EDGES)
+
+
+def cmd_distribution(args):
+    check_month(args.month)
+    data = load()
+    rows = expenses_only(data["expenses"])
+    if args.month:
+        rows = [e for e in rows if month_of(e["date"]) == args.month]
+
+    buckets = [{"label": _DIST_LABELS[i], "count": 0, "total": 0.0}
+               for i in range(len(_DIST_LABELS))]
+    for e in rows:
+        b = buckets[_dist_bucket(e["amount"])]
+        b["count"] += 1
+        b["total"] = round(b["total"] + e["amount"], 2)
+
+    if getattr(args, "json", False):
+        print(json.dumps({"buckets": buckets}, indent=2))
+        return
+    if not rows:
+        print("no expenses to chart")
+        return
+
+    peak = max(b["count"] for b in buckets) or 0
+    print(f"Expense size distribution ({args.month or 'all time'})")
+    print("=" * 52)
+    for b in buckets:
+        chart = bar(b["count"] / peak, width=18) if peak else bar(0, width=18)
+        print(f"{b['label']:<10} {b['count']:>4}  {money(b['total']):>12}  {chart}")
+
+
 def cmd_average(args):
     data = load()
     exp = expenses_only(data["expenses"])
@@ -2172,6 +2213,11 @@ def build_parser():
     pc.add_argument("--json", action="store_true", help="output JSON instead of text")
     pc.set_defaults(func=cmd_pace)
 
+    di = sub.add_parser("distribution", help="histogram of expense sizes")
+    di.add_argument("--month", help="restrict to a month, YYYY-MM")
+    di.add_argument("--json", action="store_true", help="output JSON instead of text")
+    di.set_defaults(func=cmd_distribution)
+
     av = sub.add_parser("average", help="average spending per day/week/month")
     av.add_argument("--json", action="store_true", help="output JSON instead of text")
     av.set_defaults(func=cmd_average)
@@ -2301,7 +2347,7 @@ def main(argv=None):
                         "stats", "search", "categories", "tags", "month",
                         "upcoming", "compare", "trend", "top", "pace",
                         "duplicates", "week", "streak", "weekday", "day",
-                        "year", "untagged", "average"):
+                        "year", "untagged", "average", "distribution"):
         data = load()
         if apply_recurring(data):
             save(data)
