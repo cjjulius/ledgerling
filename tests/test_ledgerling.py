@@ -1066,6 +1066,20 @@ class CLI(TempAppCase):
         # backups dir not created yet -> reported as not existing, not an error
         self.assertFalse(d["items"]["backups"]["exists"])
 
+    def test_tagmatrix_json(self):
+        this = date.today().isoformat()[:7]
+        prev = L.add_months(date.today().replace(day=1), -1).isoformat()[:7]
+        self._main(["add", "40", "food", "a #work", "--date", f"{this}-05"])
+        self._main(["add", "60", "travel", "b #work", "--date", f"{this}-06"])
+        self._main(["add", "25", "food", "c #work", "--date", f"{prev}-05"])
+        self._main(["add", "10", "food", "d #fun", "--date", f"{this}-07"])
+        d = json.loads(self._main(["tagmatrix", "--months", "2", "--json"]))
+        self.assertEqual(d["months"], [prev, this])
+        work = next(r for r in d["rows"] if r["tag"] == "work")
+        self.assertEqual((work[prev], work[this], work["total"]), (25.0, 100.0, 125.0))
+        self.assertEqual(d["rows"][0]["tag"], "work")   # sorted by total desc
+        self.assertEqual(d["totals"][this], 110.0)      # 100 work + 10 fun
+
     def test_year_json(self):
         self._main(["add", "100", "food", "a", "--date", "2026-01-15"])
         self._main(["add", "200", "food", "b", "--date", "2026-03-10"])

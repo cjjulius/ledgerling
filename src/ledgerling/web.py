@@ -369,7 +369,7 @@ let COMMANDS = [], CURRENT = null, CURRENCY = '$', ACTIVE = 'home';
 const GROUP_DEFS = [
   ['Record', ['add', 'income', 'edit', 'delete', 'clone', 'note', 'refund']],
   ['Analyze', ['month', 'insights', 'range', 'summary', 'report', 'stats', 'week', 'day', 'year',
-    'quarter', 'weekday', 'trend', 'tagtrend', 'matrix', 'cumulative', 'top', 'compare', 'average', 'distribution',
+    'quarter', 'weekday', 'trend', 'tagtrend', 'matrix', 'tagmatrix', 'cumulative', 'top', 'compare', 'average', 'distribution',
     'balance', 'savings', 'heatmap', 'streak', 'pace', 'forecast', 'sources',
     'categories', 'tags', 'untagged', 'search', 'list']],
   ['Budgets & goals', ['budget', 'unbudget', 'allowance', 'goal', 'suggest', 'autobudget', 'commitments', 'upcoming']],

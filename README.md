@@ -211,6 +211,9 @@ ledgerling tagtrend work --months 6
 # Category x month spending grid (pivot table)
 ledgerling matrix --months 6
 
+# #tag x month spending grid (pivot table)
+ledgerling tagmatrix --months 6
+
 # Forecast recurring charges/income coming up (default 30 days)
 ledgerling upcoming
 ledgerling upcoming --days 60
