@@ -376,7 +376,7 @@ INDEX_HTML = r"""<!doctype html>
   <nav class="side">
     <button class="newbtn" id="newbtn">+ New expense</button>
     <button class="newbtn alt" id="incbtn">+ New income</button>
-    <input class="filter" id="filter" placeholder="Filter commands...">
+    <input class="filter" id="filter" placeholder="Filter commands...  ( / )">
     <div id="list"></div>
   </nav>
   <main id="main"><div class="empty">Loading&hellip;</div></main>
@@ -468,6 +468,14 @@ async function boot() {
   document.getElementById('incbtn').onclick = () => {
     const a = findCmd('income'); if (a) selectCmd(a);
   };
+  // Press "/" anywhere (outside a field) to jump to the command filter.
+  document.addEventListener('keydown', e => {
+    if (e.key === '/' && !/^(INPUT|TEXTAREA|SELECT)$/.test(
+        (document.activeElement || {}).tagName)) {
+      e.preventDefault(); const f = document.getElementById('filter');
+      f.focus(); f.select();
+    }
+  });
   await refreshCategories();
   renderList('');
   showDashboard();
@@ -825,6 +833,13 @@ async function runCmd(c, form) {
   }
   buildTabs(data);
   if (res.code === 0) refreshCategories();  // keep autocomplete current
+  // Rapid entry: after a successful add/income, clear the form for the next one.
+  if (res.code === 0 && (c.name === 'add' || c.name === 'income')) {
+    form.querySelectorAll('.inp').forEach(i => {
+      if (i.type === 'checkbox') i.checked = false; else i.value = '';
+    });
+    const first = form.querySelector('.inp'); if (first) first.focus();
+  }
 }
 
 function buildTabs(data) {

@@ -4,6 +4,14 @@ All notable changes to Ledgerling are documented here. The format is based on
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and this project
 adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.68.0] - 2026-09-30
+
+### Changed
+
+- Web UI rapid entry: after a successful `add` or `income`, the form clears and
+  re-focuses the amount field so you can enter the next one immediately (the
+  confirmation still shows). Press `/` anywhere to jump to the command filter.
+
 ## [1.67.0] - 2026-09-30
 
 ### Added
@@ -684,6 +692,7 @@ file, standard library only, strictly confined to its own folder.
   guard (`_within_app`) that refuses any path escaping the app folder; imports
   and restores are reduced to a basename and looked up only within the folder.
 
+[1.68.0]: #1680---2026-09-30
 [1.67.0]: #1670---2026-09-30
 [1.66.0]: #1660---2026-09-30
 [1.65.0]: #1650---2026-09-30
