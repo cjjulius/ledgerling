@@ -38,6 +38,7 @@ Commands:
     upcoming  Forecast recurring charges/income due in the next N days
     categories  List categories with counts and totals
     tags      List #tags with counts and totals
+    untagged  List expenses that have no #tags
     recategorize  Rename a category across all records
     retag     Rename a #tag across all records
     duplicates  Find likely double-entered records
@@ -68,7 +69,7 @@ import sys
 import tempfile
 from datetime import datetime, date, timedelta
 
-__version__ = "1.22.0"
+__version__ = "1.23.0"
 
 # --------------------------------------------------------------------------- #
 # Sandbox + storage
@@ -1242,6 +1243,31 @@ def cmd_trend(args):
           f"total {money(window_total)}")
 
 
+def cmd_untagged(args):
+    check_month(args.month)
+    data = load()
+    rows = [e for e in expenses_only(data["expenses"]) if not e.get("tags")]
+    if args.month:
+        rows = [e for e in rows if month_of(e["date"]) == args.month]
+    rows = sorted(rows, key=lambda e: (e["date"], e["id"]))
+
+    if getattr(args, "json", False):
+        print(json.dumps(rows, indent=2))
+        return
+    if not rows:
+        print("no untagged expenses")
+        return
+
+    print("Untagged expenses")
+    print("=" * 52)
+    for e in rows:
+        note = f" - {e['note']}" if e["note"] else ""
+        print(f"#{e['id']:<4} {e['date']}  {money(e['amount']):>12}  "
+              f"[{e['category']}]{note}")
+    print("-" * 52)
+    print(f"{len(rows)} untagged, total {money(sum(e['amount'] for e in rows))}")
+
+
 def cmd_tags(args):
     data = load()
     rows = expenses_only(data["expenses"])
@@ -2093,6 +2119,11 @@ def build_parser():
     tg.add_argument("--json", action="store_true", help="output JSON instead of text")
     tg.set_defaults(func=cmd_tags)
 
+    ut = sub.add_parser("untagged", help="list expenses that have no #tags")
+    ut.add_argument("--month", help="restrict to a month, YYYY-MM")
+    ut.add_argument("--json", action="store_true", help="output JSON instead of text")
+    ut.set_defaults(func=cmd_untagged)
+
     dp = sub.add_parser("duplicates",
                         help="find likely double-entered records")
     dp.add_argument("--json", action="store_true", help="output JSON instead of text")
@@ -2228,7 +2259,7 @@ def main(argv=None):
                         "stats", "search", "categories", "tags", "month",
                         "upcoming", "compare", "trend", "top", "pace",
                         "duplicates", "week", "streak", "weekday", "day",
-                        "year"):
+                        "year", "untagged"):
         data = load()
         if apply_recurring(data):
             save(data)

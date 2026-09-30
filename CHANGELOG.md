@@ -4,6 +4,13 @@ All notable changes to Ledgerling are documented here. The format is based on
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and this project
 adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.23.0] - 2026-09-29
+
+### Added
+
+- `untagged` command — lists expenses that have no `#tags` (optionally filtered
+  by `--month`), to help you find and tag them. Supports `--json`.
+
 ## [1.22.0] - 2026-09-29
 
 ### Added
@@ -238,6 +245,7 @@ file, standard library only, strictly confined to its own folder.
   guard (`_within_app`) that refuses any path escaping the app folder; imports
   and restores are reduced to a basename and looked up only within the folder.
 
+[1.23.0]: #1230---2026-09-29
 [1.22.0]: #1220---2026-09-29
 [1.21.0]: #1210---2026-09-29
 [1.20.0]: #1200---2026-09-29

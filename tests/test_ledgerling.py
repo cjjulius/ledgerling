@@ -449,6 +449,19 @@ class CLI(TempAppCase):
         with self.assertRaises(SystemExit):
             self._main(["compare", "2026-13", "2026-08"])
 
+    def test_untagged_json(self):
+        self._main(["add", "10", "food", "tagged #x"])
+        self._main(["add", "20", "food", "plain lunch"])
+        self._main(["income", "100", "salary", "no tags here"])  # excluded (income)
+        d = json.loads(self._main(["untagged", "--json"]))
+        self.assertEqual(len(d), 1)
+        self.assertEqual(d[0]["note"], "plain lunch")
+
+    def test_untagged_none(self):
+        self._main(["add", "10", "food", "tagged #x"])
+        out = self._main(["untagged"])
+        self.assertIn("no untagged expenses", out)
+
     def test_tags_json(self):
         self._main(["add", "40", "food", "dinner #work #client"])
         self._main(["add", "10", "transit", "cab #work"])

@@ -152,8 +152,9 @@ ledgerling categories
 ledgerling tags
 ledgerling recategorize food dining
 
-# Rename a #tag everywhere
+# Rename a #tag everywhere; find expenses that still need tags
 ledgerling retag work business
+ledgerling untagged
 
 # Find likely double-entered records (same date/amount/category/note)
 ledgerling duplicates
