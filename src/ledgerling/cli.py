@@ -87,7 +87,7 @@ import sys
 import tempfile
 from datetime import datetime, date, timedelta
 
-__version__ = "1.45.0"
+__version__ = "1.46.0"
 
 # --------------------------------------------------------------------------- #
 # Sandbox + storage
@@ -1528,8 +1528,11 @@ def cmd_untagged(args):
 
 
 def cmd_tags(args):
+    check_month(args.month)
     data = load()
     rows = expenses_only(data["expenses"])
+    if args.month:
+        rows = [e for e in rows if month_of(e["date"]) == args.month]
     agg = {}
     for e in rows:
         for t in e.get("tags", []):
@@ -1541,10 +1544,12 @@ def cmd_tags(args):
         print(json.dumps(agg, indent=2))
         return
     if not agg:
-        print("no tags yet - add #tags in a note, e.g. add 40 food \"dinner #work\"")
+        where = f" in {args.month}" if args.month else ""
+        print(f"no tags{where} yet - add #tags in a note, "
+              "e.g. add 40 food \"dinner #work\"")
         return
 
-    print("Tags")
+    print("Tags" + (f" ({args.month})" if args.month else ""))
     print("=" * 48)
     for tag, v in sorted(agg.items(), key=lambda kv: kv[1]["total"], reverse=True):
         print(f"#{tag:<14} {v['count']:>3} item(s)  {money(v['total']):>12}")
@@ -1659,16 +1664,20 @@ def cmd_suggest(args):
 
 
 def cmd_categories(args):
+    check_month(args.month)
     data = load()
     rows = expenses_only(data["expenses"])
+    if args.month:
+        rows = [e for e in rows if month_of(e["date"]) == args.month]
     agg = {}
     for e in rows:
         a = agg.setdefault(e["category"], {"count": 0, "total": 0.0})
         a["count"] += 1
         a["total"] = round(a["total"] + e["amount"], 2)
-    # include categories that only have a budget set
-    for cat in data["budgets"]:
-        agg.setdefault(cat, {"count": 0, "total": 0.0})
+    # include categories that only have a budget set (all-time view only)
+    if not args.month:
+        for cat in data["budgets"]:
+            agg.setdefault(cat, {"count": 0, "total": 0.0})
 
     result = {c: {**v, "budget": data["budgets"].get(c)}
               for c, v in agg.items()}
@@ -1677,10 +1686,10 @@ def cmd_categories(args):
         print(json.dumps(result, indent=2))
         return
     if not result:
-        print("no categories yet")
+        print(f"no categories{f' in {args.month}' if args.month else ''} yet")
         return
 
-    print("Categories")
+    print("Categories" + (f" ({args.month})" if args.month else ""))
     print("=" * 56)
     for cat, v in sorted(result.items(), key=lambda kv: kv[1]["total"],
                          reverse=True):
@@ -2913,10 +2922,12 @@ def build_parser():
     sg.set_defaults(func=cmd_suggest)
 
     ct = sub.add_parser("categories", help="list categories with counts and totals")
+    ct.add_argument("--month", help="restrict to a month, YYYY-MM")
     ct.add_argument("--json", action="store_true", help="output JSON instead of text")
     ct.set_defaults(func=cmd_categories)
 
     tg = sub.add_parser("tags", help="list #tags with counts and totals")
+    tg.add_argument("--month", help="restrict to a month, YYYY-MM")
     tg.add_argument("--json", action="store_true", help="output JSON instead of text")
     tg.set_defaults(func=cmd_tags)
 

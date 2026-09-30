@@ -4,6 +4,15 @@ All notable changes to Ledgerling are documented here. The format is based on
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and this project
 adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.46.0] - 2026-09-29
+
+### Added
+
+- `categories --month YYYY-MM` and `tags --month YYYY-MM` — both breakdowns can
+  now be scoped to a single month, not just all-time. (In the month view,
+  `categories` lists only categories with spend that month, omitting the
+  budget-only placeholder rows; budgets still show for matched categories.)
+
 ## [1.45.0] - 2026-09-29
 
 ### Added
@@ -473,6 +482,7 @@ file, standard library only, strictly confined to its own folder.
   guard (`_within_app`) that refuses any path escaping the app folder; imports
   and restores are reduced to a basename and looked up only within the folder.
 
+[1.46.0]: #1460---2026-09-29
 [1.45.0]: #1450---2026-09-29
 [1.44.0]: #1440---2026-09-29
 [1.43.0]: #1430---2026-09-29

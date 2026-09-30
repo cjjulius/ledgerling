@@ -204,9 +204,11 @@ ledgerling commitments
 # Analytics: extremes, averages, and end-of-month projection
 ledgerling stats
 
-# Category / tag overviews, and bulk-rename a category everywhere
+# Category / tag overviews (all-time, or scoped to a month)
 ledgerling categories
+ledgerling categories --month 2026-09
 ledgerling tags
+ledgerling tags --month 2026-09
 ledgerling recategorize food dining
 
 # Rename a #tag everywhere; find expenses that still need tags

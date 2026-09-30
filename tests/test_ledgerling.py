@@ -848,6 +848,21 @@ class CLI(TempAppCase):
         with self.assertRaises(SystemExit):
             self._main(["tag", "999", "work"])
 
+    def test_categories_and_tags_month_scope(self):
+        self._main(["add", "40", "food", "a #work", "--date", "2026-05-05"])
+        self._main(["add", "10", "food", "b", "--date", "2026-05-06"])
+        self._main(["add", "99", "transit", "c #work", "--date", "2026-06-01"])
+        cats = json.loads(self._main(["categories", "--month", "2026-05", "--json"]))
+        self.assertEqual(set(cats), {"food"})            # transit is in June
+        self.assertEqual(cats["food"]["total"], 50.0)
+        self.assertEqual(cats["food"]["count"], 2)
+        tags = json.loads(self._main(["tags", "--month", "2026-05", "--json"]))
+        self.assertEqual(set(tags), {"work"})
+        self.assertEqual(tags["work"]["total"], 40.0)    # June #work excluded
+        # all-time still sees both months
+        allcats = json.loads(self._main(["categories", "--json"]))
+        self.assertEqual(set(allcats), {"food", "transit"})
+
     def test_year_json(self):
         self._main(["add", "100", "food", "a", "--date", "2026-01-15"])
         self._main(["add", "200", "food", "b", "--date", "2026-03-10"])
