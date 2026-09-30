@@ -62,6 +62,7 @@ Commands:
     dedupe    Remove duplicate entries (keeps one per group; undoable)
     undo      Revert the last data change (toggles redo)
     budget    Set / view monthly budgets
+    unbudget  Remove a category's budget (or --all)
     pace      Budget pace: spent vs day-adjusted expected, projected EOM
     goal      Set / view a monthly savings goal
     recur     Manage recurring expenses (add / edit / list / remove / run)
@@ -88,7 +89,7 @@ import sys
 import tempfile
 from datetime import datetime, date, timedelta
 
-__version__ = "1.47.0"
+__version__ = "1.48.0"
 
 # --------------------------------------------------------------------------- #
 # Sandbox + storage
@@ -567,6 +568,27 @@ def cmd_budget(args):
         flag = "  <-- OVER" if spent > limit else ""
         print(f"{cat:<14} {money(spent):>10} / {money(limit):<10} "
               f"{bar(frac)} {frac * 100:4.0f}%{flag}")
+
+
+def cmd_unbudget(args):
+    data = load()
+    if getattr(args, "all", False):
+        n = len(data["budgets"])
+        if not n:
+            print("no budgets set")
+            return
+        data["budgets"] = {}
+        save(data)
+        print(f"cleared all {n} budget(s).  undo with `undo`.")
+        return
+    if not args.category:
+        sys.exit("error: give a category, or --all to clear every budget")
+    cat = clean_category(args.category)
+    if cat not in data["budgets"]:
+        sys.exit(f"error: no budget set for [{cat}]")
+    amount = data["budgets"].pop(cat)
+    save(data)
+    print(f"removed the {money(amount)} budget for [{cat}].  undo with `undo`.")
 
 
 def cmd_export(args):
@@ -2856,6 +2878,11 @@ def build_parser():
     b.add_argument("--amount", type=float, help="monthly budget amount")
     b.add_argument("--month", help="month to check against, YYYY-MM")
     b.set_defaults(func=cmd_budget)
+
+    ub = sub.add_parser("unbudget", help="remove a category's budget")
+    ub.add_argument("category", nargs="?", help="category whose budget to remove")
+    ub.add_argument("--all", action="store_true", help="clear every budget")
+    ub.set_defaults(func=cmd_unbudget)
 
     x = sub.add_parser("export", help="write expenses to CSV (in data folder)")
     x.add_argument("--file", help="file name (basename only; saved in exports/)")

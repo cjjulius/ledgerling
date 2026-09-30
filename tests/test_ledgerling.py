@@ -892,6 +892,22 @@ class CLI(TempAppCase):
         self._main(["autobudget", "--months", "1", "--replace"])
         self.assertNotEqual(L.load()["budgets"]["food"], 500.0)
 
+    def test_unbudget_removes_one_and_all(self):
+        self._main(["budget", "--category", "food", "--amount", "200"])
+        self._main(["budget", "--category", "rent", "--amount", "1200"])
+        # remove one
+        self._main(["unbudget", "food"])
+        self.assertEqual(set(L.load()["budgets"]), {"rent"})
+        # undoable
+        self._main(["undo"])
+        self.assertEqual(set(L.load()["budgets"]), {"food", "rent"})
+        # removing an unknown budget errors
+        with self.assertRaises(SystemExit):
+            self._main(["unbudget", "nope"])
+        # --all clears everything
+        self._main(["unbudget", "--all"])
+        self.assertEqual(L.load()["budgets"], {})
+
     def test_year_json(self):
         self._main(["add", "100", "food", "a", "--date", "2026-01-15"])
         self._main(["add", "200", "food", "b", "--date", "2026-03-10"])

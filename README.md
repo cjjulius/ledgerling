@@ -93,6 +93,8 @@ ledgerling summary --month 2026-08
 # Monthly budgets
 ledgerling budget --category food --amount 200
 ledgerling budget
+ledgerling unbudget food               # remove one budget (undoable)
+ledgerling unbudget --all              # clear every budget
 
 # Suggest budgets from recent average spending (last 3 months by default)
 ledgerling suggest

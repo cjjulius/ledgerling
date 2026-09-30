@@ -4,6 +4,14 @@ All notable changes to Ledgerling are documented here. The format is based on
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and this project
 adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.48.0] - 2026-09-29
+
+### Added
+
+- `unbudget CATEGORY` — removes a single category's budget (there was previously
+  no way to clear a budget once set, only overwrite it). `unbudget --all` clears
+  every budget. Both are undoable with `undo`.
+
 ## [1.47.0] - 2026-09-29
 
 ### Added
@@ -499,6 +507,7 @@ file, standard library only, strictly confined to its own folder.
   guard (`_within_app`) that refuses any path escaping the app folder; imports
   and restores are reduced to a basename and looked up only within the folder.
 
+[1.48.0]: #1480---2026-09-29
 [1.47.0]: #1470---2026-09-29
 [1.46.0]: #1460---2026-09-29
 [1.45.0]: #1450---2026-09-29
