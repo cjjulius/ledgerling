@@ -4,6 +4,15 @@ All notable changes to Ledgerling are documented here. The format is based on
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and this project
 adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.52.0] - 2026-09-29
+
+### Added
+
+- `export --start DATE --end DATE` — export an arbitrary date range (either bound
+  optional; reversed bounds are swapped), in addition to the existing
+  `--month`. Dates accept `YYYY-MM-DD`, `today`, or `yesterday`. Passing both
+  `--month` and a range bound is an error.
+
 ## [1.51.0] - 2026-09-29
 
 ### Added
@@ -537,6 +546,7 @@ file, standard library only, strictly confined to its own folder.
   guard (`_within_app`) that refuses any path escaping the app folder; imports
   and restores are reduced to a basename and looked up only within the folder.
 
+[1.52.0]: #1520---2026-09-29
 [1.51.0]: #1510---2026-09-29
 [1.50.0]: #1500---2026-09-29
 [1.49.0]: #1490---2026-09-29

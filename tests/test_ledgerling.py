@@ -234,6 +234,21 @@ class CLI(TempAppCase):
         self.assertEqual(rows[0]["tags"], ["t"])
         self.assertEqual(rows[0]["kind"], "expense")
 
+    def test_export_date_range(self):
+        self._main(["add", "10", "food", "a", "--date", "2026-05-01"])
+        self._main(["add", "20", "food", "b", "--date", "2026-05-15"])
+        self._main(["add", "30", "food", "c", "--date", "2026-06-01"])
+        self._main(["export", "--format", "json", "--file", "r.json",
+                    "--start", "2026-05-10", "--end", "2026-05-31"])
+        with open(os.path.join(L.EXPORT_DIR, "r.json"), encoding="utf-8") as fh:
+            rows = json.load(fh)
+        self.assertEqual([r["date"] for r in rows], ["2026-05-15"])
+
+    def test_export_month_and_range_conflict(self):
+        self._main(["add", "10", "food", "a", "--date", "2026-05-01"])
+        with self.assertRaises(SystemExit):
+            self._main(["export", "--month", "2026-05", "--start", "2026-05-01"])
+
     def test_add_then_list_json(self):
         self._main(["add", "10", "food", "lunch #x"])
         rows = json.loads(self._main(["list", "--json"]))

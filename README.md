@@ -120,6 +120,7 @@ ledgerling goal --clear
 ledgerling export
 ledgerling export --file august.csv --month 2026-08
 ledgerling export --format json --file data.json
+ledgerling export --start 2026-08-01 --end 2026-08-15   # an arbitrary range
 
 # Import a CSV (looked up in exports/ then the data folder; dedupes automatically)
 ledgerling import --file august.csv

@@ -92,7 +92,7 @@ import sys
 import tempfile
 from datetime import datetime, date, timedelta
 
-__version__ = "1.51.0"
+__version__ = "1.52.0"
 
 # --------------------------------------------------------------------------- #
 # Sandbox + storage
@@ -596,10 +596,20 @@ def cmd_unbudget(args):
 
 def cmd_export(args):
     check_month(args.month)
+    arg_start = getattr(args, "start", None)
+    arg_end = getattr(args, "end", None)
+    if args.month and (arg_start or arg_end):
+        sys.exit("error: use --month or --start/--end, not both")
     data = load()
     rows = sorted(data["expenses"], key=lambda e: (e["date"], e["id"]))
     if args.month:
         rows = [e for e in rows if month_of(e["date"]) == args.month]
+    elif arg_start or arg_end:
+        start = parse_date(arg_start) if arg_start else "0000-01-01"
+        end = parse_date(arg_end) if arg_end else "9999-12-31"
+        if end < start:
+            start, end = end, start
+        rows = [e for e in rows if start <= e["date"] <= end]
 
     fmt = args.format
     if args.file:
@@ -3009,6 +3019,8 @@ def build_parser():
     x = sub.add_parser("export", help="write expenses to CSV (in data folder)")
     x.add_argument("--file", help="file name (basename only; saved in exports/)")
     x.add_argument("--month", help="only export this month, YYYY-MM")
+    x.add_argument("--start", help="range start date (with --end); YYYY-MM-DD/today")
+    x.add_argument("--end", help="range end date (with --start); YYYY-MM-DD/today")
     x.add_argument("--format", choices=["csv", "json"], default="csv",
                    help="output format (default csv)")
     x.set_defaults(func=cmd_export)
