@@ -4,6 +4,16 @@ All notable changes to Ledgerling are documented here. The format is based on
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and this project
 adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.43.0] - 2026-09-29
+
+### Added
+
+- `matrix` command — a category x month spending grid (pivot table) over the
+  last N months (`--months`, default 6), with per-month and per-category totals
+  and a grand total; categories are sorted by their window total. Rows are
+  objects (`category` + one field per month + `total`), so the web UI renders a
+  clean pivot table. Supports `--json`.
+
 ## [1.42.0] - 2026-09-29
 
 ### Added
@@ -436,6 +446,7 @@ file, standard library only, strictly confined to its own folder.
   guard (`_within_app`) that refuses any path escaping the app folder; imports
   and restores are reduced to a basename and looked up only within the folder.
 
+[1.43.0]: #1430---2026-09-29
 [1.42.0]: #1420---2026-09-29
 [1.41.0]: #1410---2026-09-29
 [1.40.0]: #1400---2026-09-29

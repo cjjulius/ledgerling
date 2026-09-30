@@ -808,6 +808,23 @@ class CLI(TempAppCase):
         self.assertEqual((d["start"], d["end"]), ("2026-05-01", "2026-05-31"))
         self.assertEqual(d["spending"], 12.0)
 
+    def test_matrix_json(self):
+        this = date.today().isoformat()[:7]
+        prev = L.add_months(date.today().replace(day=1), -1).isoformat()[:7]
+        self._main(["add", "40", "food", "a", "--date", f"{this}-05"])
+        self._main(["add", "10", "food", "b", "--date", f"{prev}-05"])
+        self._main(["add", "25", "transit", "c", "--date", f"{this}-06"])
+        d = json.loads(self._main(["matrix", "--months", "2", "--json"]))
+        self.assertEqual(d["months"], [prev, this])
+        food = next(r for r in d["rows"] if r["category"] == "food")
+        self.assertEqual((food[prev], food[this], food["total"]), (10.0, 40.0, 50.0))
+        transit = next(r for r in d["rows"] if r["category"] == "transit")
+        self.assertEqual((transit[prev], transit[this]), (0.0, 25.0))
+        self.assertEqual(d["totals"], {prev: 10.0, this: 65.0})
+        self.assertEqual(d["total"], 75.0)
+        # food sorts first (larger total)
+        self.assertEqual(d["rows"][0]["category"], "food")
+
     def test_year_json(self):
         self._main(["add", "100", "food", "a", "--date", "2026-01-15"])
         self._main(["add", "200", "food", "b", "--date", "2026-03-10"])

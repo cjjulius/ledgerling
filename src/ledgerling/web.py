@@ -352,7 +352,7 @@ let COMMANDS = [], CURRENT = null, CURRENCY = '$', ACTIVE = 'home';
 const GROUP_DEFS = [
   ['Record', ['add', 'income', 'edit', 'delete', 'clone']],
   ['Analyze', ['month', 'insights', 'range', 'summary', 'report', 'stats', 'week', 'day', 'year',
-    'quarter', 'weekday', 'trend', 'tagtrend', 'top', 'compare', 'average', 'distribution',
+    'quarter', 'weekday', 'trend', 'tagtrend', 'matrix', 'top', 'compare', 'average', 'distribution',
     'balance', 'savings', 'heatmap', 'streak', 'pace', 'forecast', 'sources',
     'categories', 'tags', 'untagged', 'search', 'list']],
   ['Budgets & goals', ['budget', 'goal', 'suggest', 'commitments', 'upcoming']],

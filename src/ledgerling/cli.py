@@ -43,6 +43,7 @@ Commands:
     compare   Compare two months side by side (with per-category deltas)
     trend     Monthly spending trend for one category
     tagtrend  Monthly spending trend for one #tag
+    matrix    Category x month spending grid (pivot table)
     top       List your largest expenses (optionally by month/category)
     average   Average spending per day / week / month
     distribution  Histogram of expense sizes
@@ -84,7 +85,7 @@ import sys
 import tempfile
 from datetime import datetime, date, timedelta
 
-__version__ = "1.42.0"
+__version__ = "1.43.0"
 
 # --------------------------------------------------------------------------- #
 # Sandbox + storage
@@ -1375,6 +1376,57 @@ def cmd_trend(args):
     print("-" * 52)
     print(f"{'average/mo':<10} {money(average):>12}   "
           f"total {money(window_total)}")
+
+
+def cmd_matrix(args):
+    months = args.months
+    if months < 1:
+        sys.exit("error: --months must be at least 1")
+    data = load()
+    first = date.today().replace(day=1)
+    keys = [month_of(add_months(first, -i).isoformat())
+            for i in range(months - 1, -1, -1)]
+
+    grid = {}  # category -> {month: total}
+    for e in expenses_only(data["expenses"]):
+        m = month_of(e["date"])
+        if m in keys:
+            g = grid.setdefault(e["category"], {k: 0.0 for k in keys})
+            g[m] = round(g[m] + e["amount"], 2)
+
+    cats = sorted(grid, key=lambda c: sum(grid[c].values()), reverse=True)
+    rows = []
+    for c in cats:
+        row = {"category": c}
+        row.update({k: grid[c][k] for k in keys})
+        row["total"] = round(sum(grid[c].values()), 2)
+        rows.append(row)
+    totals = {k: round(sum(grid[c][k] for c in cats), 2) for k in keys}
+    grand = round(sum(totals.values()), 2)
+
+    if getattr(args, "json", False):
+        print(json.dumps({"months": keys, "rows": rows,
+                          "totals": totals, "total": grand}, indent=2))
+        return
+    if not rows:
+        print(f"no spending in the last {months} month(s)")
+        return
+
+    w = 11
+    print(f"Category x month ({keys[0]} to {keys[-1]})")
+    print("=" * (16 + w * (len(keys) + 1)))
+    header = f"{'category':<14}" + "".join(f"{k[2:]:>{w}}" for k in keys) + \
+        f"{'total':>{w}}"
+    print(header)
+    print("-" * len(header))
+    for r in rows:
+        line = f"{r['category']:<14}" + \
+            "".join(f"{money(r[k]):>{w}}" for k in keys) + \
+            f"{money(r['total']):>{w}}"
+        print(line)
+    print("-" * len(header))
+    print(f"{'total':<14}" + "".join(f"{money(totals[k]):>{w}}" for k in keys) +
+          f"{money(grand):>{w}}")
 
 
 def cmd_tagtrend(args):
@@ -2867,6 +2919,12 @@ def build_parser():
     tt.add_argument("--json", action="store_true", help="output JSON instead of text")
     tt.set_defaults(func=cmd_tagtrend)
 
+    mx = sub.add_parser("matrix", help="category x month spending grid")
+    mx.add_argument("--months", type=int, default=6,
+                    help="how many months to show (default 6)")
+    mx.add_argument("--json", action="store_true", help="output JSON instead of text")
+    mx.set_defaults(func=cmd_matrix)
+
     cm = sub.add_parser("compare", help="compare two months side by side")
     cm.add_argument("month_a", nargs="?", help="first month, YYYY-MM "
                     "(default: last month)")
@@ -2986,7 +3044,7 @@ def main(argv=None):
                         "year", "untagged", "average", "distribution",
                         "sources", "quarter", "forecast", "balance",
                         "commitments", "savings", "heatmap", "suggest",
-                        "insights", "tagtrend", "range"):
+                        "insights", "tagtrend", "range", "matrix"):
         data = load()
         if apply_recurring(data):
             save(data)
