@@ -948,7 +948,8 @@ function renderChart(cd) {
       const bw = document.createElement('div'); bw.className = 'cbarwrap';
       const b = document.createElement('div'); b.className = 'cbar';
       b.style.width = (Math.abs(vals[i]) / max * 100) + '%'; bw.appendChild(b);
-      const v = document.createElement('div'); v.className = 'cval'; v.textContent = vals[i];
+      const v = document.createElement('div'); v.className = 'cval';
+      v.textContent = fmtNum(key, vals[i]);
       row.appendChild(l); row.appendChild(bw); row.appendChild(v);
       bars.appendChild(row);
     });
@@ -956,7 +957,7 @@ function renderChart(cd) {
   if (cd.numKeys.length > 1) {
     const md = document.createElement('div'); md.className = 'metric';
     const sel = document.createElement('select');
-    cd.numKeys.forEach(k => sel.appendChild(new Option(k, k)));
+    cd.numKeys.forEach(k => sel.appendChild(new Option(humanize({dest: k}), k)));
     sel.value = cd.valueKey;
     sel.onchange = () => draw(sel.value);
     md.appendChild(document.createTextNode('metric: ')); md.appendChild(sel);
@@ -973,6 +974,12 @@ function fmtCell(v) {
   return String(v);
 }
 
+// Format a numeric value for display given its field name (money / percent / plain).
+function fmtNum(key, v) {
+  if (/rate|share|percent/i.test(key)) return v + '%';
+  if (isMoneyKey(key)) return money(v);
+  return String(v);
+}
 // A numeric column whose name implies a money amount (not a count/rate/date).
 function isMoneyKey(k) {
   if (/^\d{4}-\d{2}$/.test(k)) return true;   // matrix/tagmatrix month columns

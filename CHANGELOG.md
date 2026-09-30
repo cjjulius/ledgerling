@@ -4,6 +4,14 @@ All notable changes to Ledgerling are documented here. The format is based on
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and this project
 adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.61.0] - 2026-09-30
+
+### Changed
+
+- Web UI Chart view now formats value labels like the tables: money metrics show
+  as currency ($62.00) and rate/share as %, and the metric selector lists
+  humanized names (Total, Count, Average) instead of raw field keys.
+
 ## [1.60.0] - 2026-09-30
 
 ### Changed
@@ -625,6 +633,7 @@ file, standard library only, strictly confined to its own folder.
   guard (`_within_app`) that refuses any path escaping the app folder; imports
   and restores are reduced to a basename and looked up only within the folder.
 
+[1.61.0]: #1610---2026-09-30
 [1.60.0]: #1600---2026-09-30
 [1.59.0]: #1590---2026-09-30
 [1.58.0]: #1580---2026-09-30
