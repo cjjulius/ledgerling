@@ -4,6 +4,15 @@ All notable changes to Ledgerling are documented here. The format is based on
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and this project
 adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.64.0] - 2026-09-30
+
+### Added
+
+- Web UI dashboard drill-downs: click a row in **Top categories** to jump to
+  that category's expenses (`list --category`, run automatically), or a **Recent
+  activity** entry to open its Edit form with the id pre-filled (ready to change,
+  not auto-run). Rows show a hover highlight to signal they're clickable.
+
 ## [1.63.0] - 2026-09-30
 
 ### Added
@@ -650,6 +659,7 @@ file, standard library only, strictly confined to its own folder.
   guard (`_within_app`) that refuses any path escaping the app folder; imports
   and restores are reduced to a basename and looked up only within the folder.
 
+[1.64.0]: #1640---2026-09-30
 [1.63.0]: #1630---2026-09-30
 [1.62.0]: #1620---2026-09-30
 [1.61.0]: #1610---2026-09-30

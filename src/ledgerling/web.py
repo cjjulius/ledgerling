@@ -259,6 +259,11 @@ INDEX_HTML = r"""<!doctype html>
   .rowbar .fill { height:100%; border-radius:6px; background:var(--accent);
     min-width:2px; transition:width .3s; }
   .rowbar .fill.over { background:var(--neg); }
+  .rowbar.clickable, .recrow.clickable { cursor:pointer; }
+  .rowbar.clickable { border-radius:8px; padding:6px 8px; margin:0 -8px 11px; }
+  .rowbar.clickable:hover, .recrow.clickable:hover { background:var(--panel2); }
+  .recrow.clickable { border-radius:8px; padding-left:6px; padding-right:6px;
+    margin:0 -6px; }
   .pill { display:inline-block; padding:2px 9px; border-radius:20px; font-size:11px;
     font-weight:600; background:color-mix(in srgb,var(--accent) 15%,transparent);
     color:var(--accent2); }
@@ -525,6 +530,22 @@ function selectCmd(c) {
   m.appendChild(out);
 }
 
+// Open a command, optionally pre-filling fields (by dest) and running it.
+// Used for dashboard drill-downs (click a category -> its expenses, etc.).
+function openCommand(name, prefill, run) {
+  const c = findCmd(name); if (!c) return;
+  selectCmd(c);
+  const form = document.querySelector('#main form');
+  if (form && prefill) {
+    Object.entries(prefill).forEach(([dest, val]) => {
+      const f = [...form.querySelectorAll('.field')].find(x => x.dataset.dest === dest);
+      const inp = f && f.querySelector('.inp');
+      if (inp) inp.value = val;
+    });
+    if (run) runCmd(c, form);
+  }
+}
+
 // --- Dashboard (bespoke home view, built from `month --json`) --------------- //
 function muted(t) { const p = document.createElement('p'); p.className = 'muted';
   p.textContent = t; return p; }
@@ -554,7 +575,12 @@ function topCatCard(byCat) {
   const entries = Object.entries(byCat || {}).sort((a, b) => b[1] - a[1]).slice(0, 6);
   if (!entries.length) { c.appendChild(muted('No spending yet.')); return c; }
   const max = Math.max.apply(null, entries.map(e => e[1]));
-  entries.forEach(([cat, amt]) => c.appendChild(barRow(cat, money(amt), amt / max, false)));
+  entries.forEach(([cat, amt]) => {
+    const row = barRow(cat, money(amt), amt / max, false);
+    row.classList.add('clickable'); row.title = 'View ' + cat + ' expenses';
+    row.onclick = () => openCommand('list', {category: cat}, true);
+    c.appendChild(row);
+  });
   return c;
 }
 
@@ -668,7 +694,9 @@ function recentCard(rows) {
   const list = document.createElement('div'); list.className = 'recent';
   rows.slice().reverse().forEach(e => {
     const income = e.kind === 'income';
-    const row = document.createElement('div'); row.className = 'recrow';
+    const row = document.createElement('div'); row.className = 'recrow clickable';
+    row.title = 'Edit #' + e.id;
+    row.onclick = () => openCommand('edit', {id: e.id}, false);
     const d = document.createElement('div'); d.className = 'rdate'; d.textContent = e.date;
     const cat = document.createElement('div'); cat.className = 'rcat';
     cat.textContent = e.category + (e.note ? ' - ' + e.note : '');
