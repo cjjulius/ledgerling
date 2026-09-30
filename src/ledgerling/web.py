@@ -229,6 +229,16 @@ INDEX_HTML = r"""<!doctype html>
   table.data tbody th { background:var(--bg); white-space:nowrap; }
   .kv > div { padding:4px 2px; border-bottom:1px solid var(--line);
     font:13px ui-monospace,Menlo,Consolas,monospace; }
+  .chart { display:flex; flex-direction:column; gap:6px; }
+  .chart .metric { margin-bottom:6px; }
+  .chart .metric select { padding:5px 8px; border:1px solid var(--line);
+    border-radius:7px; background:var(--panel); color:var(--ink); }
+  .crow { display:grid; grid-template-columns:130px 1fr 96px; align-items:center; gap:10px; }
+  .clab { font-size:13px; color:var(--muted); white-space:nowrap; overflow:hidden;
+    text-overflow:ellipsis; }
+  .cbarwrap { background:var(--bg); border-radius:5px; height:20px; overflow:hidden; }
+  .cbar { background:var(--accent); height:100%; border-radius:5px; min-width:2px; }
+  .cval { font:12px ui-monospace,Menlo,Consolas,monospace; text-align:right; }
 </style>
 </head>
 <body>
@@ -287,7 +297,8 @@ function select(c) {
   const out = document.createElement('div'); out.className = 'out'; out.id = 'out';
   out.innerHTML = '<h3>Output</h3><div class="tabs" id="tabs"></div>' +
     '<pre id="outpre">(run the command to see output)</pre>' +
-    '<div id="outtable" style="display:none"></div>';
+    '<div id="outtable" style="display:none"></div>' +
+    '<div id="outchart" style="display:none"></div>';
   m.appendChild(out);
 }
 
@@ -355,6 +366,8 @@ async function runCmd(c, form) {
   tableEl.style.display = 'none'; tabs.innerHTML = '';
   const argv = buildArgv(c, form);
   const res = await postRun(argv);
+  const chartEl = document.getElementById('outchart');
+  chartEl.style.display = 'none';
   pre.className = res.code === 0 ? '' : 'err';
   pre.textContent = res.code === 0 ? (res.stdout || '(no output)')
     : (res.stderr || res.stdout || 'error');
@@ -366,29 +379,92 @@ async function runCmd(c, form) {
     const jr = await postRun(argv.concat(['--json']));
     if (jr.code === 0) { try { data = JSON.parse(jr.stdout); } catch (e) {} }
   }
-  buildTabs(pre, tableEl, tabs, data);
+  buildTabs(data);
 }
 
-function buildTabs(pre, tableEl, tabs, data) {
+function buildTabs(data) {
+  const pre = document.getElementById('outpre');
+  const tableEl = document.getElementById('outtable');
+  const chartEl = document.getElementById('outchart');
+  const tabs = document.getElementById('tabs');
   tabs.innerHTML = '';
-  const mk = (label, on) => {
+  const panels = {text: pre, table: tableEl, chart: chartEl};
+  const show = which => Object.entries(panels).forEach(
+    ([k, el]) => el.style.display = (k === which ? '' : 'none'));
+  const mk = (label, which) => {
     const b = document.createElement('button'); b.className = 'tab'; b.textContent = label;
     b.onclick = () => { [...tabs.children].forEach(x => x.classList.remove('active'));
-      b.classList.add('active'); on(); };
+      b.classList.add('active'); show(which); };
     return b;
   };
-  const showText = () => { pre.style.display = ''; tableEl.style.display = 'none'; };
-  const showTable = () => { pre.style.display = 'none'; tableEl.style.display = ''; };
-  const tText = mk('Text', showText); tabs.appendChild(tText);
+  const tText = mk('Text', 'text'); tabs.appendChild(tText);
   const has = data !== null &&
     (Array.isArray(data) ? data.length : Object.keys(data).length);
+  const cd = has ? chartData(data) : null;
+  let active = tText;
   if (has) {
     tableEl.innerHTML = ''; tableEl.appendChild(renderData(data));
-    const tTab = mk('Table', showTable); tabs.appendChild(tTab);
-    tTab.classList.add('active'); showTable();
-  } else {
-    tText.classList.add('active'); showText();
+    active = mk('Table', 'table'); tabs.appendChild(active);
   }
+  if (cd) {
+    chartEl.innerHTML = ''; chartEl.appendChild(renderChart(cd));
+    active = mk('Chart', 'chart'); tabs.appendChild(active);  // prefer chart
+  }
+  active.classList.add('active');
+  show(active === tText ? 'text' : (cd ? 'chart' : 'table'));
+}
+
+function chartData(data) {
+  let arr = null;
+  if (Array.isArray(data) && data.length && typeof data[0] === 'object'
+      && !Array.isArray(data[0])) arr = data;
+  else if (data && typeof data === 'object') {
+    for (const k of Object.keys(data)) {
+      const v = data[k];
+      if (Array.isArray(v) && v.length && typeof v[0] === 'object') { arr = v; break; }
+    }
+  }
+  if (!arr) return null;
+  const keys = Object.keys(arr[0]);
+  const labelKey = keys.find(k => typeof arr[0][k] === 'string');
+  const numKeys = keys.filter(k => typeof arr[0][k] === 'number');
+  if (labelKey === undefined || !numKeys.length) return null;
+  const pref = ['total', 'spending', 'amount', 'net', 'count'];
+  const first = numKeys.find(k => pref.includes(k)) || numKeys[0];
+  return {arr, labelKey, numKeys, valueKey: first};
+}
+
+function renderChart(cd) {
+  const wrap = document.createElement('div'); wrap.className = 'chart';
+  const bars = document.createElement('div'); bars.className = 'bars';
+  const draw = key => {
+    bars.innerHTML = '';
+    const vals = cd.arr.map(r => Number(r[key]) || 0);
+    const max = Math.max(1, ...vals.map(Math.abs));
+    cd.arr.forEach((r, i) => {
+      const row = document.createElement('div'); row.className = 'crow';
+      const l = document.createElement('div'); l.className = 'clab';
+      l.textContent = String(r[cd.labelKey]);
+      const bw = document.createElement('div'); bw.className = 'cbarwrap';
+      const b = document.createElement('div'); b.className = 'cbar';
+      b.style.width = (Math.abs(vals[i]) / max * 100) + '%'; bw.appendChild(b);
+      const v = document.createElement('div'); v.className = 'cval'; v.textContent = vals[i];
+      row.appendChild(l); row.appendChild(bw); row.appendChild(v);
+      bars.appendChild(row);
+    });
+  };
+  if (cd.numKeys.length > 1) {
+    const md = document.createElement('div'); md.className = 'metric';
+    const sel = document.createElement('select');
+    cd.numKeys.forEach(k => sel.appendChild(new Option(k, k)));
+    sel.value = cd.valueKey;
+    sel.onchange = () => draw(sel.value);
+    md.appendChild(document.createTextNode('metric: ')); md.appendChild(sel);
+    wrap.appendChild(md);
+  }
+  wrap.appendChild(bars);
+  draw(cd.valueKey);
+  return wrap;
 }
 
 function fmtCell(v) {

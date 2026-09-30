@@ -4,6 +4,16 @@ All notable changes to Ledgerling are documented here. The format is based on
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and this project
 adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.29.0] - 2026-09-29
+
+### Added
+
+- Web UI: **Chart** view. Series-shaped JSON now renders as a horizontal bar
+  chart with a Text / Table / Chart toggle - covers `trend`, `distribution`,
+  `week`, `year`, `weekday`, and any future series command. When a series has
+  several numeric fields, a metric selector switches between them (e.g. weekday
+  total / count / average).
+
 ## [1.28.0] - 2026-09-29
 
 ### Added
@@ -287,6 +297,7 @@ file, standard library only, strictly confined to its own folder.
   guard (`_within_app`) that refuses any path escaping the app folder; imports
   and restores are reduced to a basename and looked up only within the folder.
 
+[1.29.0]: #1290---2026-09-29
 [1.28.0]: #1280---2026-09-29
 [1.27.0]: #1270---2026-09-29
 [1.26.0]: #1260---2026-09-29
