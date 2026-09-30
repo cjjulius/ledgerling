@@ -213,6 +213,10 @@ ledgerling recategorize food dining
 ledgerling retag work business
 ledgerling untagged
 
+# Add or remove #tags on a single entry (without rewriting the note)
+ledgerling tag 1 work reimbursable
+ledgerling untag 1 reimbursable
+
 # Find likely double-entered records (same date/amount/category/note)
 ledgerling duplicates
 

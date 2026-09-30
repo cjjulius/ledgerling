@@ -825,6 +825,29 @@ class CLI(TempAppCase):
         # food sorts first (larger total)
         self.assertEqual(d["rows"][0]["category"], "food")
 
+    def test_tag_and_untag(self):
+        self._main(["add", "10", "food", "lunch", "--date", "2026-05-01"])
+        # add two tags
+        self._main(["tag", "1", "work", "#reimbursable"])
+        e = json.loads(self._main(["list", "--json"]))[0]
+        self.assertEqual(e["tags"], ["reimbursable", "work"])
+        self.assertIn("#work", e["note"])
+        self.assertIn("#reimbursable", e["note"])
+        # adding an existing tag is a no-op (still there, no duplicate)
+        self._main(["tag", "1", "work"])
+        e = json.loads(self._main(["list", "--json"]))[0]
+        self.assertEqual(e["note"].count("#work"), 1)
+        # remove one tag, note text cleaned up
+        self._main(["untag", "1", "work"])
+        e = json.loads(self._main(["list", "--json"]))[0]
+        self.assertEqual(e["tags"], ["reimbursable"])
+        self.assertNotIn("#work", e["note"])
+        self.assertEqual(e["note"], "lunch #reimbursable")
+
+    def test_tag_unknown_id_errors(self):
+        with self.assertRaises(SystemExit):
+            self._main(["tag", "999", "work"])
+
     def test_year_json(self):
         self._main(["add", "100", "food", "a", "--date", "2026-01-15"])
         self._main(["add", "200", "food", "b", "--date", "2026-03-10"])

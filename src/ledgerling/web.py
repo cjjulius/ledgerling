@@ -375,7 +375,7 @@ const GROUP_DEFS = [
   ['Budgets & goals', ['budget', 'goal', 'suggest', 'commitments', 'upcoming']],
   ['Recurring', ['recur add', 'recur list', 'recur edit', 'recur remove', 'recur run']],
   ['Data', ['export', 'import', 'backup', 'restore', 'dedupe', 'duplicates',
-    'retag', 'recategorize', 'undo']],
+    'retag', 'tag', 'untag', 'recategorize', 'undo']],
   ['Settings', ['config', 'version', 'completion', 'web']],
 ];
 function groupOf(name) {

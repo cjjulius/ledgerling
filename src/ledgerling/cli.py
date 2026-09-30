@@ -55,6 +55,8 @@ Commands:
     untagged  List expenses that have no #tags
     recategorize  Rename a category across all records
     retag     Rename a #tag across all records
+    tag       Add #tag(s) to an existing entry
+    untag     Remove #tag(s) from an existing entry
     duplicates  Find likely double-entered records
     dedupe    Remove duplicate entries (keeps one per group; undoable)
     undo      Revert the last data change (toggles redo)
@@ -85,7 +87,7 @@ import sys
 import tempfile
 from datetime import datetime, date, timedelta
 
-__version__ = "1.44.0"
+__version__ = "1.45.0"
 
 # --------------------------------------------------------------------------- #
 # Sandbox + storage
@@ -2369,6 +2371,62 @@ def cmd_retag(args):
           f"{'y' if entries == 1 else 'ies'}, {rules} recurring rule(s)")
 
 
+def _clean_tag_names(names):
+    out = []
+    for n in names:
+        n = n.strip().lstrip("#").lower()
+        if not n:
+            continue
+        if not re.fullmatch(r"\w+", n):
+            sys.exit(f"error: '{n}' is not a valid tag (letters, digits, _)")
+        if n not in out:
+            out.append(n)
+    return out
+
+
+def cmd_tag(args):
+    tags = _clean_tag_names(args.tags)
+    if not tags:
+        sys.exit("error: give at least one tag to add")
+    data = load()
+    e = find(data["expenses"], args.id)
+    if not e:
+        sys.exit(f"error: no expense with id #{args.id}")
+    existing = set(e.get("tags", []))
+    added = [t for t in tags if t not in existing]
+    if not added:
+        print(f"#{e['id']} already has: " + ", ".join("#" + t for t in tags))
+        return
+    note = e.get("note", "").rstrip()
+    e["note"] = (note + " " + " ".join("#" + t for t in added)).strip()
+    e["tags"] = parse_tags(e["note"])
+    save(data)
+    print(f"#{e['id']} tagged " + ", ".join("#" + t for t in added) +
+          f"  (now: {', '.join('#' + t for t in e['tags']) or 'none'})")
+
+
+def cmd_untag(args):
+    tags = _clean_tag_names(args.tags)
+    if not tags:
+        sys.exit("error: give at least one tag to remove")
+    data = load()
+    e = find(data["expenses"], args.id)
+    if not e:
+        sys.exit(f"error: no expense with id #{args.id}")
+    present = [t for t in tags if t in e.get("tags", [])]
+    if not present:
+        print(f"#{e['id']} has none of: " + ", ".join("#" + t for t in tags))
+        return
+    note = e.get("note", "")
+    for t in present:
+        note = re.sub(r"#" + re.escape(t) + r"\b", "", note, flags=re.IGNORECASE)
+    e["note"] = re.sub(r"\s{2,}", " ", note).strip()
+    e["tags"] = parse_tags(e["note"])
+    save(data)
+    print(f"#{e['id']} untagged " + ", ".join("#" + t for t in present) +
+          f"  (now: {', '.join('#' + t for t in e['tags']) or 'none'})")
+
+
 def cmd_recategorize(args):
     old = clean_category(args.old)
     new = clean_category(args.new)
@@ -2943,6 +3001,16 @@ def build_parser():
     rt.add_argument("old", help="existing tag (with or without #)")
     rt.add_argument("new", help="new tag (single word)")
     rt.set_defaults(func=cmd_retag)
+
+    tg = sub.add_parser("tag", help="add #tag(s) to an existing entry")
+    tg.add_argument("id", type=int, help="entry id")
+    tg.add_argument("tags", nargs="+", help="tag name(s), with or without #")
+    tg.set_defaults(func=cmd_tag)
+
+    utg = sub.add_parser("untag", help="remove #tag(s) from an existing entry")
+    utg.add_argument("id", type=int, help="entry id")
+    utg.add_argument("tags", nargs="+", help="tag name(s), with or without #")
+    utg.set_defaults(func=cmd_untag)
 
     un = sub.add_parser("undo", help="revert the last data change (toggles redo)")
     un.set_defaults(func=cmd_undo)
