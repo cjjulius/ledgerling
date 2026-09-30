@@ -96,6 +96,15 @@ class RecurringEngine(unittest.TestCase):
         self.assertIn("home", data["expenses"][0]["tags"])
 
 
+    def test_apply_recurring_skips_paused_rule(self):
+        data = {"expenses": [], "budgets": {}, "recurring": [{
+            "id": 1, "amount": 15.0, "category": "subscriptions", "note": "music",
+            "every": "month", "start": "2026-01-01", "last": None, "paused": True,
+        }]}
+        created = L.apply_recurring(data)
+        self.assertEqual(created, 0)                 # paused -> nothing generated
+        self.assertEqual(data["expenses"], [])
+
     def test_apply_recurring_honours_skips(self):
         data = {"expenses": [], "budgets": {}, "recurring": [{
             "id": 1, "amount": 15.0, "category": "subscriptions", "note": "music",
@@ -1039,6 +1048,22 @@ class CLI(TempAppCase):
         self.assertIn("2027-01-01", L.load()["recurring"][0]["skips"])
         self._main(["undo"])
         self.assertNotIn("2027-01-01", L.load()["recurring"][0]["skips"])
+
+    def test_recur_pause_and_resume(self):
+        self._main(["recur", "add", "15", "subscriptions", "music",
+                    "--every", "month", "--start", "2026-01-01"])
+        before = len(json.loads(self._main(["list", "--json"])))
+        # pause: running catch-up generates nothing more
+        self._main(["recur", "pause", "1"])
+        self.assertTrue(L.load()["recurring"][0]["paused"])
+        self._main(["recur", "run"])
+        self.assertEqual(len(json.loads(self._main(["list", "--json"]))), before)
+        # resume: no backfill of the paused gap (last advanced to today)
+        self._main(["recur", "resume", "1"])
+        self.assertFalse(L.load()["recurring"][0]["paused"])
+        self.assertEqual(L.load()["recurring"][0]["last"], date.today().isoformat())
+        self._main(["recur", "run"])
+        self.assertEqual(len(json.loads(self._main(["list", "--json"]))), before)
 
     def test_recur_unskip(self):
         self._main(["recur", "add", "15", "subscriptions", "music",

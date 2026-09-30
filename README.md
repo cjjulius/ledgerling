@@ -288,6 +288,8 @@ ledgerling recur skip 1               # skip the next occurrence (e.g. paused)
 ledgerling recur skip 1 --date 2026-12-01
 ledgerling recur unskip 1 --date 2026-12-01   # cancel that skip
 ledgerling recur unskip 1 --all               # clear all skips on the rule
+ledgerling recur pause 1              # stop a rule until resumed
+ledgerling recur resume 1             # resume (no backfill of the paused gap)
 ```
 
 ## Tests

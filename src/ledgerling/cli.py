@@ -70,7 +70,7 @@ Commands:
     pace      Budget pace: spent vs day-adjusted expected, projected EOM
     allowance  How much you can still spend per day to stay on budget
     goal      Set / view a monthly savings goal
-    recur     Manage recurring expenses (add/edit/list/remove/run/skip/unskip)
+    recur     Recurring rules (add/edit/list/remove/run/skip/unskip/pause/resume)
     export    Write expenses to a CSV file (inside the data folder)
     import    Read expenses back from a CSV (deduped)
     backup    Save a timestamped copy of your data
@@ -95,7 +95,7 @@ import sys
 import tempfile
 from datetime import datetime, date, timedelta
 
-__version__ = "1.62.0"
+__version__ = "1.63.0"
 
 # --------------------------------------------------------------------------- #
 # Sandbox + storage
@@ -339,6 +339,8 @@ def apply_recurring(data):
     today = date.today()
     created = 0
     for rule in data["recurring"]:
+        if rule.get("paused"):
+            continue  # a paused rule generates nothing until resumed
         last = date.fromisoformat(rule["last"]) if rule.get("last") else None
         latest = last
         skips = set(rule.get("skips", []))
@@ -3053,8 +3055,10 @@ def cmd_recur_list(args):
         mark = " +income" if r.get("kind") == "income" else ""
         future_skips = sorted(s for s in skips if s >= today.isoformat())
         skip_note = f"  skips: {', '.join(future_skips)}" if future_skips else ""
+        state = "  (PAUSED)" if r.get("paused") else ""
+        nxt_disp = "paused" if r.get("paused") else nxt
         print(f"#{r['id']:<3} {money(r['amount']):>10}  [{r['category']}]{mark}"
-              f"  every {r['every']:<5}  next: {nxt}{note}{skip_note}")
+              f"  every {r['every']:<5}  next: {nxt_disp}{note}{skip_note}{state}")
 
 
 def cmd_recur_remove(args):
@@ -3119,6 +3123,36 @@ def cmd_recur_unskip(args):
     skips.remove(target)
     save(data)
     print(f"rule #{rule['id']} will no longer skip {target}.  undo with `undo`.")
+
+
+def cmd_recur_pause(args):
+    data = load()
+    rule = find(data["recurring"], args.id)
+    if not rule:
+        sys.exit(f"error: no recurring rule with id #{args.id}")
+    if rule.get("paused"):
+        print(f"rule #{rule['id']} is already paused")
+        return
+    rule["paused"] = True
+    save(data)
+    print(f"paused rule #{rule['id']} [{rule['category']}] - it won't generate "
+          "until resumed.  undo with `undo`.")
+
+
+def cmd_recur_resume(args):
+    data = load()
+    rule = find(data["recurring"], args.id)
+    if not rule:
+        sys.exit(f"error: no recurring rule with id #{args.id}")
+    if not rule.get("paused"):
+        print(f"rule #{rule['id']} is not paused")
+        return
+    rule["paused"] = False
+    # Don't backfill the paused gap: resume from today going forward.
+    rule["last"] = date.today().isoformat()
+    save(data)
+    print(f"resumed rule #{rule['id']} [{rule['category']}] - future occurrences "
+          "will generate (the paused gap is not backfilled).  undo with `undo`.")
 
 
 def cmd_recur_run(args):
@@ -3580,6 +3614,14 @@ def build_parser():
     ru.add_argument("--date", help="the skipped date to restore, YYYY-MM-DD")
     ru.add_argument("--all", action="store_true", help="clear all skips on the rule")
     ru.set_defaults(func=cmd_recur_unskip)
+
+    rp = rsub.add_parser("pause", help="pause a rule (stops generating until resumed)")
+    rp.add_argument("id", type=int, help="recurring rule id (see `recur list`)")
+    rp.set_defaults(func=cmd_recur_pause)
+
+    rs = rsub.add_parser("resume", help="resume a paused rule (no backfill)")
+    rs.add_argument("id", type=int, help="recurring rule id (see `recur list`)")
+    rs.set_defaults(func=cmd_recur_resume)
 
     r.set_defaults(func=lambda args: r.print_help())
 
