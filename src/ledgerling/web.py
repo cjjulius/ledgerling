@@ -227,7 +227,9 @@ INDEX_HTML = r"""<!doctype html>
   .navitem.active .h { color:var(--accent-ink); opacity:.85; }
   .navitem.home .n { font-weight:600; }
   .grouphd { font-size:11px; text-transform:uppercase; letter-spacing:.07em;
-    color:var(--muted); font-weight:700; margin:14px 8px 4px; }
+    color:var(--muted); font-weight:700; margin:14px 0 4px; padding:2px 8px;
+    cursor:pointer; user-select:none; border-radius:6px; }
+  .grouphd:hover { color:var(--ink); background:var(--panel2); }
   main { overflow:auto; padding:24px 28px 40px; }
   .page-h { display:flex; align-items:flex-end; gap:12px; flex-wrap:wrap;
     margin-bottom:18px; }
@@ -381,6 +383,15 @@ INDEX_HTML = r"""<!doctype html>
 </div>
 <script>
 let COMMANDS = [], CURRENT = null, CURRENCY = '$', ACTIVE = 'home', CATEGORIES = [];
+let COLLAPSED = new Set();
+try { COLLAPSED = new Set(JSON.parse(localStorage.getItem('ll_collapsed') || '[]')); }
+catch (e) {}
+function toggleGroup(g) {
+  if (COLLAPSED.has(g)) COLLAPSED.delete(g); else COLLAPSED.add(g);
+  try { localStorage.setItem('ll_collapsed', JSON.stringify([...COLLAPSED])); }
+  catch (e) {}
+  renderList(document.getElementById('filter').value);
+}
 
 // Command groups for the sidebar. Any command not listed here (e.g. a newly
 // added one) still shows up automatically under "More", so the nav stays
@@ -486,8 +497,11 @@ function renderList(q) {
   match.forEach(c => { (groups[groupOf(c.name)] = groups[groupOf(c.name)] || []).push(c); });
   GROUP_DEFS.map(g => g[0]).concat(['More']).forEach(g => {
     const items = groups[g]; if (!items || !items.length) return;
+    const collapsed = !q && COLLAPSED.has(g);   // search always reveals items
     const hd = document.createElement('div'); hd.className = 'grouphd';
-    hd.textContent = g; list.appendChild(hd);
+    hd.textContent = (collapsed ? '▸ ' : '▾ ') + g + '  (' + items.length + ')';
+    hd.onclick = () => toggleGroup(g); list.appendChild(hd);
+    if (collapsed) return;
     items.forEach(c => list.appendChild(
       navItem(prettyName(c.name), c.help || '', ACTIVE === c.name, () => selectCmd(c))));
   });

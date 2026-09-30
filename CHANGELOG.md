@@ -4,6 +4,15 @@ All notable changes to Ledgerling are documented here. The format is based on
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and this project
 adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.66.0] - 2026-09-30
+
+### Changed
+
+- Web UI sidebar groups are now collapsible: click a group header (Record /
+  Analyze / ...) to fold or unfold it, with each header showing its command
+  count and the collapsed state remembered across reloads. Filtering still
+  reveals every matching command regardless of collapse state.
+
 ## [1.65.0] - 2026-09-30
 
 ### Added
@@ -666,6 +675,7 @@ file, standard library only, strictly confined to its own folder.
   guard (`_within_app`) that refuses any path escaping the app folder; imports
   and restores are reduced to a basename and looked up only within the folder.
 
+[1.66.0]: #1660---2026-09-30
 [1.65.0]: #1650---2026-09-30
 [1.64.0]: #1640---2026-09-30
 [1.63.0]: #1630---2026-09-30
