@@ -634,6 +634,19 @@ class CLI(TempAppCase):
         self.assertEqual(d["longest_no_spend"], 27)    # days 4..30
         self.assertEqual(d["current_no_spend"], 27)
 
+    def test_forecast_json(self):
+        self._main(["add", "100", "food", "a"])       # today (current year)
+        self._main(["income", "500", "salary", "b"])
+        d = json.loads(self._main(["forecast", "--json"]))
+        self.assertEqual(d["year"], date.today().year)
+        self.assertEqual(d["spending"], 100.0)
+        self.assertEqual(d["income"], 500.0)
+        self.assertEqual(d["net"], 400.0)
+        # projections extrapolate forward, so never below the amount so far
+        self.assertGreaterEqual(d["projected_spending"], 100.0)
+        self.assertGreaterEqual(d["projected_income"], 500.0)
+        self.assertIn("day_of_year", d)
+
     def test_quarter_json(self):
         self._main(["add", "100", "food", "a", "--date", "2026-02-15"])   # Q1
         self._main(["add", "200", "food", "b", "--date", "2026-05-15"])   # Q2

@@ -32,6 +32,7 @@ Commands:
     streak    No-spend-day streaks for a month
     weekday   Spending by day of week (which days you spend most)
     month     One-screen dashboard for a month (income, spend, net, budgets)
+    forecast  Project this year's spending/income/net to year-end
     quarter   Quarterly rollup (Q1-Q4) for a year
     year      Calendar-year rollup by month (spending, income, net)
     compare   Compare two months side by side (with per-category deltas)
@@ -74,7 +75,7 @@ import sys
 import tempfile
 from datetime import datetime, date, timedelta
 
-__version__ = "1.30.0"
+__version__ = "1.31.0"
 
 # --------------------------------------------------------------------------- #
 # Sandbox + storage
@@ -1560,6 +1561,44 @@ def cmd_streak(args):
     print(f"{'current no-spend streak':<24} {current} day(s)")
 
 
+def cmd_forecast(args):
+    data = load()
+    today = date.today()
+    year = today.year
+    ys = f"{year:04d}"
+    elapsed = today.timetuple().tm_yday
+    days_in_year = (date(year, 12, 31) - date(year, 1, 1)).days + 1
+    spend = sum(e["amount"] for e in data["expenses"]
+                if e["date"][:4] == ys and kind_of(e) == "expense")
+    income = sum(e["amount"] for e in data["expenses"]
+                 if e["date"][:4] == ys and kind_of(e) == "income")
+
+    def proj(v):
+        return round(v / elapsed * days_in_year, 2) if elapsed else 0.0
+
+    ps, pi = proj(spend), proj(income)
+    result = {
+        "year": year, "day_of_year": elapsed, "days_in_year": days_in_year,
+        "spending": round(spend, 2), "income": round(income, 2),
+        "net": round(income - spend, 2),
+        "projected_spending": ps, "projected_income": pi,
+        "projected_net": round(pi - ps, 2),
+    }
+
+    if getattr(args, "json", False):
+        print(json.dumps(result, indent=2))
+        return
+
+    print(f"Year-end forecast ({year})")
+    print("=" * 52)
+    print(f"{'':<10}{'so far':>16}{'projected':>18}")
+    print(f"{'spending':<10}{money(spend):>16}{money(ps):>18}")
+    print(f"{'income':<10}{money(income):>16}{money(pi):>18}")
+    print(f"{'net':<10}{money(income - spend):>16}{money(pi - ps):>18}")
+    print("-" * 52)
+    print(f"day {elapsed} of {days_in_year}")
+
+
 def cmd_quarter(args):
     data = load()
     year = args.year if args.year is not None else date.today().year
@@ -2226,6 +2265,10 @@ def build_parser():
     sk.add_argument("--json", action="store_true", help="output JSON instead of text")
     sk.set_defaults(func=cmd_streak)
 
+    fc = sub.add_parser("forecast", help="project this year to year-end")
+    fc.add_argument("--json", action="store_true", help="output JSON instead of text")
+    fc.set_defaults(func=cmd_forecast)
+
     qt = sub.add_parser("quarter", help="quarterly rollup (Q1-Q4) for a year")
     qt.add_argument("year", nargs="?", type=int, default=None,
                     help="which year, YYYY (default: current)")
@@ -2430,7 +2473,7 @@ def main(argv=None):
                         "upcoming", "compare", "trend", "top", "pace",
                         "duplicates", "week", "streak", "weekday", "day",
                         "year", "untagged", "average", "distribution",
-                        "sources", "quarter"):
+                        "sources", "quarter", "forecast"):
         data = load()
         if apply_recurring(data):
             save(data)

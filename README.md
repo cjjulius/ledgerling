@@ -138,10 +138,11 @@ ledgerling weekday --month 2026-09
 ledgerling month
 ledgerling month --month 2026-08
 
-# Quarterly and calendar-year rollups
+# Quarterly and calendar-year rollups, and a year-end forecast
 ledgerling quarter 2026
 ledgerling year
 ledgerling year 2026
+ledgerling forecast
 
 # Compare two months side by side (defaults to last month vs this month)
 ledgerling compare
