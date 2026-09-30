@@ -108,6 +108,10 @@ ledgerling month --month 2026-08
 ledgerling compare
 ledgerling compare 2026-08 2026-09
 
+# Your largest expenses (optionally by month/category)
+ledgerling top --limit 10
+ledgerling top --month 2026-09 --category food
+
 # Monthly spending trend for one category
 ledgerling trend food --months 6
 

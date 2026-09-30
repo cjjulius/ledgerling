@@ -312,6 +312,22 @@ class CLI(TempAppCase):
         with self.assertRaises(SystemExit):        # conflicting kind flags
             self._main(["recur", "edit", "1", "--income", "--expense"])
 
+    def test_top_json(self):
+        for amt, cat in [(10, "food"), (500, "rent"), (30, "food"),
+                         (200, "travel"), (5, "coffee")]:
+            self._main(["add", str(amt), cat, "x"])
+        self._main(["income", "9999", "salary", "y"])   # must be excluded
+        d = json.loads(self._main(["top", "--limit", "3", "--json"]))
+        self.assertEqual([e["amount"] for e in d], [500.0, 200.0, 30.0])
+        self.assertTrue(all(e["category"] != "salary" for e in d))
+
+    def test_top_category_filter(self):
+        self._main(["add", "10", "food", "a"])
+        self._main(["add", "40", "food", "b"])
+        self._main(["add", "500", "rent", "c"])
+        d = json.loads(self._main(["top", "--category", "food", "--json"]))
+        self.assertEqual([e["amount"] for e in d], [40.0, 10.0])
+
     def test_trend_json(self):
         this = date.today().isoformat()[:7]
         last = L.add_months(date.today().replace(day=1), -1).isoformat()[:7]

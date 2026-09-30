@@ -28,6 +28,7 @@ Commands:
     month     One-screen dashboard for a month (income, spend, net, budgets)
     compare   Compare two months side by side (with per-category deltas)
     trend     Monthly spending trend for one category
+    top       List your largest expenses (optionally by month/category)
     upcoming  Forecast recurring charges/income due in the next N days
     categories  List categories with counts and totals
     tags      List #tags with counts and totals
@@ -58,7 +59,7 @@ import sys
 import tempfile
 from datetime import datetime, date, timedelta
 
-__version__ = "1.11.0"
+__version__ = "1.12.0"
 
 # --------------------------------------------------------------------------- #
 # Sandbox + storage
@@ -1058,6 +1059,35 @@ def cmd_compare(args):
                   f"{_signed(v['delta']):>16}")
 
 
+def cmd_top(args):
+    check_month(args.month)
+    data = load()
+    rows = expenses_only(data["expenses"])
+    if args.category:
+        rows = [e for e in rows if e["category"] == args.category.strip().lower()]
+    if args.month:
+        rows = [e for e in rows if month_of(e["date"]) == args.month]
+    rows = sorted(rows, key=lambda e: e["amount"], reverse=True)
+    limit = args.limit if args.limit and args.limit > 0 else 10
+    rows = rows[:limit]
+
+    if getattr(args, "json", False):
+        print(json.dumps(rows, indent=2))
+        return
+    if not rows:
+        print("no expenses found")
+        return
+
+    print(f"Top {len(rows)} expense(s)")
+    print("=" * 56)
+    for rank, e in enumerate(rows, 1):
+        note = f" - {e['note']}" if e["note"] else ""
+        print(f"{rank:>2}. {money(e['amount']):>12}  {e['date']}  "
+              f"[{e['category']}]{note}")
+    print("-" * 56)
+    print(f"shown total {money(sum(e['amount'] for e in rows))}")
+
+
 def cmd_trend(args):
     cat = clean_category(args.category)
     months = args.months
@@ -1686,6 +1716,14 @@ def build_parser():
     tg.add_argument("--json", action="store_true", help="output JSON instead of text")
     tg.set_defaults(func=cmd_tags)
 
+    tp = sub.add_parser("top", help="list your largest expenses")
+    tp.add_argument("--limit", type=int, default=10,
+                    help="how many to show (default 10)")
+    tp.add_argument("--month", help="restrict to a month, YYYY-MM")
+    tp.add_argument("--category", help="restrict to a category")
+    tp.add_argument("--json", action="store_true", help="output JSON instead of text")
+    tp.set_defaults(func=cmd_top)
+
     tr = sub.add_parser("trend", help="monthly spending trend for one category")
     tr.add_argument("category", help="category to chart")
     tr.add_argument("--months", type=int, default=6,
@@ -1796,7 +1834,7 @@ def main(argv=None):
     # file writes, inside the data folder.)
     if args.command in ("list", "summary", "budget", "export", "report",
                         "stats", "search", "categories", "tags", "month",
-                        "upcoming", "compare", "trend"):
+                        "upcoming", "compare", "trend", "top"):
         data = load()
         if apply_recurring(data):
             save(data)
