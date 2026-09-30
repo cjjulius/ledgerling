@@ -96,7 +96,7 @@ import sys
 import tempfile
 from datetime import datetime, date, timedelta
 
-__version__ = "1.70.0"
+__version__ = "1.71.0"
 
 # --------------------------------------------------------------------------- #
 # Sandbox + storage
@@ -1444,7 +1444,7 @@ def cmd_average(args):
 def cmd_top(args):
     check_month(args.month)
     data = load()
-    rows = expenses_only(data["expenses"])
+    rows = _scope_by_kind(data["expenses"], args)
     if args.category:
         rows = [e for e in rows if e["category"] == args.category.strip().lower()]
     if args.month:
@@ -1453,19 +1453,27 @@ def cmd_top(args):
     limit = args.limit if args.limit and args.limit > 0 else 10
     rows = rows[:limit]
 
+    if getattr(args, "all", False):
+        noun, nounp = "entry", "entries"
+    elif getattr(args, "income", False):
+        noun, nounp = "income entry", "income entries"
+    else:
+        noun, nounp = "expense", "expenses"
+
     if getattr(args, "json", False):
         print(json.dumps(rows, indent=2))
         return
     if not rows:
-        print("no expenses found")
+        print("no matching entries")
         return
 
-    print(f"Top {len(rows)} expense(s)")
+    print(f"Top {len(rows)} {noun if len(rows) == 1 else nounp}")
     print("=" * 56)
     for rank, e in enumerate(rows, 1):
         note = f" - {e['note']}" if e["note"] else ""
+        mark = " +income" if kind_of(e) == "income" else ""
         print(f"{rank:>2}. {money(e['amount']):>12}  {e['date']}  "
-              f"[{e['category']}]{note}")
+              f"[{e['category']}]{note}{mark}")
     print("-" * 56)
     print(f"shown total {money(sum(e['amount'] for e in rows))}")
 
@@ -3515,6 +3523,8 @@ def build_parser():
                     help="how many to show (default 10)")
     tp.add_argument("--month", help="restrict to a month, YYYY-MM")
     tp.add_argument("--category", help="restrict to a category")
+    tp.add_argument("--income", action="store_true", help="rank income instead")
+    tp.add_argument("--all", action="store_true", help="rank expenses and income")
     tp.add_argument("--json", action="store_true", help="output JSON instead of text")
     tp.set_defaults(func=cmd_top)
 

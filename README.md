@@ -200,6 +200,8 @@ ledgerling compare 2026-08 2026-09
 # Your largest expenses (optionally by month/category)
 ledgerling top --limit 10
 ledgerling top --month 2026-09 --category food
+ledgerling top --income                # your largest income entries
+ledgerling top --all                   # largest across expenses and income
 
 # Average spending per day / week / month across your records
 ledgerling average

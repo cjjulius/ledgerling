@@ -904,6 +904,20 @@ class CLI(TempAppCase):
         self.assertEqual(by[last_wk], 15.0)
         self.assertEqual(d["total"], 35.0)
 
+    def test_top_income_scope(self):
+        self._main(["add", "100", "food", "a", "--date", "2026-05-01"])
+        self._main(["income", "3000", "salary", "b", "--date", "2026-05-02"])
+        self._main(["income", "200", "gift", "c", "--date", "2026-05-03"])
+        # default: expenses only
+        d = json.loads(self._main(["top", "--json"]))
+        self.assertEqual([e["amount"] for e in d], [100.0])
+        # income only, largest first
+        d = json.loads(self._main(["top", "--income", "--json"]))
+        self.assertEqual([e["amount"] for e in d], [3000.0, 200.0])
+        # all, largest first
+        d = json.loads(self._main(["top", "--all", "--json"]))
+        self.assertEqual([e["amount"] for e in d], [3000.0, 200.0, 100.0])
+
     def test_search_sort(self):
         self._main(["add", "10", "food", "a", "--date", "2026-05-03"])
         self._main(["add", "80", "food", "b", "--date", "2026-05-01"])
