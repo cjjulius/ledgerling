@@ -150,6 +150,9 @@ ledgerling day --date yesterday
 ledgerling week
 ledgerling week --offset 1
 
+# Weekly spending trend over the last N weeks
+ledgerling weekly --weeks 8
+
 # No-spend-day streaks for a month
 ledgerling streak
 ledgerling streak --month 2026-08

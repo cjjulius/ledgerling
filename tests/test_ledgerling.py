@@ -888,6 +888,22 @@ class CLI(TempAppCase):
         with self.assertRaises(SystemExit):
             self._main(["tag", "999", "work"])
 
+    def test_weekly_json(self):
+        today = date.today()
+        monday = today - timedelta(days=today.weekday())
+        this_wk = monday.isoformat()
+        last_wk = (monday - timedelta(weeks=1)).isoformat()
+        self._main(["add", "20", "food", "a", "--date", this_wk])
+        self._main(["add", "15", "food", "b",
+                    "--date", (monday - timedelta(weeks=1)).isoformat()])
+        self._main(["income", "500", "salary", "c", "--date", this_wk])  # excluded
+        d = json.loads(self._main(["weekly", "--weeks", "2", "--json"]))
+        self.assertEqual([w["week_start"] for w in d["weeks"]], [last_wk, this_wk])
+        by = {w["week_start"]: w["total"] for w in d["weeks"]}
+        self.assertEqual(by[this_wk], 20.0)     # income excluded
+        self.assertEqual(by[last_wk], 15.0)
+        self.assertEqual(d["total"], 35.0)
+
     def test_search_sort(self):
         self._main(["add", "10", "food", "a", "--date", "2026-05-03"])
         self._main(["add", "80", "food", "b", "--date", "2026-05-01"])

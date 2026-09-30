@@ -30,6 +30,7 @@ Commands:
     stats     Analytics: extremes, averages, per-tag totals, projection
     day       Entries for a single day (today by default)
     week      This week's spending by day (Mon-Sun), income and net
+    weekly    Weekly spending trend over the last N weeks
     streak    No-spend-day streaks for a month
     weekday   Spending by day of week (which days you spend most)
     heatmap   Daily-spending calendar for a month (with a web calendar view)
@@ -95,7 +96,7 @@ import sys
 import tempfile
 from datetime import datetime, date, timedelta
 
-__version__ = "1.68.0"
+__version__ = "1.69.0"
 
 # --------------------------------------------------------------------------- #
 # Sandbox + storage
@@ -2424,6 +2425,43 @@ def cmd_week(args):
           f"net {money(income - spending)}")
 
 
+def cmd_weekly(args):
+    weeks = args.weeks
+    if weeks < 1:
+        sys.exit("error: --weeks must be at least 1")
+    today = date.today()
+    monday = today - timedelta(days=today.weekday())
+    data = load()
+    rows = expenses_only(data["expenses"])
+
+    series = []
+    for i in range(weeks - 1, -1, -1):
+        start = monday - timedelta(weeks=i)
+        end = start + timedelta(days=6)
+        s, e = start.isoformat(), end.isoformat()
+        total = round(sum(x["amount"] for x in rows if s <= x["date"] <= e), 2)
+        series.append({"week_start": s, "total": total})
+    window_total = round(sum(w["total"] for w in series), 2)
+    average = round(window_total / weeks, 2)
+
+    if getattr(args, "json", False):
+        print(json.dumps({"weeks": series, "total": window_total,
+                          "average": average}, indent=2))
+        return
+    if window_total == 0:
+        print(f"no spending in the last {weeks} week(s)")
+        return
+
+    peak = max(w["total"] for w in series) or 0
+    print(f"Weekly spending (last {weeks} week(s), week starts Mon)")
+    print("=" * 52)
+    for w in series:
+        chart = bar(w["total"] / peak, width=18) if peak else bar(0, width=18)
+        print(f"{w['week_start']}  {money(w['total']):>12}  {chart}")
+    print("-" * 52)
+    print(f"{'average/wk':<12} {money(average):>12}   total {money(window_total)}")
+
+
 def cmd_month(args):
     check_month(args.month)
     data = load()
@@ -3371,6 +3409,12 @@ def build_parser():
     wk.add_argument("--json", action="store_true", help="output JSON instead of text")
     wk.set_defaults(func=cmd_week)
 
+    wy = sub.add_parser("weekly", help="weekly spending trend over the last N weeks")
+    wy.add_argument("--weeks", type=int, default=8,
+                    help="how many weeks to show (default 8)")
+    wy.add_argument("--json", action="store_true", help="output JSON instead of text")
+    wy.set_defaults(func=cmd_weekly)
+
     mo = sub.add_parser("month", help="one-screen dashboard for a month")
     mo.add_argument("--month", help="which month, YYYY-MM (default: current)")
     mo.add_argument("--json", action="store_true", help="output JSON instead of text")
@@ -3662,7 +3706,7 @@ def main(argv=None):
                         "sources", "quarter", "forecast", "balance",
                         "commitments", "savings", "heatmap", "suggest",
                         "insights", "tagtrend", "range", "matrix",
-                        "cumulative", "allowance", "tagmatrix"):
+                        "cumulative", "allowance", "tagmatrix", "weekly"):
         data = load()
         if apply_recurring(data):
             save(data)
