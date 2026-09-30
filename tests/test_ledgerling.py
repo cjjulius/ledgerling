@@ -634,6 +634,20 @@ class CLI(TempAppCase):
         self.assertEqual(d["longest_no_spend"], 27)    # days 4..30
         self.assertEqual(d["current_no_spend"], 27)
 
+    def test_quarter_json(self):
+        self._main(["add", "100", "food", "a", "--date", "2026-02-15"])   # Q1
+        self._main(["add", "200", "food", "b", "--date", "2026-05-15"])   # Q2
+        self._main(["income", "1000", "salary", "c", "--date", "2026-02-20"])  # Q1
+        self._main(["add", "50", "food", "d", "--date", "2025-02-01"])    # other yr
+        d = json.loads(self._main(["quarter", "2026", "--json"]))
+        self.assertEqual(d["year"], 2026)
+        self.assertEqual(len(d["quarters"]), 4)
+        q = d["quarters"]
+        self.assertEqual((q[0]["spending"], q[0]["income"], q[0]["net"]),
+                         (100.0, 1000.0, 900.0))
+        self.assertEqual(q[1]["spending"], 200.0)
+        self.assertEqual(q[3]["spending"], 0.0)
+
     def test_year_json(self):
         self._main(["add", "100", "food", "a", "--date", "2026-01-15"])
         self._main(["add", "200", "food", "b", "--date", "2026-03-10"])

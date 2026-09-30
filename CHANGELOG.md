@@ -4,6 +4,14 @@ All notable changes to Ledgerling are documented here. The format is based on
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and this project
 adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.30.0] - 2026-09-29
+
+### Added
+
+- `quarter [YYYY]` command — quarterly rollup (Q1-Q4) of spending, income, and
+  net for a year. Series-shaped, so it inherits the web UI's Table and Chart
+  views automatically. Supports `--json`.
+
 ## [1.29.0] - 2026-09-29
 
 ### Added
@@ -297,6 +305,7 @@ file, standard library only, strictly confined to its own folder.
   guard (`_within_app`) that refuses any path escaping the app folder; imports
   and restores are reduced to a basename and looked up only within the folder.
 
+[1.30.0]: #1300---2026-09-29
 [1.29.0]: #1290---2026-09-29
 [1.28.0]: #1280---2026-09-29
 [1.27.0]: #1270---2026-09-29

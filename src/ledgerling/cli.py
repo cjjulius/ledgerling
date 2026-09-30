@@ -32,6 +32,7 @@ Commands:
     streak    No-spend-day streaks for a month
     weekday   Spending by day of week (which days you spend most)
     month     One-screen dashboard for a month (income, spend, net, budgets)
+    quarter   Quarterly rollup (Q1-Q4) for a year
     year      Calendar-year rollup by month (spending, income, net)
     compare   Compare two months side by side (with per-category deltas)
     trend     Monthly spending trend for one category
@@ -73,7 +74,7 @@ import sys
 import tempfile
 from datetime import datetime, date, timedelta
 
-__version__ = "1.29.0"
+__version__ = "1.30.0"
 
 # --------------------------------------------------------------------------- #
 # Sandbox + storage
@@ -1559,6 +1560,38 @@ def cmd_streak(args):
     print(f"{'current no-spend streak':<24} {current} day(s)")
 
 
+def cmd_quarter(args):
+    data = load()
+    year = args.year if args.year is not None else date.today().year
+    ys = f"{year:04d}"
+    spend = [0.0, 0.0, 0.0, 0.0]
+    inc = [0.0, 0.0, 0.0, 0.0]
+    for e in data["expenses"]:
+        if e["date"][:4] == ys:
+            qi = (int(e["date"][5:7]) - 1) // 3
+            if kind_of(e) == "income":
+                inc[qi] += e["amount"]
+            else:
+                spend[qi] += e["amount"]
+    quarters = [{"quarter": f"Q{i + 1}", "spending": round(spend[i], 2),
+                 "income": round(inc[i], 2),
+                 "net": round(inc[i] - spend[i], 2)} for i in range(4)]
+
+    if getattr(args, "json", False):
+        print(json.dumps({"year": year, "quarters": quarters}, indent=2))
+        return
+    if not any(spend) and not any(inc):
+        print(f"nothing recorded in {year}")
+        return
+
+    print(f"{year} by quarter")
+    print("=" * 52)
+    print(f"{'':<6}{'spending':>14}{'income':>14}{'net':>14}")
+    for q in quarters:
+        print(f"{q['quarter']:<6}{money(q['spending']):>14}"
+              f"{money(q['income']):>14}{money(q['net']):>14}")
+
+
 def cmd_year(args):
     data = load()
     year = args.year if args.year is not None else date.today().year
@@ -2193,6 +2226,12 @@ def build_parser():
     sk.add_argument("--json", action="store_true", help="output JSON instead of text")
     sk.set_defaults(func=cmd_streak)
 
+    qt = sub.add_parser("quarter", help="quarterly rollup (Q1-Q4) for a year")
+    qt.add_argument("year", nargs="?", type=int, default=None,
+                    help="which year, YYYY (default: current)")
+    qt.add_argument("--json", action="store_true", help="output JSON instead of text")
+    qt.set_defaults(func=cmd_quarter)
+
     yr = sub.add_parser("year", help="calendar-year rollup by month")
     yr.add_argument("year", nargs="?", type=int, default=None,
                     help="which year, YYYY (default: current)")
@@ -2391,7 +2430,7 @@ def main(argv=None):
                         "upcoming", "compare", "trend", "top", "pace",
                         "duplicates", "week", "streak", "weekday", "day",
                         "year", "untagged", "average", "distribution",
-                        "sources"):
+                        "sources", "quarter"):
         data = load()
         if apply_recurring(data):
             save(data)
