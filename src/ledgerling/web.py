@@ -650,7 +650,11 @@ function budgetCard(budgets) {
   const h = document.createElement('h3'); h.textContent = 'Budgets'; c.appendChild(h);
   Object.keys(budgets).sort().forEach(cat => {
     const b = budgets[cat]; const frac = b.limit ? b.spent / b.limit : 0;
-    c.appendChild(barRow(cat, money(b.spent) + ' / ' + money(b.limit), frac, b.spent > b.limit));
+    const row = barRow(cat, money(b.spent) + ' / ' + money(b.limit), frac,
+                       b.spent > b.limit);
+    row.classList.add('clickable'); row.title = 'View ' + cat + ' expenses';
+    row.onclick = () => openCommand('list', {category: cat}, true);
+    c.appendChild(row);
   });
   return c;
 }
@@ -715,8 +719,11 @@ async function showDashboard(month) {
     d.income_count + (d.income_count === 1 ? ' entry' : ' entries'), 'pos'));
   stats.appendChild(statCard('Spending', money(d.spending),
     d.expense_count + (d.expense_count === 1 ? ' expense' : ' expenses'), ''));
-  stats.appendChild(statCard('Net', money(d.net),
-    d.net >= 0 ? 'saved this month' : 'over this month', d.net >= 0 ? 'pos' : 'neg'));
+  const rate = d.income > 0 ? Math.round(d.net / d.income * 100) : null;
+  const netSub = rate === null
+    ? (d.net >= 0 ? 'saved this month' : 'over this month')
+    : (d.net >= 0 ? rate + '% of income saved' : Math.abs(rate) + '% over income');
+  stats.appendChild(statCard('Net', money(d.net), netSub, d.net >= 0 ? 'pos' : 'neg'));
   body.appendChild(stats);
 
   // Insights strip + recent activity, fetched in parallel.

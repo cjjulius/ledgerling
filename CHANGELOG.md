@@ -4,6 +4,14 @@ All notable changes to Ledgerling are documented here. The format is based on
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and this project
 adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.78.0] - 2026-09-30
+
+### Changed
+
+- Web UI dashboard: Budget rows are now clickable to drill into that category's
+  expenses (like Top categories), and the Net stat card shows the savings rate
+  (e.g. "75% of income saved").
+
 ## [1.77.0] - 2026-09-30
 
 ### Added
@@ -768,6 +776,7 @@ file, standard library only, strictly confined to its own folder.
   guard (`_within_app`) that refuses any path escaping the app folder; imports
   and restores are reduced to a basename and looked up only within the folder.
 
+[1.78.0]: #1780---2026-09-30
 [1.77.0]: #1770---2026-09-30
 [1.76.0]: #1760---2026-09-30
 [1.75.0]: #1750---2026-09-30
