@@ -525,6 +525,24 @@ class CLI(TempAppCase):
         self.assertEqual(d["longest_no_spend"], 27)    # days 4..30
         self.assertEqual(d["current_no_spend"], 27)
 
+    def test_year_json(self):
+        self._main(["add", "100", "food", "a", "--date", "2026-01-15"])
+        self._main(["add", "200", "food", "b", "--date", "2026-03-10"])
+        self._main(["income", "5000", "salary", "c", "--date", "2026-01-20"])
+        self._main(["add", "999", "food", "d", "--date", "2025-12-01"])  # other yr
+        d = json.loads(self._main(["year", "2026", "--json"]))
+        self.assertEqual(d["year"], 2026)
+        self.assertEqual(len(d["months"]), 12)
+        self.assertEqual(d["spending"], 300.0)
+        self.assertEqual(d["income"], 5000.0)
+        self.assertEqual(d["net"], 4700.0)
+        jan = next(m for m in d["months"] if m["month"] == "2026-01")
+        self.assertEqual(jan["spending"], 100.0)
+
+    def test_year_empty(self):
+        out = self._main(["year", "1999"])
+        self.assertIn("nothing recorded in 1999", out)
+
     def test_day_json(self):
         self._main(["add", "10", "food", "a", "--date", "2026-09-15"])
         self._main(["income", "100", "salary", "b", "--date", "2026-09-15"])

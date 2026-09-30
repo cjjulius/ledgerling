@@ -31,6 +31,7 @@ Commands:
     streak    No-spend-day streaks for a month
     weekday   Spending by day of week (which days you spend most)
     month     One-screen dashboard for a month (income, spend, net, budgets)
+    year      Calendar-year rollup by month (spending, income, net)
     compare   Compare two months side by side (with per-category deltas)
     trend     Monthly spending trend for one category
     top       List your largest expenses (optionally by month/category)
@@ -67,7 +68,7 @@ import sys
 import tempfile
 from datetime import datetime, date, timedelta
 
-__version__ = "1.21.0"
+__version__ = "1.22.0"
 
 # --------------------------------------------------------------------------- #
 # Sandbox + storage
@@ -1425,6 +1426,49 @@ def cmd_streak(args):
     print(f"{'current no-spend streak':<24} {current} day(s)")
 
 
+def cmd_year(args):
+    data = load()
+    year = args.year if args.year is not None else date.today().year
+    year_str = f"{year:04d}"
+    months = [f"{year_str}-{m:02d}" for m in range(1, 13)]
+
+    spend = {k: 0.0 for k in months}
+    income = 0.0
+    for e in data["expenses"]:
+        if e["date"][:4] == year_str:
+            if kind_of(e) == "income":
+                income += e["amount"]
+            else:
+                spend[month_of(e["date"])] = round(
+                    spend[month_of(e["date"])] + e["amount"], 2)
+    spending = round(sum(spend.values()), 2)
+    income = round(income, 2)
+    net = round(income - spending, 2)
+
+    if getattr(args, "json", False):
+        print(json.dumps({
+            "year": year,
+            "months": [{"month": k, "spending": spend[k]} for k in months],
+            "spending": spending, "income": income, "net": net,
+            "average": round(spending / 12, 2),
+        }, indent=2))
+        return
+
+    if spending == 0 and income == 0:
+        print(f"nothing recorded in {year}")
+        return
+
+    peak = max(spend.values()) or 0
+    print(f"Year {year}")
+    print("=" * 48)
+    for k in months:
+        chart = bar(spend[k] / peak, width=18) if peak else bar(0, width=18)
+        print(f"{k}  {money(spend[k]):>12}  {chart}")
+    print("-" * 48)
+    print(f"spending {money(spending)}, income {money(income)}, net {money(net)}")
+    print(f"average/mo {money(round(spending / 12, 2))}")
+
+
 def cmd_day(args):
     data = load()
     d = parse_date(args.date)
@@ -2011,6 +2055,12 @@ def build_parser():
     sk.add_argument("--json", action="store_true", help="output JSON instead of text")
     sk.set_defaults(func=cmd_streak)
 
+    yr = sub.add_parser("year", help="calendar-year rollup by month")
+    yr.add_argument("year", nargs="?", type=int, default=None,
+                    help="which year, YYYY (default: current)")
+    yr.add_argument("--json", action="store_true", help="output JSON instead of text")
+    yr.set_defaults(func=cmd_year)
+
     dy = sub.add_parser("day", help="entries for a single day")
     dy.add_argument("--date", default="today",
                     help="YYYY-MM-DD, 'today', or 'yesterday'")
@@ -2177,7 +2227,8 @@ def main(argv=None):
     if args.command in ("list", "summary", "budget", "export", "report",
                         "stats", "search", "categories", "tags", "month",
                         "upcoming", "compare", "trend", "top", "pace",
-                        "duplicates", "week", "streak", "weekday", "day"):
+                        "duplicates", "week", "streak", "weekday", "day",
+                        "year"):
         data = load()
         if apply_recurring(data):
             save(data)

@@ -125,6 +125,10 @@ ledgerling weekday --month 2026-09
 ledgerling month
 ledgerling month --month 2026-08
 
+# Calendar-year rollup by month
+ledgerling year
+ledgerling year 2026
+
 # Compare two months side by side (defaults to last month vs this month)
 ledgerling compare
 ledgerling compare 2026-08 2026-09
