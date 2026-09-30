@@ -950,6 +950,28 @@ class CLI(TempAppCase):
         self.assertEqual(by["2026-05-05"]["spending"], 50.0)     # 20 + 30
         self.assertEqual(by["2026-05-05"]["cumulative"], 60.0)
 
+    def test_allowance_json(self):
+        this = date.today().isoformat()[:7]
+        self._main(["budget", "--category", "food", "--amount", "300"])
+        self._main(["budget", "--category", "transit", "--amount", "100"])
+        self._main(["add", "120", "food", "a", "--date", f"{this}-02"])
+        self._main(["add", "40", "transit", "b", "--date", f"{this}-03"])
+        d = json.loads(self._main(["allowance", "--json"]))
+        self.assertEqual(d["month"], this)
+        self.assertEqual(d["categories"]["food"]["remaining"], 180.0)
+        self.assertEqual(d["categories"]["transit"]["remaining"], 60.0)
+        self.assertEqual(d["total_remaining"], 240.0)
+        self.assertGreater(d["days_left"], 0)         # current month
+        self.assertIsNotNone(d["daily_allowance"])
+
+    def test_allowance_past_month_no_daily(self):
+        self._main(["budget", "--category", "food", "--amount", "300"])
+        self._main(["add", "50", "food", "a", "--date", "2020-01-10"])
+        d = json.loads(self._main(["allowance", "--month", "2020-01", "--json"]))
+        self.assertEqual(d["days_left"], 0)
+        self.assertIsNone(d["daily_allowance"])
+        self.assertEqual(d["categories"]["food"]["remaining"], 250.0)
+
     def test_year_json(self):
         self._main(["add", "100", "food", "a", "--date", "2026-01-15"])
         self._main(["add", "200", "food", "b", "--date", "2026-03-10"])

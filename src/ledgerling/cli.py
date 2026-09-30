@@ -66,6 +66,7 @@ Commands:
     budget    Set / view monthly budgets
     unbudget  Remove a category's budget (or --all)
     pace      Budget pace: spent vs day-adjusted expected, projected EOM
+    allowance  How much you can still spend per day to stay on budget
     goal      Set / view a monthly savings goal
     recur     Manage recurring expenses (add / edit / list / remove / run)
     export    Write expenses to a CSV file (inside the data folder)
@@ -91,7 +92,7 @@ import sys
 import tempfile
 from datetime import datetime, date, timedelta
 
-__version__ = "1.50.0"
+__version__ = "1.51.0"
 
 # --------------------------------------------------------------------------- #
 # Sandbox + storage
@@ -1254,6 +1255,57 @@ def cmd_pace(args):
               f"{money(c['expected']):>10}  {pace}")
         print(f"{'':<12} projected EOM {money(c['projected'])} / "
               f"{money(c['limit'])}{proj_flag}")
+
+
+def cmd_allowance(args):
+    check_month(args.month)
+    data = load()
+    if not data["budgets"]:
+        print("no budgets set. Try: budget --category food --amount 400")
+        return
+    today = date.today()
+    period = args.month or today.isoformat()[:7]
+    cur = today.isoformat()[:7]
+    year, mon = (int(x) for x in period.split("-"))
+    days_in_month = calendar.monthrange(year, mon)[1]
+    # days still to come, inclusive of today, for the current month
+    if period == cur:
+        days_left = days_in_month - today.day + 1
+    elif period > cur:
+        days_left = days_in_month
+    else:
+        days_left = 0
+
+    cats = {}
+    total_remaining = 0.0
+    for cat, limit in sorted(data["budgets"].items()):
+        spent = sum(e["amount"] for e in data["expenses"]
+                    if kind_of(e) == "expense" and e["category"] == cat
+                    and month_of(e["date"]) == period)
+        remaining = round(limit - spent, 2)
+        total_remaining = round(total_remaining + remaining, 2)
+        cats[cat] = {"limit": round(limit, 2), "spent": round(spent, 2),
+                     "remaining": remaining}
+    daily = round(total_remaining / days_left, 2) if days_left > 0 else None
+
+    if getattr(args, "json", False):
+        print(json.dumps({"month": period, "days_left": days_left,
+                          "categories": cats,
+                          "total_remaining": total_remaining,
+                          "daily_allowance": daily}, indent=2))
+        return
+
+    print(f"Budget allowance for {period}")
+    print("=" * 54)
+    for cat, c in cats.items():
+        flag = "  OVER" if c["remaining"] < 0 else ""
+        print(f"{cat:<14} {money(c['spent']):>10} / {money(c['limit']):<10}"
+              f"  left {money(c['remaining']):>10}{flag}")
+    print("-" * 54)
+    print(f"total left {money(total_remaining)}")
+    if daily is not None:
+        print(f"{days_left} day(s) left -> spend up to {money(daily)}/day "
+              "to stay on budget")
 
 
 _DIST_EDGES = [10, 25, 50, 100, 250]
@@ -3129,6 +3181,12 @@ def build_parser():
     pc.add_argument("--json", action="store_true", help="output JSON instead of text")
     pc.set_defaults(func=cmd_pace)
 
+    al = sub.add_parser("allowance",
+                        help="how much you can still spend per day this month")
+    al.add_argument("--month", help="which month, YYYY-MM (default: current)")
+    al.add_argument("--json", action="store_true", help="output JSON instead of text")
+    al.set_defaults(func=cmd_allowance)
+
     di = sub.add_parser("distribution", help="histogram of expense sizes")
     di.add_argument("--month", help="restrict to a month, YYYY-MM")
     di.add_argument("--json", action="store_true", help="output JSON instead of text")
@@ -3304,7 +3362,7 @@ def main(argv=None):
                         "sources", "quarter", "forecast", "balance",
                         "commitments", "savings", "heatmap", "suggest",
                         "insights", "tagtrend", "range", "matrix",
-                        "cumulative"):
+                        "cumulative", "allowance"):
         data = load()
         if apply_recurring(data):
             save(data)

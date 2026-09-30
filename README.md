@@ -108,6 +108,9 @@ ledgerling autobudget --replace       # also overwrite existing budgets
 # Budget pace: are you ahead or behind, and projected end-of-month?
 ledgerling pace
 
+# Budget allowance: how much you can still spend per day to stay on budget
+ledgerling allowance
+
 # Monthly savings goal (net vs goal shows up in goal/stats/report)
 ledgerling goal --amount 500
 ledgerling goal

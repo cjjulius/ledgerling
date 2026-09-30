@@ -372,7 +372,7 @@ const GROUP_DEFS = [
     'quarter', 'weekday', 'trend', 'tagtrend', 'matrix', 'cumulative', 'top', 'compare', 'average', 'distribution',
     'balance', 'savings', 'heatmap', 'streak', 'pace', 'forecast', 'sources',
     'categories', 'tags', 'untagged', 'search', 'list']],
-  ['Budgets & goals', ['budget', 'unbudget', 'goal', 'suggest', 'autobudget', 'commitments', 'upcoming']],
+  ['Budgets & goals', ['budget', 'unbudget', 'allowance', 'goal', 'suggest', 'autobudget', 'commitments', 'upcoming']],
   ['Recurring', ['recur add', 'recur list', 'recur edit', 'recur remove', 'recur run']],
   ['Data', ['export', 'import', 'backup', 'restore', 'dedupe', 'duplicates',
     'retag', 'tag', 'untag', 'recategorize', 'undo']],
