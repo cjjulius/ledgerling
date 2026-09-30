@@ -4,6 +4,15 @@ All notable changes to Ledgerling are documented here. The format is based on
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and this project
 adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.32.0] - 2026-09-29
+
+### Added
+
+- Web UI: chart view now also covers **map-shaped** results - objects keyed by
+  name whose values are numbers (`stats.by_tag`) or objects with numeric fields
+  (`categories`, `sources`, `tags`) render as bar charts, with the metric
+  selector defaulting to the most meaningful field (total over count).
+
 ## [1.31.0] - 2026-09-29
 
 ### Added
@@ -313,6 +322,7 @@ file, standard library only, strictly confined to its own folder.
   guard (`_within_app`) that refuses any path escaping the app folder; imports
   and restores are reduced to a basename and looked up only within the folder.
 
+[1.32.0]: #1320---2026-09-29
 [1.31.0]: #1310---2026-09-29
 [1.30.0]: #1300---2026-09-29
 [1.29.0]: #1290---2026-09-29

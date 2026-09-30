@@ -414,24 +414,47 @@ function buildTabs(data) {
   show(active === tText ? 'text' : (cd ? 'chart' : 'table'));
 }
 
-function chartData(data) {
-  let arr = null;
-  if (Array.isArray(data) && data.length && typeof data[0] === 'object'
-      && !Array.isArray(data[0])) arr = data;
-  else if (data && typeof data === 'object') {
-    for (const k of Object.keys(data)) {
-      const v = data[k];
-      if (Array.isArray(v) && v.length && typeof v[0] === 'object') { arr = v; break; }
-    }
-  }
-  if (!arr) return null;
+function pickValueKey(numKeys) {
+  const pref = ['total', 'spending', 'amount', 'net', 'value', 'count'];
+  for (const p of pref) if (numKeys.includes(p)) return p;  // by preference order
+  return numKeys[0];
+}
+
+function fromArray(arr) {
   const keys = Object.keys(arr[0]);
   const labelKey = keys.find(k => typeof arr[0][k] === 'string');
   const numKeys = keys.filter(k => typeof arr[0][k] === 'number');
   if (labelKey === undefined || !numKeys.length) return null;
-  const pref = ['total', 'spending', 'amount', 'net', 'count'];
-  const first = numKeys.find(k => pref.includes(k)) || numKeys[0];
-  return {arr, labelKey, numKeys, valueKey: first};
+  return {arr, labelKey, numKeys, valueKey: pickValueKey(numKeys)};
+}
+
+function chartData(data) {
+  // array of objects (list/search/top/... and nested series)
+  if (Array.isArray(data) && data.length && typeof data[0] === 'object'
+      && !Array.isArray(data[0])) return fromArray(data);
+  if (!data || typeof data !== 'object' || Array.isArray(data)) return null;
+
+  // nested array value (trend.months, distribution.buckets, year, week, quarter)
+  for (const k of Object.keys(data)) {
+    const v = data[k];
+    if (Array.isArray(v) && v.length && typeof v[0] === 'object' && !Array.isArray(v[0]))
+      return fromArray(v);
+  }
+  const vals = Object.values(data);
+  if (!vals.length) return null;
+  // map of numbers (stats.by_tag)
+  if (vals.every(v => typeof v === 'number')) {
+    const arr = Object.entries(data).map(([k, v]) => ({label: k, value: v}));
+    return {arr, labelKey: 'label', numKeys: ['value'], valueKey: 'value'};
+  }
+  // map of objects with numeric fields (categories, sources, tags)
+  if (vals.every(v => v && typeof v === 'object' && !Array.isArray(v))) {
+    const numKeys = Object.keys(vals[0]).filter(k => typeof vals[0][k] === 'number');
+    if (!numKeys.length) return null;
+    const arr = Object.entries(data).map(([k, v]) => Object.assign({label: k}, v));
+    return {arr, labelKey: 'label', numKeys, valueKey: pickValueKey(numKeys)};
+  }
+  return null;
 }
 
 function renderChart(cd) {
