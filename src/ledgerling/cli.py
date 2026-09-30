@@ -35,6 +35,7 @@ Commands:
     recategorize  Rename a category across all records
     undo      Revert the last data change (toggles redo)
     budget    Set / view monthly budgets
+    pace      Budget pace: spent vs day-adjusted expected, projected EOM
     goal      Set / view a monthly savings goal
     recur     Manage recurring expenses (add / edit / list / remove / run)
     export    Write expenses to a CSV file (inside the data folder)
@@ -59,7 +60,7 @@ import sys
 import tempfile
 from datetime import datetime, date, timedelta
 
-__version__ = "1.12.0"
+__version__ = "1.13.0"
 
 # --------------------------------------------------------------------------- #
 # Sandbox + storage
@@ -1059,6 +1060,48 @@ def cmd_compare(args):
                   f"{_signed(v['delta']):>16}")
 
 
+def cmd_pace(args):
+    check_month(args.month)
+    data = load()
+    if not data["budgets"]:
+        print("no budgets set. Try: budget --category food --amount 400")
+        return
+    today = date.today()
+    period = args.month or today.isoformat()[:7]
+    year, mon = (int(x) for x in period.split("-"))
+    days_in_month = calendar.monthrange(year, mon)[1]
+    # elapsed days: partial for the current month, full for any other month
+    elapsed = today.day if period == today.isoformat()[:7] else days_in_month
+    frac_time = elapsed / days_in_month
+
+    cats = {}
+    for cat, limit in sorted(data["budgets"].items()):
+        spent = sum(e["amount"] for e in data["expenses"]
+                    if kind_of(e) == "expense" and e["category"] == cat
+                    and month_of(e["date"]) == period)
+        expected = round(limit * frac_time, 2)
+        projected = round(spent / elapsed * days_in_month, 2) if elapsed else 0.0
+        cats[cat] = {"spent": round(spent, 2), "limit": round(limit, 2),
+                     "expected": expected, "projected": projected,
+                     "on_pace": spent <= expected}
+
+    if getattr(args, "json", False):
+        print(json.dumps({"month": period, "elapsed_days": elapsed,
+                          "days_in_month": days_in_month,
+                          "categories": cats}, indent=2))
+        return
+
+    print(f"Budget pace for {period} (day {elapsed} of {days_in_month})")
+    print("=" * 62)
+    for cat, c in cats.items():
+        pace = "on pace" if c["on_pace"] else "over pace"
+        proj_flag = " OVER" if c["projected"] > c["limit"] else ""
+        print(f"{cat:<12} spent {money(c['spent']):>10}  vs expected "
+              f"{money(c['expected']):>10}  {pace}")
+        print(f"{'':<12} projected EOM {money(c['projected'])} / "
+              f"{money(c['limit'])}{proj_flag}")
+
+
 def cmd_top(args):
     check_month(args.month)
     data = load()
@@ -1716,6 +1759,11 @@ def build_parser():
     tg.add_argument("--json", action="store_true", help="output JSON instead of text")
     tg.set_defaults(func=cmd_tags)
 
+    pc = sub.add_parser("pace", help="budget pace: are you ahead or behind?")
+    pc.add_argument("--month", help="which month, YYYY-MM (default: current)")
+    pc.add_argument("--json", action="store_true", help="output JSON instead of text")
+    pc.set_defaults(func=cmd_pace)
+
     tp = sub.add_parser("top", help="list your largest expenses")
     tp.add_argument("--limit", type=int, default=10,
                     help="how many to show (default 10)")
@@ -1834,7 +1882,7 @@ def main(argv=None):
     # file writes, inside the data folder.)
     if args.command in ("list", "summary", "budget", "export", "report",
                         "stats", "search", "categories", "tags", "month",
-                        "upcoming", "compare", "trend", "top"):
+                        "upcoming", "compare", "trend", "top", "pace"):
         data = load()
         if apply_recurring(data):
             save(data)

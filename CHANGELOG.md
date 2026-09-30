@@ -4,6 +4,14 @@ All notable changes to Ledgerling are documented here. The format is based on
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and this project
 adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.13.0] - 2026-09-29
+
+### Added
+
+- `pace` command — budget pace for a month: spent vs the day-adjusted expected
+  amount, plus projected end-of-month per category. Partial for the current
+  month, full for any past month. Supports `--json`.
+
 ## [1.12.0] - 2026-09-29
 
 ### Added
@@ -164,6 +172,7 @@ file, standard library only, strictly confined to its own folder.
   guard (`_within_app`) that refuses any path escaping the app folder; imports
   and restores are reduced to a basename and looked up only within the folder.
 
+[1.13.0]: #1130---2026-09-29
 [1.12.0]: #1120---2026-09-29
 [1.11.0]: #1110---2026-09-29
 [1.10.0]: #1100---2026-09-29

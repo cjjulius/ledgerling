@@ -75,6 +75,9 @@ ledgerling summary --month 2026-08
 ledgerling budget --category food --amount 200
 ledgerling budget
 
+# Budget pace: are you ahead or behind, and projected end-of-month?
+ledgerling pace
+
 # Monthly savings goal (net vs goal shows up in goal/stats/report)
 ledgerling goal --amount 500
 ledgerling goal

@@ -312,6 +312,31 @@ class CLI(TempAppCase):
         with self.assertRaises(SystemExit):        # conflicting kind flags
             self._main(["recur", "edit", "1", "--income", "--expense"])
 
+    def test_pace_json(self):
+        self._main(["budget", "--category", "food", "--amount", "300"])
+        self._main(["add", "100", "food", "x"])       # current month
+        d = json.loads(self._main(["pace", "--json"]))
+        c = d["categories"]["food"]
+        self.assertEqual(c["spent"], 100.0)
+        self.assertEqual(c["limit"], 300.0)
+        for key in ("expected", "projected", "on_pace"):
+            self.assertIn(key, c)
+        self.assertEqual(d["days_in_month"],
+                         __import__("calendar").monthrange(
+                             *map(int, d["month"].split("-")))[1])
+
+    def test_pace_full_past_month(self):
+        # a past month is treated as fully elapsed, so expected == limit
+        self._main(["budget", "--category", "food", "--amount", "300"])
+        self._main(["add", "250", "food", "x", "--date", "2026-01-15"])
+        d = json.loads(self._main(["pace", "--month", "2026-01", "--json"]))
+        self.assertEqual(d["categories"]["food"]["expected"], 300.0)
+        self.assertEqual(d["categories"]["food"]["projected"], 250.0)
+
+    def test_pace_no_budgets(self):
+        out = self._main(["pace"])
+        self.assertIn("no budgets set", out)
+
     def test_top_json(self):
         for amt, cat in [(10, "food"), (500, "rent"), (30, "food"),
                          (200, "travel"), (5, "coffee")]:
