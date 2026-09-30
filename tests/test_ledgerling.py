@@ -238,6 +238,24 @@ class CLI(TempAppCase):
         # rent has a budget but no expenses -> still listed
         self.assertEqual(d["rent"], {"count": 0, "total": 0.0, "budget": 800.0})
 
+    def test_retag(self):
+        self._main(["add", "40", "food", "dinner #work #client"])
+        self._main(["add", "10", "transit", "bus #Work"])   # different case
+        self._main(["retag", "work", "business"])
+        exp = L.load()["expenses"]
+        self.assertTrue(all("work" not in e["tags"] for e in exp))
+        self.assertIn("business", exp[0]["tags"])
+        self.assertIn("client", exp[0]["tags"])             # other tag preserved
+        self.assertIn("#business", exp[0]["note"])
+        self.assertIn("business", exp[1]["tags"])           # case-insensitive match
+
+    def test_retag_validation(self):
+        self._main(["add", "10", "food", "x #work"])
+        with self.assertRaises(SystemExit):                 # not a single word
+            self._main(["retag", "work", "two words"])
+        with self.assertRaises(SystemExit):                 # same
+            self._main(["retag", "work", "#work"])
+
     def test_recategorize_moves_records_and_budget(self):
         self._main(["add", "10", "food", "a"])
         self._main(["add", "20", "food", "b"])

@@ -37,6 +37,7 @@ Commands:
     categories  List categories with counts and totals
     tags      List #tags with counts and totals
     recategorize  Rename a category across all records
+    retag     Rename a #tag across all records
     duplicates  Find likely double-entered records
     undo      Revert the last data change (toggles redo)
     budget    Set / view monthly budgets
@@ -65,7 +66,7 @@ import sys
 import tempfile
 from datetime import datetime, date, timedelta
 
-__version__ = "1.18.0"
+__version__ = "1.19.0"
 
 # --------------------------------------------------------------------------- #
 # Sandbox + storage
@@ -1538,6 +1539,38 @@ def cmd_month(args):
         print(f"savings goal   {money(net)} of {money(goal)}   {status}")
 
 
+def cmd_retag(args):
+    old = args.old.strip().lstrip("#").lower()
+    new = args.new.strip().lstrip("#").lower()
+    if not old or not new:
+        sys.exit("error: tag cannot be empty")
+    if not re.fullmatch(r"\w+", new):
+        sys.exit("error: new tag must be a single word (letters, digits, _)")
+    if old == new:
+        sys.exit("error: old and new tags are the same")
+    data = load()
+    pat = re.compile(r"#" + re.escape(old) + r"\b", re.IGNORECASE)
+
+    entries = 0
+    for e in data["expenses"]:
+        if old in e.get("tags", []):
+            e["note"] = pat.sub("#" + new, e["note"])
+            e["tags"] = parse_tags(e["note"])
+            entries += 1
+    rules = 0
+    for r in data["recurring"]:
+        if old in parse_tags(r.get("note", "")):
+            r["note"] = pat.sub("#" + new, r["note"])
+            rules += 1
+
+    if not entries and not rules:
+        print(f"nothing to retag - no #{old} found")
+        return
+    save(data)
+    print(f"retagged #{old} -> #{new}: {entries} entr"
+          f"{'y' if entries == 1 else 'ies'}, {rules} recurring rule(s)")
+
+
 def cmd_recategorize(args):
     old = clean_category(args.old)
     new = clean_category(args.new)
@@ -2002,6 +2035,11 @@ def build_parser():
     rc.add_argument("old", help="existing category name")
     rc.add_argument("new", help="new category name")
     rc.set_defaults(func=cmd_recategorize)
+
+    rt = sub.add_parser("retag", help="rename a #tag across all records")
+    rt.add_argument("old", help="existing tag (with or without #)")
+    rt.add_argument("new", help="new tag (single word)")
+    rt.set_defaults(func=cmd_retag)
 
     un = sub.add_parser("undo", help="revert the last data change (toggles redo)")
     un.set_defaults(func=cmd_undo)
