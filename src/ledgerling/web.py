@@ -373,7 +373,7 @@ const GROUP_DEFS = [
     'balance', 'savings', 'heatmap', 'streak', 'pace', 'forecast', 'sources',
     'categories', 'tags', 'untagged', 'search', 'list']],
   ['Budgets & goals', ['budget', 'unbudget', 'allowance', 'goal', 'suggest', 'autobudget', 'commitments', 'upcoming']],
-  ['Recurring', ['recur add', 'recur list', 'recur edit', 'recur remove', 'recur run', 'recur skip']],
+  ['Recurring', ['recur add', 'recur list', 'recur edit', 'recur remove', 'recur run', 'recur skip', 'recur unskip']],
   ['Data', ['export', 'import', 'backup', 'restore', 'dedupe', 'duplicates',
     'retag', 'tag', 'untag', 'recategorize', 'undo']],
   ['Settings', ['config', 'where', 'version', 'completion', 'web']],

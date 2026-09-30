@@ -4,6 +4,15 @@ All notable changes to Ledgerling are documented here. The format is based on
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and this project
 adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.56.0] - 2026-09-29
+
+### Added
+
+- `recur unskip ID --date` (or `--all`) — cancel a skip set with `recur skip`,
+  restoring that occurrence. Undoable.
+- `recur list` now shows a rule's upcoming skipped dates and picks the next
+  *non-skipped* occurrence as its "next" charge.
+
 ## [1.55.0] - 2026-09-29
 
 ### Added
@@ -574,6 +583,7 @@ file, standard library only, strictly confined to its own folder.
   guard (`_within_app`) that refuses any path escaping the app folder; imports
   and restores are reduced to a basename and looked up only within the folder.
 
+[1.56.0]: #1560---2026-09-29
 [1.55.0]: #1550---2026-09-29
 [1.54.0]: #1540---2026-09-29
 [1.53.0]: #1530---2026-09-29

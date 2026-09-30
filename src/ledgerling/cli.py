@@ -69,7 +69,7 @@ Commands:
     pace      Budget pace: spent vs day-adjusted expected, projected EOM
     allowance  How much you can still spend per day to stay on budget
     goal      Set / view a monthly savings goal
-    recur     Manage recurring expenses (add / edit / list / remove / run / skip)
+    recur     Manage recurring expenses (add/edit/list/remove/run/skip/unskip)
     export    Write expenses to a CSV file (inside the data folder)
     import    Read expenses back from a CSV (deduped)
     backup    Save a timestamped copy of your data
@@ -94,7 +94,7 @@ import sys
 import tempfile
 from datetime import datetime, date, timedelta
 
-__version__ = "1.55.0"
+__version__ = "1.56.0"
 
 # --------------------------------------------------------------------------- #
 # Sandbox + storage
@@ -2991,13 +2991,17 @@ def cmd_recur_list(args):
     print("Recurring rules")
     print("=" * 60)
     for r in sorted(data["recurring"], key=lambda x: x["id"]):
+        skips = set(r.get("skips", []))
         occ = _occurrences(r, add_months(today, 2))
-        upcoming = [d for d in occ if d > today]
+        # the next charge is the first upcoming date that isn't skipped
+        upcoming = [d for d in occ if d > today and d.isoformat() not in skips]
         nxt = upcoming[0].isoformat() if upcoming else "-"
         note = f" - {r['note']}" if r["note"] else ""
         mark = " +income" if r.get("kind") == "income" else ""
+        future_skips = sorted(s for s in skips if s >= today.isoformat())
+        skip_note = f"  skips: {', '.join(future_skips)}" if future_skips else ""
         print(f"#{r['id']:<3} {money(r['amount']):>10}  [{r['category']}]{mark}"
-              f"  every {r['every']:<5}  next: {nxt}{note}")
+              f"  every {r['every']:<5}  next: {nxt}{note}{skip_note}")
 
 
 def cmd_recur_remove(args):
@@ -3037,6 +3041,31 @@ def cmd_recur_skip(args):
     save(data)
     print(f"rule #{rule['id']} [{rule['category']}] will skip its "
           f"{target} occurrence.  undo with `undo`.")
+
+
+def cmd_recur_unskip(args):
+    data = load()
+    rule = find(data["recurring"], args.id)
+    if not rule:
+        sys.exit(f"error: no recurring rule with id #{args.id}")
+    skips = rule.get("skips", [])
+    if not skips:
+        print(f"rule #{rule['id']} has no skips")
+        return
+    if getattr(args, "all", False):
+        n = len(skips)
+        rule["skips"] = []
+        save(data)
+        print(f"cleared {n} skip(s) on rule #{rule['id']}.  undo with `undo`.")
+        return
+    if not args.date:
+        sys.exit("error: give a date to unskip, or --all")
+    target = parse_date(args.date)
+    if target not in skips:
+        sys.exit(f"error: rule #{rule['id']} does not skip {target}")
+    skips.remove(target)
+    save(data)
+    print(f"rule #{rule['id']} will no longer skip {target}.  undo with `undo`.")
 
 
 def cmd_recur_run(args):
@@ -3486,6 +3515,12 @@ def build_parser():
     rk.add_argument("--date",
                     help="occurrence to skip, YYYY-MM-DD (default: the next one)")
     rk.set_defaults(func=cmd_recur_skip)
+
+    ru = rsub.add_parser("unskip", help="cancel a skip on a rule")
+    ru.add_argument("id", type=int, help="recurring rule id (see `recur list`)")
+    ru.add_argument("--date", help="the skipped date to restore, YYYY-MM-DD")
+    ru.add_argument("--all", action="store_true", help="clear all skips on the rule")
+    ru.set_defaults(func=cmd_recur_unskip)
 
     r.set_defaults(func=lambda args: r.print_help())
 

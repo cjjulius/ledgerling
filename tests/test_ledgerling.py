@@ -1040,6 +1040,22 @@ class CLI(TempAppCase):
         self._main(["undo"])
         self.assertNotIn("2027-01-01", L.load()["recurring"][0]["skips"])
 
+    def test_recur_unskip(self):
+        self._main(["recur", "add", "15", "subscriptions", "music",
+                    "--every", "month", "--start", "2026-01-01"])
+        self._main(["recur", "skip", "1", "--date", "2027-01-01"])
+        self._main(["recur", "skip", "1", "--date", "2027-02-01"])
+        self.assertEqual(len(L.load()["recurring"][0]["skips"]), 2)
+        # unskip one date
+        self._main(["recur", "unskip", "1", "--date", "2027-01-01"])
+        self.assertEqual(L.load()["recurring"][0]["skips"], ["2027-02-01"])
+        # unskipping a date that isn't skipped errors
+        with self.assertRaises(SystemExit):
+            self._main(["recur", "unskip", "1", "--date", "2099-01-01"])
+        # --all clears the rest
+        self._main(["recur", "unskip", "1", "--all"])
+        self.assertEqual(L.load()["recurring"][0]["skips"], [])
+
     def test_where_json(self):
         self._main(["add", "10", "food", "a"])   # creates the data file
         d = json.loads(self._main(["where", "--json"]))
