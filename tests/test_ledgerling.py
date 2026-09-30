@@ -142,7 +142,7 @@ class FileRoundTrip(TempAppCase):
              "date": "2026-09-02", "tags": []},
         ], "budgets": {}, "recurring": []})
 
-        self._run(L.cmd_export, Namespace(file="out.csv", month=None))
+        self._run(L.cmd_export, Namespace(file="out.csv", month=None, format="csv"))
         # re-importing the export should add nothing (all duplicates)
         self._run(L.cmd_import, Namespace(file="out.csv"))
         self.assertEqual(len(L.load()["expenses"]), 2)
@@ -169,6 +169,16 @@ class FileRoundTrip(TempAppCase):
 
 class CLI(TempAppCase):
     """End-to-end tests that drive main() with argv arrays."""
+
+    def test_export_json_format(self):
+        self._main(["add", "10", "food", "lunch #t"])
+        self._main(["export", "--format", "json", "--file", "out.json"])
+        with open(os.path.join(L.EXPORT_DIR, "out.json"), encoding="utf-8") as fh:
+            rows = json.load(fh)
+        self.assertEqual(len(rows), 1)
+        self.assertEqual(rows[0]["category"], "food")
+        self.assertEqual(rows[0]["tags"], ["t"])
+        self.assertEqual(rows[0]["kind"], "expense")
 
     def test_add_then_list_json(self):
         self._main(["add", "10", "food", "lunch #x"])

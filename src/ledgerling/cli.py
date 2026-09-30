@@ -67,7 +67,7 @@ import sys
 import tempfile
 from datetime import datetime, date, timedelta
 
-__version__ = "1.20.0"
+__version__ = "1.21.0"
 
 # --------------------------------------------------------------------------- #
 # Sandbox + storage
@@ -555,25 +555,30 @@ def cmd_export(args):
     if args.month:
         rows = [e for e in rows if month_of(e["date"]) == args.month]
 
+    fmt = args.format
     if args.file:
         # Force the export to stay inside the data folder, ignoring any path
         # components the user supplied.
         target = os.path.join(EXPORT_DIR, os.path.basename(args.file))
     else:
         stamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-        target = os.path.join(EXPORT_DIR, f"expenses_{stamp}.csv")
+        target = os.path.join(EXPORT_DIR, f"expenses_{stamp}.{fmt}")
 
     os.makedirs(EXPORT_DIR, exist_ok=True)
     _within_home(target)
     try:
-        with open(target, "w", encoding="utf-8", newline="") as fh:
-            writer = csv.writer(fh)
-            writer.writerow(["id", "date", "amount", "category", "note",
-                             "kind", "recurring"])
-            for e in rows:
-                writer.writerow([e["id"], e["date"], f"{e['amount']:.2f}",
-                                 e["category"], e["note"], kind_of(e),
-                                 "yes" if e.get("recur_id") else "no"])
+        if fmt == "json":
+            with open(target, "w", encoding="utf-8") as fh:
+                json.dump(rows, fh, indent=2)
+        else:
+            with open(target, "w", encoding="utf-8", newline="") as fh:
+                writer = csv.writer(fh)
+                writer.writerow(["id", "date", "amount", "category", "note",
+                                 "kind", "recurring"])
+                for e in rows:
+                    writer.writerow([e["id"], e["date"], f"{e['amount']:.2f}",
+                                     e["category"], e["note"], kind_of(e),
+                                     "yes" if e.get("recur_id") else "no"])
     except OSError as exc:
         sys.exit(f"error: could not write {target}: {exc}")
     print(f"exported {len(rows)} expense(s) to {target}")
@@ -1965,6 +1970,8 @@ def build_parser():
     x = sub.add_parser("export", help="write expenses to CSV (in data folder)")
     x.add_argument("--file", help="file name (basename only; saved in exports/)")
     x.add_argument("--month", help="only export this month, YYYY-MM")
+    x.add_argument("--format", choices=["csv", "json"], default="csv",
+                   help="output format (default csv)")
     x.set_defaults(func=cmd_export)
 
     im = sub.add_parser("import", help="import expenses from a CSV in the data folder")

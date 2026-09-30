@@ -84,9 +84,10 @@ ledgerling goal --amount 500
 ledgerling goal
 ledgerling goal --clear
 
-# Export to CSV (saved in exports/; a path is reduced to its file name)
+# Export to CSV or JSON (saved in exports/; a path is reduced to its file name)
 ledgerling export
 ledgerling export --file august.csv --month 2026-08
+ledgerling export --format json --file data.json
 
 # Import a CSV (looked up in exports/ then the data folder; dedupes automatically)
 ledgerling import --file august.csv
