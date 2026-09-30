@@ -186,6 +186,7 @@ ledgerling range 2026-09-01            # 2026-09-01 through today
 ledgerling quarter 2026
 ledgerling year
 ledgerling year 2026
+ledgerling years                      # every year, side by side
 ledgerling forecast
 
 # Running cumulative net (income - spending) month over month

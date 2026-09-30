@@ -1160,6 +1160,17 @@ class CLI(TempAppCase):
         self.assertEqual(d["rows"][0]["tag"], "work")   # sorted by total desc
         self.assertEqual(d["totals"][this], 110.0)      # 100 work + 10 fun
 
+    def test_years_json(self):
+        self._main(["add", "100", "food", "a", "--date", "2025-03-01"])
+        self._main(["income", "500", "salary", "b", "--date", "2025-04-01"])
+        self._main(["add", "200", "food", "c", "--date", "2026-01-01"])
+        d = json.loads(self._main(["years", "--json"]))
+        by = {r["year"]: r for r in d["years"]}
+        self.assertEqual([r["year"] for r in d["years"]], ["2025", "2026"])
+        self.assertEqual((by["2025"]["spending"], by["2025"]["income"],
+                          by["2025"]["net"]), (100.0, 500.0, 400.0))
+        self.assertEqual((by["2026"]["spending"], by["2026"]["net"]), (200.0, -200.0))
+
     def test_year_json(self):
         self._main(["add", "100", "food", "a", "--date", "2026-01-15"])
         self._main(["add", "200", "food", "b", "--date", "2026-03-10"])

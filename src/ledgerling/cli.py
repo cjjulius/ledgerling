@@ -43,6 +43,7 @@ Commands:
     balance   Running cumulative net (income - spending) month over month
     savings   Monthly savings rate (net / income) trend
     year      Calendar-year rollup by month (spending, income, net)
+    years     Multi-year rollup (spending, income, net per year)
     compare   Compare two months side by side (with per-category deltas)
     trend     Monthly spending trend for one category
     tagtrend  Monthly spending trend for one #tag
@@ -96,7 +97,7 @@ import sys
 import tempfile
 from datetime import datetime, date, timedelta
 
-__version__ = "1.74.0"
+__version__ = "1.75.0"
 
 # --------------------------------------------------------------------------- #
 # Sandbox + storage
@@ -2322,6 +2323,38 @@ def cmd_quarter(args):
               f"{money(q['income']):>14}{money(q['net']):>14}")
 
 
+def cmd_years(args):
+    data = load()
+    agg = {}
+    for e in data["expenses"]:
+        y = e["date"][:4]
+        a = agg.setdefault(y, {"spending": 0.0, "income": 0.0})
+        if kind_of(e) == "income":
+            a["income"] = round(a["income"] + e["amount"], 2)
+        else:
+            a["spending"] = round(a["spending"] + e["amount"], 2)
+
+    rows = []
+    for y in sorted(agg):
+        s, i = agg[y]["spending"], agg[y]["income"]
+        rows.append({"year": y, "spending": s, "income": i,
+                     "net": round(i - s, 2)})
+
+    if getattr(args, "json", False):
+        print(json.dumps({"years": rows}, indent=2))
+        return
+    if not rows:
+        print("nothing recorded yet")
+        return
+
+    print("By year")
+    print("=" * 56)
+    print(f"{'year':<8}{'spending':>14}{'income':>14}{'net':>14}")
+    for r in rows:
+        print(f"{r['year']:<8}{money(r['spending']):>14}"
+              f"{money(r['income']):>14}{money(r['net']):>14}")
+
+
 def cmd_year(args):
     data = load()
     year = args.year if args.year is not None else date.today().year
@@ -3414,6 +3447,10 @@ def build_parser():
     yr.add_argument("--json", action="store_true", help="output JSON instead of text")
     yr.set_defaults(func=cmd_year)
 
+    ys = sub.add_parser("years", help="multi-year rollup (spending/income/net)")
+    ys.add_argument("--json", action="store_true", help="output JSON instead of text")
+    ys.set_defaults(func=cmd_years)
+
     dy = sub.add_parser("day", help="entries for a single day")
     dy.add_argument("--date", default="today",
                     help="YYYY-MM-DD, 'today', or 'yesterday'")
@@ -3725,7 +3762,8 @@ def main(argv=None):
                         "sources", "quarter", "forecast", "balance",
                         "commitments", "savings", "heatmap", "suggest",
                         "insights", "tagtrend", "range", "matrix",
-                        "cumulative", "allowance", "tagmatrix", "weekly"):
+                        "cumulative", "allowance", "tagmatrix", "weekly",
+                        "years"):
         data = load()
         if apply_recurring(data):
             save(data)
