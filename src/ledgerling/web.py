@@ -331,7 +331,9 @@ INDEX_HTML = r"""<!doctype html>
     text-overflow:ellipsis; }
   .cbarwrap { background:var(--panel2); border-radius:6px; height:20px; overflow:hidden; }
   .cbar { background:var(--accent); height:100%; border-radius:6px; min-width:2px; }
+  .cbar.neg { background:var(--neg); }
   .cval { font:12px ui-monospace,Menlo,Consolas,monospace; text-align:right; }
+  .cval.neg { color:var(--neg); }
   .cal { display:flex; flex-direction:column; gap:8px; max-width:440px; }
   .cal .cgrid { display:grid; grid-template-columns:repeat(7,1fr); gap:5px; }
   .cal .cdow { font-size:11px; color:var(--muted); text-align:center; padding:2px 0; font-weight:600; }
@@ -1010,9 +1012,11 @@ function renderChart(cd) {
       const l = document.createElement('div'); l.className = 'clab';
       l.textContent = String(r[cd.labelKey]);
       const bw = document.createElement('div'); bw.className = 'cbarwrap';
-      const b = document.createElement('div'); b.className = 'cbar';
+      const b = document.createElement('div');
+      b.className = 'cbar' + (vals[i] < 0 ? ' neg' : '');
       b.style.width = (Math.abs(vals[i]) / max * 100) + '%'; bw.appendChild(b);
-      const v = document.createElement('div'); v.className = 'cval';
+      const v = document.createElement('div');
+      v.className = 'cval' + (vals[i] < 0 ? ' neg' : '');
       v.textContent = fmtNum(key, vals[i]);
       row.appendChild(l); row.appendChild(bw); row.appendChild(v);
       bars.appendChild(row);
