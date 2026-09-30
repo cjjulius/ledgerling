@@ -183,6 +183,9 @@ ledgerling distribution
 # Monthly spending trend for one category
 ledgerling trend food --months 6
 
+# Monthly spending trend for one #tag (spans categories)
+ledgerling tagtrend work --months 6
+
 # Forecast recurring charges/income coming up (default 30 days)
 ledgerling upcoming
 ledgerling upcoming --days 60

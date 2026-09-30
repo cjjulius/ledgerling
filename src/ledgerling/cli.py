@@ -41,6 +41,7 @@ Commands:
     year      Calendar-year rollup by month (spending, income, net)
     compare   Compare two months side by side (with per-category deltas)
     trend     Monthly spending trend for one category
+    tagtrend  Monthly spending trend for one #tag
     top       List your largest expenses (optionally by month/category)
     average   Average spending per day / week / month
     distribution  Histogram of expense sizes
@@ -82,7 +83,7 @@ import sys
 import tempfile
 from datetime import datetime, date, timedelta
 
-__version__ = "1.40.0"
+__version__ = "1.41.0"
 
 # --------------------------------------------------------------------------- #
 # Sandbox + storage
@@ -1367,6 +1368,51 @@ def cmd_trend(args):
 
     peak = max(totals.values())
     print(f"Trend for [{cat}] (last {months} month(s))")
+    print("=" * 52)
+    for k in keys:
+        print(f"{k}  {money(totals[k]):>12}  {bar(totals[k] / peak)}")
+    print("-" * 52)
+    print(f"{'average/mo':<10} {money(average):>12}   "
+          f"total {money(window_total)}")
+
+
+def cmd_tagtrend(args):
+    tag = args.tag.strip().lstrip("#").lower()
+    if not tag:
+        sys.exit("error: tag must not be empty")
+    months = args.months
+    if months < 1:
+        sys.exit("error: --months must be at least 1")
+    data = load()
+    first = date.today().replace(day=1)
+    keys = [month_of(add_months(first, -i).isoformat())
+            for i in range(months - 1, -1, -1)]
+
+    totals = {k: 0.0 for k in keys}
+    for e in expenses_only(data["expenses"]):
+        if tag in e.get("tags", []):
+            m = month_of(e["date"])
+            if m in totals:
+                totals[m] = round(totals[m] + e["amount"], 2)
+
+    window_total = round(sum(totals.values()), 2)
+    average = round(window_total / months, 2)
+
+    if getattr(args, "json", False):
+        print(json.dumps({
+            "tag": tag,
+            "months": [{"month": k, "total": totals[k]} for k in keys],
+            "total": window_total,
+            "average": average,
+        }, indent=2))
+        return
+
+    if window_total == 0:
+        print(f"no spending tagged #{tag} in the last {months} month(s)")
+        return
+
+    peak = max(totals.values())
+    print(f"Trend for #{tag} (last {months} month(s))")
     print("=" * 52)
     for k in keys:
         print(f"{k}  {money(totals[k]):>12}  {bar(totals[k] / peak)}")
@@ -2762,6 +2808,13 @@ def build_parser():
     tr.add_argument("--json", action="store_true", help="output JSON instead of text")
     tr.set_defaults(func=cmd_trend)
 
+    tt = sub.add_parser("tagtrend", help="monthly spending trend for one #tag")
+    tt.add_argument("tag", help="tag to chart (with or without a leading #)")
+    tt.add_argument("--months", type=int, default=6,
+                    help="how many months to show (default 6)")
+    tt.add_argument("--json", action="store_true", help="output JSON instead of text")
+    tt.set_defaults(func=cmd_tagtrend)
+
     cm = sub.add_parser("compare", help="compare two months side by side")
     cm.add_argument("month_a", nargs="?", help="first month, YYYY-MM "
                     "(default: last month)")
@@ -2881,7 +2934,7 @@ def main(argv=None):
                         "year", "untagged", "average", "distribution",
                         "sources", "quarter", "forecast", "balance",
                         "commitments", "savings", "heatmap", "suggest",
-                        "insights"):
+                        "insights", "tagtrend"):
         data = load()
         if apply_recurring(data):
             save(data)

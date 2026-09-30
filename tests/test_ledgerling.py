@@ -773,6 +773,21 @@ class CLI(TempAppCase):
         d = json.loads(self._main(["insights", "--month", "2020-01", "--json"]))
         self.assertEqual(d["insights"], ["Nothing recorded for 2020-01 yet."])
 
+    def test_tagtrend_json(self):
+        this = date.today().isoformat()[:7]
+        prev = L.add_months(date.today().replace(day=1), -1).isoformat()[:7]
+        self._main(["add", "40", "food", "lunch #work", "--date", f"{this}-05"])
+        self._main(["add", "60", "travel", "cab #work", "--date", f"{this}-06"])
+        self._main(["add", "25", "food", "lunch #work", "--date", f"{prev}-05"])
+        self._main(["add", "99", "food", "personal", "--date", f"{this}-07"])  # untagged
+        d = json.loads(self._main(["tagtrend", "work", "--months", "2", "--json"]))
+        self.assertEqual(d["tag"], "work")
+        self.assertEqual(len(d["months"]), 2)
+        by = {m["month"]: m["total"] for m in d["months"]}
+        self.assertEqual(by[this], 100.0)   # 40 + 60, spans categories
+        self.assertEqual(by[prev], 25.0)
+        self.assertEqual(d["total"], 125.0)
+
     def test_year_json(self):
         self._main(["add", "100", "food", "a", "--date", "2026-01-15"])
         self._main(["add", "200", "food", "b", "--date", "2026-03-10"])

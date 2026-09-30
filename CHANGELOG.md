@@ -4,6 +4,15 @@ All notable changes to Ledgerling are documented here. The format is based on
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and this project
 adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.41.0] - 2026-09-29
+
+### Added
+
+- `tagtrend TAG` — a monthly spending trend for a single `#tag` over the last N
+  months (`--months`, default 6), with a bar chart, average, and total. Mirrors
+  `trend` (which charts a category) but for tags, which can span categories.
+  Series-shaped, so the web UI renders it as a table/chart. Supports `--json`.
+
 ## [1.40.0] - 2026-09-29
 
 ### Added
@@ -416,6 +425,7 @@ file, standard library only, strictly confined to its own folder.
   guard (`_within_app`) that refuses any path escaping the app folder; imports
   and restores are reduced to a basename and looked up only within the folder.
 
+[1.41.0]: #1410---2026-09-29
 [1.40.0]: #1400---2026-09-29
 [1.39.0]: #1390---2026-09-29
 [1.38.0]: #1380---2026-09-29
