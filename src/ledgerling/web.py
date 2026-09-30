@@ -415,7 +415,7 @@ function buildTabs(data) {
 }
 
 function pickValueKey(numKeys) {
-  const pref = ['total', 'spending', 'amount', 'balance', 'net', 'value', 'count'];
+  const pref = ['total', 'spending', 'amount', 'balance', 'rate', 'net', 'value', 'count'];
   for (const p of pref) if (numKeys.includes(p)) return p;  // by preference order
   return numKeys[0];
 }

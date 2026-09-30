@@ -687,6 +687,18 @@ class CLI(TempAppCase):
         self.assertEqual(d["annual_income"], round(3000 * 12, 2))
         self.assertEqual(len(d["rules"]), 3)
 
+    def test_savings_json(self):
+        self._main(["income", "1000", "salary", "a", "--date", "2026-01-10"])
+        self._main(["add", "250", "food", "b", "--date", "2026-01-15"])   # Jan 75%
+        self._main(["add", "400", "food", "c", "--date", "2026-02-05"])   # Feb no income
+        d = json.loads(self._main(["savings", "--json"]))
+        self.assertEqual(d["months"], [
+            {"month": "2026-01", "income": 1000.0, "spending": 250.0,
+             "net": 750.0, "rate": 75.0},
+            {"month": "2026-02", "income": 0.0, "spending": 400.0,
+             "net": -400.0, "rate": None},
+        ])
+
     def test_year_json(self):
         self._main(["add", "100", "food", "a", "--date", "2026-01-15"])
         self._main(["add", "200", "food", "b", "--date", "2026-03-10"])

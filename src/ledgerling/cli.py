@@ -35,6 +35,7 @@ Commands:
     forecast  Project this year's spending/income/net to year-end
     quarter   Quarterly rollup (Q1-Q4) for a year
     balance   Running cumulative net (income - spending) month over month
+    savings   Monthly savings rate (net / income) trend
     year      Calendar-year rollup by month (spending, income, net)
     compare   Compare two months side by side (with per-category deltas)
     trend     Monthly spending trend for one category
@@ -77,7 +78,7 @@ import sys
 import tempfile
 from datetime import datetime, date, timedelta
 
-__version__ = "1.34.0"
+__version__ = "1.35.0"
 
 # --------------------------------------------------------------------------- #
 # Sandbox + storage
@@ -1645,6 +1646,44 @@ def cmd_commitments(args):
           f"net {money((m_inc - m_exp) * 12)}")
 
 
+def cmd_savings(args):
+    data = load()
+    agg = {}
+    for e in data["expenses"]:
+        m = month_of(e["date"])
+        a = agg.setdefault(m, {"income": 0.0, "spending": 0.0})
+        if kind_of(e) == "income":
+            a["income"] = round(a["income"] + e["amount"], 2)
+        else:
+            a["spending"] = round(a["spending"] + e["amount"], 2)
+
+    rows = []
+    for m in sorted(agg):
+        inc, spend = agg[m]["income"], agg[m]["spending"]
+        net = round(inc - spend, 2)
+        rate = round(net / inc * 100, 1) if inc > 0 else None
+        rows.append({"month": m, "income": inc, "spending": spend,
+                     "net": net, "rate": rate})
+
+    if getattr(args, "json", False):
+        print(json.dumps({"months": rows}, indent=2))
+        return
+    if not rows:
+        print("nothing recorded yet")
+        return
+
+    print("Monthly savings rate (net / income)")
+    print("=" * 60)
+    for r in rows:
+        rate = "  n/a" if r["rate"] is None else f"{r['rate']:>5.1f}%"
+        bar = ""
+        if r["rate"] is not None:
+            filled = max(0, min(20, int(round(r["rate"] / 5))))
+            bar = "  " + "#" * filled
+        print(f"{r['month']}  income {money(r['income']):>11}  "
+              f"net {money(r['net']):>11}  {rate}{bar}")
+
+
 def cmd_forecast(args):
     data = load()
     today = date.today()
@@ -2358,6 +2397,10 @@ def build_parser():
     cm.add_argument("--json", action="store_true", help="output JSON instead of text")
     cm.set_defaults(func=cmd_commitments)
 
+    sv = sub.add_parser("savings", help="monthly savings rate (net / income) trend")
+    sv.add_argument("--json", action="store_true", help="output JSON instead of text")
+    sv.set_defaults(func=cmd_savings)
+
     fc = sub.add_parser("forecast", help="project this year to year-end")
     fc.add_argument("--json", action="store_true", help="output JSON instead of text")
     fc.set_defaults(func=cmd_forecast)
@@ -2567,7 +2610,7 @@ def main(argv=None):
                         "duplicates", "week", "streak", "weekday", "day",
                         "year", "untagged", "average", "distribution",
                         "sources", "quarter", "forecast", "balance",
-                        "commitments"):
+                        "commitments", "savings"):
         data = load()
         if apply_recurring(data):
             save(data)
