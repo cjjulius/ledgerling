@@ -81,6 +81,7 @@ ledgerling refund 1 --amount 12.50    # a partial refund
 # Record income (net + savings rate then show up in stats/report)
 ledgerling income 3000 salary "march pay"
 ledgerling sources                    # income broken down by source
+ledgerling sources --month 2026-09    # scoped to one month
 
 # See recent expenses (filter by category or month); * marks recurring items
 ledgerling list                       # expenses only (default)

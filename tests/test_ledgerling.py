@@ -888,6 +888,15 @@ class CLI(TempAppCase):
         with self.assertRaises(SystemExit):
             self._main(["tag", "999", "work"])
 
+    def test_sources_month_scope(self):
+        self._main(["income", "3000", "salary", "a", "--date", "2026-05-01"])
+        self._main(["income", "200", "freelance", "b", "--date", "2026-05-15"])
+        self._main(["income", "999", "salary", "c", "--date", "2026-06-01"])
+        d = json.loads(self._main(["sources", "--month", "2026-05", "--json"]))
+        self.assertEqual(set(d), {"salary", "freelance"})
+        self.assertEqual(d["salary"]["total"], 3000.0)   # June salary excluded
+        self.assertEqual(d["freelance"]["total"], 200.0)
+
     def test_categories_and_tags_month_scope(self):
         self._main(["add", "40", "food", "a #work", "--date", "2026-05-05"])
         self._main(["add", "10", "food", "b", "--date", "2026-05-06"])

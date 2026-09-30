@@ -95,7 +95,7 @@ import sys
 import tempfile
 from datetime import datetime, date, timedelta
 
-__version__ = "1.64.0"
+__version__ = "1.65.0"
 
 # --------------------------------------------------------------------------- #
 # Sandbox + storage
@@ -1655,8 +1655,11 @@ def cmd_tagtrend(args):
 
 
 def cmd_sources(args):
+    check_month(args.month)
     data = load()
     rows = income_only(data["expenses"])
+    if args.month:
+        rows = [e for e in rows if month_of(e["date"]) == args.month]
     agg = {}
     for e in rows:
         a = agg.setdefault(e["category"], {"count": 0, "total": 0.0})
@@ -1667,10 +1670,11 @@ def cmd_sources(args):
         print(json.dumps(agg, indent=2))
         return
     if not agg:
-        print("no income recorded yet. Try: income 3000 salary \"march pay\"")
+        where = f" in {args.month}" if args.month else ""
+        print(f"no income recorded{where} yet. Try: income 3000 salary \"march pay\"")
         return
 
-    print("Income by source")
+    print("Income by source" + (f" ({args.month})" if args.month else ""))
     print("=" * 48)
     total = 0.0
     for cat, v in sorted(agg.items(), key=lambda kv: kv[1]["total"], reverse=True):
@@ -3412,6 +3416,7 @@ def build_parser():
     tg.set_defaults(func=cmd_tags)
 
     so = sub.add_parser("sources", help="income broken down by source")
+    so.add_argument("--month", help="restrict to a month, YYYY-MM")
     so.add_argument("--json", action="store_true", help="output JSON instead of text")
     so.set_defaults(func=cmd_sources)
 
