@@ -750,6 +750,29 @@ class CLI(TempAppCase):
         # suggested rounds average*1.1 up to a friendly step, so >= average
         self.assertGreaterEqual(s["suggested"], s["average"])
 
+    def test_insights_json(self):
+        self._main(["income", "2000", "salary", "pay", "--date", "2026-04-01"])
+        self._main(["add", "300", "food", "groceries", "--date", "2026-04-05"])
+        self._main(["add", "100", "food", "dining", "--date", "2026-04-06"])
+        self._main(["add", "50", "transit", "metro", "--date", "2026-04-07"])
+        self._main(["add", "200", "food", "prev", "--date", "2026-03-10"])  # last month
+        self._main(["budget", "--category", "food", "--amount", "250"])     # will be over
+        d = json.loads(self._main(["insights", "--month", "2026-04", "--json"]))
+        self.assertEqual(d["month"], "2026-04")
+        self.assertEqual(d["metrics"],
+                         {"income": 2000.0, "spending": 450.0, "net": 1550.0,
+                          "prev_spending": 200.0})
+        blob = " ".join(d["insights"])
+        self.assertIn("saved", blob)                 # savings insight
+        self.assertIn("biggest category", blob)      # top category (food)
+        self.assertIn("Over budget on food", blob)   # budget breach
+        self.assertIn("Largest expense", blob)       # biggest single expense
+        self.assertIn("up", blob)                    # up vs last month
+
+    def test_insights_empty_month(self):
+        d = json.loads(self._main(["insights", "--month", "2020-01", "--json"]))
+        self.assertEqual(d["insights"], ["Nothing recorded for 2020-01 yet."])
+
     def test_year_json(self):
         self._main(["add", "100", "food", "a", "--date", "2026-01-15"])
         self._main(["add", "200", "food", "b", "--date", "2026-03-10"])

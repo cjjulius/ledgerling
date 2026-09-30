@@ -33,6 +33,7 @@ Commands:
     weekday   Spending by day of week (which days you spend most)
     heatmap   Daily-spending calendar for a month (with a web calendar view)
     month     One-screen dashboard for a month (income, spend, net, budgets)
+    insights  Plain-language observations about a month
     forecast  Project this year's spending/income/net to year-end
     quarter   Quarterly rollup (Q1-Q4) for a year
     balance   Running cumulative net (income - spending) month over month
@@ -81,7 +82,7 @@ import sys
 import tempfile
 from datetime import datetime, date, timedelta
 
-__version__ = "1.39.0"
+__version__ = "1.40.0"
 
 # --------------------------------------------------------------------------- #
 # Sandbox + storage
@@ -2103,6 +2104,96 @@ def cmd_month(args):
         print(f"savings goal   {money(net)} of {money(goal)}   {status}")
 
 
+def cmd_insights(args):
+    check_month(args.month)
+    data = load()
+    today = date.today()
+    period = args.month or today.isoformat()[:7]
+    prev = add_months(date.fromisoformat(f"{period}-01"), -1).isoformat()[:7]
+
+    all_exp = expenses_only(data["expenses"])
+    exp = [e for e in all_exp if month_of(e["date"]) == period]
+    inc = [e for e in income_only(data["expenses"]) if month_of(e["date"]) == period]
+    spending = round(sum(e["amount"] for e in exp), 2)
+    income = round(sum(e["amount"] for e in inc), 2)
+    net = round(income - spending, 2)
+    prev_spend = round(sum(e["amount"] for e in all_exp
+                           if month_of(e["date"]) == prev), 2)
+
+    cat_tot = {}
+    for e in exp:
+        cat_tot[e["category"]] = round(cat_tot.get(e["category"], 0) + e["amount"], 2)
+
+    insights = []
+    if not exp and not inc:
+        insights.append(f"Nothing recorded for {period} yet.")
+    else:
+        if income > 0:
+            rate = round(net / income * 100, 1)
+            if net >= 0:
+                insights.append(f"You saved {money(net)} this month "
+                                f"({rate}% of income).")
+            else:
+                insights.append(f"You spent {money(-net)} more than you "
+                                "earned this month.")
+        elif spending > 0:
+            insights.append(f"You spent {money(spending)} this month with no "
+                            "recorded income.")
+        if cat_tot and spending > 0:
+            top_cat, top_amt = max(cat_tot.items(), key=lambda kv: kv[1])
+            share = round(top_amt / spending * 100)
+            insights.append(f"{top_cat} was your biggest category at {share}% "
+                            f"of spending ({money(top_amt)}).")
+        if prev_spend > 0:
+            delta = round(spending - prev_spend, 2)
+            pct = round(abs(delta) / prev_spend * 100)
+            if delta > 0:
+                insights.append(f"Spending is up {pct}% vs {prev} "
+                                f"({money(prev_spend)} to {money(spending)}).")
+            elif delta < 0:
+                insights.append(f"Spending is down {pct}% vs {prev} "
+                                f"({money(prev_spend)} to {money(spending)}).")
+            else:
+                insights.append(f"Spending is flat vs {prev} ({money(spending)}).")
+        overs = [(cat, cat_tot.get(cat, 0.0), limit)
+                 for cat, limit in data["budgets"].items()
+                 if cat_tot.get(cat, 0.0) > limit]
+        if overs:
+            for cat, sp, limit in sorted(overs):
+                insights.append(f"Over budget on {cat}: {money(sp)} of "
+                                f"{money(limit)}.")
+        elif data["budgets"]:
+            insights.append("All budgets are on track.")
+        if exp:
+            big = max(exp, key=lambda e: e["amount"])
+            note = f" - {big['note']}" if big.get("note") else ""
+            insights.append(f"Largest expense: {money(big['amount'])} on "
+                            f"{big['category']}{note} ({big['date']}).")
+        year, mon = (int(x) for x in period.split("-"))
+        dim = calendar.monthrange(year, mon)[1]
+        last_day = today.day if period == today.isoformat()[:7] else dim
+        spend_days = {int(e["date"][8:10]) for e in exp
+                      if int(e["date"][8:10]) <= last_day}
+        no_spend = last_day - len(spend_days)
+        if no_spend > 0:
+            tail = ("so far this month" if period == today.isoformat()[:7]
+                    else "this month")
+            insights.append(f"{no_spend} no-spend day"
+                            f"{'' if no_spend == 1 else 's'} {tail}.")
+
+    metrics = {"income": income, "spending": spending, "net": net,
+               "prev_spending": prev_spend}
+    if getattr(args, "json", False):
+        print(json.dumps({"month": period, "insights": insights,
+                          "metrics": metrics}, indent=2))
+        return
+
+    print(f"Insights - {period}")
+    print("=" * 56)
+    for s in insights:
+        print(f"- {s}")
+
+
 def cmd_retag(args):
     old = args.old.strip().lstrip("#").lower()
     new = args.new.strip().lstrip("#").lower()
@@ -2593,6 +2684,12 @@ def build_parser():
     mo.add_argument("--json", action="store_true", help="output JSON instead of text")
     mo.set_defaults(func=cmd_month)
 
+    ins = sub.add_parser("insights",
+                         help="plain-language observations about a month")
+    ins.add_argument("--month", help="which month, YYYY-MM (default: current)")
+    ins.add_argument("--json", action="store_true", help="output JSON instead of text")
+    ins.set_defaults(func=cmd_insights)
+
     up = sub.add_parser("upcoming",
                         help="forecast recurring charges/income due soon")
     up.add_argument("--days", type=int, default=30,
@@ -2783,7 +2880,8 @@ def main(argv=None):
                         "duplicates", "week", "streak", "weekday", "day",
                         "year", "untagged", "average", "distribution",
                         "sources", "quarter", "forecast", "balance",
-                        "commitments", "savings", "heatmap", "suggest"):
+                        "commitments", "savings", "heatmap", "suggest",
+                        "insights"):
         data = load()
         if apply_recurring(data):
             save(data)

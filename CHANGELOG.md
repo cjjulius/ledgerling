@@ -4,6 +4,20 @@ All notable changes to Ledgerling are documented here. The format is based on
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and this project
 adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.40.0] - 2026-09-29
+
+### Added
+
+- `insights` command — plain-language observations about a month: savings (or
+  overspend) and savings rate, your biggest category and its share,
+  month-over-month spending change, budget breaches (or "all on track"), the
+  largest single expense, and no-spend days. Supports `--json` (`insights` list
+  plus a `metrics` object).
+- Web UI: a bespoke **Insights** view for that command — each observation as its
+  own card in a clean list, shown as the preferred tab (the raw metrics chart is
+  suppressed for it). Its second per-feature hand-built element, after the
+  heatmap calendar.
+
 ## [1.39.0] - 2026-09-29
 
 ### Changed
@@ -402,6 +416,7 @@ file, standard library only, strictly confined to its own folder.
   guard (`_within_app`) that refuses any path escaping the app folder; imports
   and restores are reduced to a basename and looked up only within the folder.
 
+[1.40.0]: #1400---2026-09-29
 [1.39.0]: #1390---2026-09-29
 [1.38.0]: #1380---2026-09-29
 [1.37.0]: #1370---2026-09-29

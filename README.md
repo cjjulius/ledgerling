@@ -150,6 +150,10 @@ ledgerling heatmap --month 2026-08
 ledgerling month
 ledgerling month --month 2026-08
 
+# Plain-language insights about a month (savings, top category, vs last month...)
+ledgerling insights
+ledgerling insights --month 2026-08
+
 # Quarterly and calendar-year rollups, and a year-end forecast
 ledgerling quarter 2026
 ledgerling year

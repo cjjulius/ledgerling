@@ -316,6 +316,12 @@ INDEX_HTML = r"""<!doctype html>
   .cal .clegend { display:flex; align-items:center; gap:6px; font-size:12px;
     color:var(--muted); }
   .cal .cswatch { width:16px; height:16px; border-radius:5px; border:1px solid var(--line); }
+  .inslist { display:flex; flex-direction:column; gap:10px; }
+  .insrow { display:flex; gap:11px; align-items:flex-start; padding:11px 13px;
+    background:var(--panel2); border:1px solid var(--line); border-radius:11px; }
+  .insrow .dot { width:8px; height:8px; border-radius:50%; background:var(--accent);
+    margin-top:7px; flex:none; }
+  .insrow .txt { font-size:14px; }
   @media (max-width:720px) {
     .wrap { grid-template-columns:1fr; height:auto; }
     .side { border-right:0; border-bottom:1px solid var(--line); max-height:40vh; }
@@ -660,12 +666,15 @@ function buildTabs(data) {
   const tText = mk('Text', 'text'); tabs.appendChild(tText);
   const has = data !== null &&
     (Array.isArray(data) ? data.length : Object.keys(data).length);
+  const ins = has ? insightsData(data) : null;
   const cal = has ? calendarData(data) : null;
-  const cd = has ? chartData(data) : null;
+  const cd = (has && !ins) ? chartData(data) : null;
   let active = tText, prefer = 'text';
   if (has) {
-    tableEl.innerHTML = ''; tableEl.appendChild(renderData(data));
-    active = mk('Table', 'table'); tabs.appendChild(active); prefer = 'table';
+    tableEl.innerHTML = '';
+    if (ins) { tableEl.appendChild(renderInsights(ins)); active = mk('Insights', 'table'); }
+    else { tableEl.appendChild(renderData(data)); active = mk('Table', 'table'); }
+    tabs.appendChild(active); prefer = 'table';
   }
   if (cd) {
     chartEl.innerHTML = ''; chartEl.appendChild(renderChart(cd));
@@ -677,6 +686,25 @@ function buildTabs(data) {
   }
   active.classList.add('active');
   show(prefer);
+}
+
+function insightsData(data) {
+  // insights: {month, insights:[strings], metrics:{...}}
+  if (!data || typeof data !== 'object' || Array.isArray(data)) return null;
+  if (!Array.isArray(data.insights) || !data.insights.length) return null;
+  if (!data.insights.every(x => typeof x === 'string')) return null;
+  return data.insights;
+}
+
+function renderInsights(arr) {
+  const box = document.createElement('div'); box.className = 'inslist';
+  arr.forEach(s => {
+    const row = document.createElement('div'); row.className = 'insrow';
+    const dot = document.createElement('div'); dot.className = 'dot';
+    const txt = document.createElement('div'); txt.className = 'txt'; txt.textContent = s;
+    row.appendChild(dot); row.appendChild(txt); box.appendChild(row);
+  });
+  return box;
 }
 
 function calendarData(data) {
