@@ -189,6 +189,10 @@ ledgerling untagged
 # Find likely double-entered records (same date/amount/category/note)
 ledgerling duplicates
 
+# Remove those duplicates (keeps one per group; preview with --dry-run, undoable)
+ledgerling dedupe --dry-run
+ledgerling dedupe
+
 # Undo the last data change (run it again to redo)
 ledgerling undo
 

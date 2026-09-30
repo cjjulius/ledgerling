@@ -699,6 +699,31 @@ class CLI(TempAppCase):
              "net": -400.0, "rate": None},
         ])
 
+    def test_dedupe_dry_run_then_apply(self):
+        for _ in range(3):
+            self._main(["add", "10", "food", "lunch", "--date", "2026-01-05"])
+        self._main(["add", "10", "food", "other", "--date", "2026-01-05"])  # unique
+        # dry run: reports ids to remove but changes nothing
+        d = json.loads(self._main(["dedupe", "--dry-run", "--json"]))
+        self.assertEqual(d["removed"], [2, 3])
+        self.assertTrue(d["dry_run"])
+        self.assertEqual(len(json.loads(self._main(["list", "--json"]))), 4)
+        # apply: removes the two extras, keeping the lowest id (#1)
+        d = json.loads(self._main(["dedupe", "--json"]))
+        self.assertEqual(d["removed"], [2, 3])
+        ids = sorted(e["id"] for e in json.loads(self._main(["list", "--json"])))
+        self.assertEqual(ids, [1, 4])
+        # undoable
+        self._main(["undo"])
+        self.assertEqual(len(json.loads(self._main(["list", "--json"]))), 4)
+
+    def test_dedupe_none(self):
+        self._main(["add", "5", "food", "a", "--date", "2026-01-01"])
+        self._main(["add", "6", "food", "b", "--date", "2026-01-01"])
+        d = json.loads(self._main(["dedupe", "--json"]))
+        self.assertEqual(d["removed"], [])
+        self.assertEqual(d["count"], 0)
+
     def test_year_json(self):
         self._main(["add", "100", "food", "a", "--date", "2026-01-15"])
         self._main(["add", "200", "food", "b", "--date", "2026-03-10"])

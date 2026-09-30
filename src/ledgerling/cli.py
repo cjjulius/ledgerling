@@ -50,6 +50,7 @@ Commands:
     recategorize  Rename a category across all records
     retag     Rename a #tag across all records
     duplicates  Find likely double-entered records
+    dedupe    Remove duplicate entries (keeps one per group; undoable)
     undo      Revert the last data change (toggles redo)
     budget    Set / view monthly budgets
     pace      Budget pace: spent vs day-adjusted expected, projected EOM
@@ -78,7 +79,7 @@ import sys
 import tempfile
 from datetime import datetime, date, timedelta
 
-__version__ = "1.35.0"
+__version__ = "1.36.0"
 
 # --------------------------------------------------------------------------- #
 # Sandbox + storage
@@ -1135,7 +1136,49 @@ def cmd_duplicates(args):
               f"{mark}   ({ids})")
     print("-" * 58)
     print(f"{len(dupes)} group(s), {extra} extra entr{'y' if extra == 1 else 'ies'}."
-          "  Remove with `delete <id>`.")
+          "  Remove with `delete <id>` or `dedupe`.")
+
+
+def cmd_dedupe(args):
+    data = load()
+    groups = {}
+    for e in data["expenses"]:
+        key = (e["date"], round(e["amount"], 2), e["category"],
+               e["note"], kind_of(e))
+        groups.setdefault(key, []).append(e)
+    # in each duplicate group keep the lowest id, drop the rest
+    remove_ids = []
+    for entries in groups.values():
+        if len(entries) > 1:
+            entries.sort(key=lambda e: e["id"])
+            remove_ids.extend(e["id"] for e in entries[1:])
+    remove_ids.sort()
+
+    dry = getattr(args, "dry_run", False)
+    if getattr(args, "json", False):
+        print(json.dumps({"removed": remove_ids, "count": len(remove_ids),
+                          "dry_run": dry}, indent=2))
+        if remove_ids and not dry:
+            data["expenses"] = [e for e in data["expenses"]
+                                if e["id"] not in set(remove_ids)]
+            save(data)
+        return
+
+    if not remove_ids:
+        print("no duplicates to remove")
+        return
+    ids = ", ".join(f"#{i}" for i in remove_ids)
+    if dry:
+        print(f"would remove {len(remove_ids)} duplicate entr"
+              f"{'y' if len(remove_ids) == 1 else 'ies'}: {ids}")
+        print("(dry run - nothing changed; rerun without --dry-run to apply)")
+        return
+    data["expenses"] = [e for e in data["expenses"]
+                        if e["id"] not in set(remove_ids)]
+    save(data)
+    print(f"removed {len(remove_ids)} duplicate entr"
+          f"{'y' if len(remove_ids) == 1 else 'ies'}: {ids}")
+    print("undo with `undo`.")
 
 
 def cmd_pace(args):
@@ -2462,6 +2505,13 @@ def build_parser():
                         help="find likely double-entered records")
     dp.add_argument("--json", action="store_true", help="output JSON instead of text")
     dp.set_defaults(func=cmd_duplicates)
+
+    dd = sub.add_parser("dedupe",
+                        help="remove duplicate entries (keeps one per group)")
+    dd.add_argument("--dry-run", action="store_true",
+                    help="preview what would be removed without changing anything")
+    dd.add_argument("--json", action="store_true", help="output JSON instead of text")
+    dd.set_defaults(func=cmd_dedupe)
 
     pc = sub.add_parser("pace", help="budget pace: are you ahead or behind?")
     pc.add_argument("--month", help="which month, YYYY-MM (default: current)")

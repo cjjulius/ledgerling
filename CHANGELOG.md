@@ -4,6 +4,16 @@ All notable changes to Ledgerling are documented here. The format is based on
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and this project
 adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.36.0] - 2026-09-29
+
+### Added
+
+- `dedupe` command — removes duplicate entries (identical date, amount,
+  category, note, and kind), keeping the lowest-id entry in each group. Pairs
+  with `duplicates` (which only reports them). `--dry-run` previews the ids it
+  would remove without changing anything; a real run is undoable with `undo`.
+  Supports `--json`.
+
 ## [1.35.0] - 2026-09-29
 
 ### Added
@@ -351,6 +361,7 @@ file, standard library only, strictly confined to its own folder.
   guard (`_within_app`) that refuses any path escaping the app folder; imports
   and restores are reduced to a basename and looked up only within the folder.
 
+[1.36.0]: #1360---2026-09-29
 [1.35.0]: #1350---2026-09-29
 [1.34.0]: #1340---2026-09-29
 [1.33.0]: #1330---2026-09-29
