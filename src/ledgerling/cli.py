@@ -28,6 +28,7 @@ Commands:
     stats     Analytics: extremes, averages, per-tag totals, projection
     week      This week's spending by day (Mon-Sun), income and net
     streak    No-spend-day streaks for a month
+    weekday   Spending by day of week (which days you spend most)
     month     One-screen dashboard for a month (income, spend, net, budgets)
     compare   Compare two months side by side (with per-category deltas)
     trend     Monthly spending trend for one category
@@ -64,7 +65,7 @@ import sys
 import tempfile
 from datetime import datetime, date, timedelta
 
-__version__ = "1.17.0"
+__version__ = "1.18.0"
 
 # --------------------------------------------------------------------------- #
 # Sandbox + storage
@@ -1337,6 +1338,46 @@ def cmd_categories(args):
         print(f"{cat:<14} {v['count']:>3} item(s)  {money(v['total']):>12}{budget}")
 
 
+_WEEKDAY_NAMES = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"]
+
+
+def cmd_weekday(args):
+    check_month(args.month)
+    data = load()
+    rows = expenses_only(data["expenses"])
+    if args.month:
+        rows = [e for e in rows if month_of(e["date"]) == args.month]
+
+    agg = {i: {"total": 0.0, "count": 0} for i in range(7)}
+    for e in rows:
+        wd = date.fromisoformat(e["date"]).weekday()
+        agg[wd]["total"] = round(agg[wd]["total"] + e["amount"], 2)
+        agg[wd]["count"] += 1
+
+    weekdays = [{"day": _WEEKDAY_NAMES[i], "total": agg[i]["total"],
+                 "count": agg[i]["count"],
+                 "average": round(agg[i]["total"] / agg[i]["count"], 2)
+                 if agg[i]["count"] else 0.0}
+                for i in range(7)]
+
+    if getattr(args, "json", False):
+        print(json.dumps({"scope": args.month or "all time",
+                          "weekdays": weekdays}, indent=2))
+        return
+
+    if not rows:
+        scope = args.month or "your records"
+        print(f"no expenses in {scope}")
+        return
+
+    peak = max(w["total"] for w in weekdays) or 0
+    print(f"Spending by weekday ({args.month or 'all time'})")
+    print("=" * 52)
+    for w in weekdays:
+        chart = bar(w["total"] / peak, width=18) if peak else bar(0, width=18)
+        print(f"{w['day']}  {money(w['total']):>12}  ({w['count']:>3})  {chart}")
+
+
 def cmd_streak(args):
     check_month(args.month)
     data = load()
@@ -1887,6 +1928,11 @@ def build_parser():
     st.add_argument("--json", action="store_true", help="output JSON instead of text")
     st.set_defaults(func=cmd_stats)
 
+    wd = sub.add_parser("weekday", help="spending by day of week")
+    wd.add_argument("--month", help="restrict to a month, YYYY-MM")
+    wd.add_argument("--json", action="store_true", help="output JSON instead of text")
+    wd.set_defaults(func=cmd_weekday)
+
     sk = sub.add_parser("streak", help="no-spend-day streaks for a month")
     sk.add_argument("--month", help="which month, YYYY-MM (default: current)")
     sk.add_argument("--json", action="store_true", help="output JSON instead of text")
@@ -2047,7 +2093,7 @@ def main(argv=None):
     if args.command in ("list", "summary", "budget", "export", "report",
                         "stats", "search", "categories", "tags", "month",
                         "upcoming", "compare", "trend", "top", "pace",
-                        "duplicates", "week", "streak"):
+                        "duplicates", "week", "streak", "weekday"):
         data = load()
         if apply_recurring(data):
             save(data)

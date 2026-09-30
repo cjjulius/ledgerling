@@ -472,6 +472,21 @@ class CLI(TempAppCase):
     def test_completion_default_is_bash(self):
         self.assertEqual(self._main(["completion"]), self._main(["completion", "bash"]))
 
+    def test_weekday_json(self):
+        self._main(["add", "10", "food", "a", "--date", "2026-06-01"])
+        self._main(["add", "20", "food", "b", "--date", "2026-06-08"])  # +7d, same wd
+        self._main(["add", "5", "food", "c", "--date", "2026-06-02"])   # next day
+        d = json.loads(self._main(["weekday", "--json"]))
+        self.assertEqual(len(d["weekdays"]), 7)
+        names = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"]
+        same = names[date(2026, 6, 1).weekday()]
+        other = names[date(2026, 6, 2).weekday()]
+        wds = {w["day"]: w for w in d["weekdays"]}
+        self.assertEqual(wds[same]["total"], 30.0)
+        self.assertEqual(wds[same]["count"], 2)
+        self.assertEqual(wds[same]["average"], 15.0)
+        self.assertEqual(wds[other]["total"], 5.0)
+
     def test_streak_json(self):
         self._main(["add", "10", "food", "a", "--date", "2026-06-01"])
         self._main(["add", "10", "food", "b", "--date", "2026-06-03"])

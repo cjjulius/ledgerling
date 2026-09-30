@@ -112,6 +112,10 @@ ledgerling week --offset 1
 ledgerling streak
 ledgerling streak --month 2026-08
 
+# Spending by day of week (which days you spend most)
+ledgerling weekday
+ledgerling weekday --month 2026-09
+
 # One-screen dashboard for a month (income, spend, net, top cats, budgets, goal)
 ledgerling month
 ledgerling month --month 2026-08

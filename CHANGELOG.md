@@ -4,6 +4,13 @@ All notable changes to Ledgerling are documented here. The format is based on
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and this project
 adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.18.0] - 2026-09-29
+
+### Added
+
+- `weekday` command — spending aggregated by day of week (Mon-Sun) with totals,
+  counts, and averages, over all data or a single month. Supports `--json`.
+
 ## [1.17.0] - 2026-09-29
 
 ### Added
@@ -202,6 +209,7 @@ file, standard library only, strictly confined to its own folder.
   guard (`_within_app`) that refuses any path escaping the app folder; imports
   and restores are reduced to a basename and looked up only within the folder.
 
+[1.18.0]: #1180---2026-09-29
 [1.17.0]: #1170---2026-09-29
 [1.16.0]: #1160---2026-09-29
 [1.15.0]: #1150---2026-09-29
