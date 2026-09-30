@@ -4,6 +4,17 @@ All notable changes to Ledgerling are documented here. The format is based on
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and this project
 adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.60.0] - 2026-09-30
+
+### Changed
+
+- Web UI Table view is much more readable. Numeric columns are right-aligned and
+  monospaced; money columns render as currency ($62.00, not 62.0) and rate/share
+  columns get a %; column headers are humanized. Crucially, a result object with
+  a nested array (e.g. `matrix.rows`, `year.months`, `heatmap.days`) now renders
+  that array as a proper table with the scalar fields shown as a "Summary"
+  below, instead of dumping the array as raw JSON.
+
 ## [1.59.0] - 2026-09-30
 
 ### Changed
@@ -614,6 +625,7 @@ file, standard library only, strictly confined to its own folder.
   guard (`_within_app`) that refuses any path escaping the app folder; imports
   and restores are reduced to a basename and looked up only within the folder.
 
+[1.60.0]: #1600---2026-09-30
 [1.59.0]: #1590---2026-09-30
 [1.58.0]: #1580---2026-09-30
 [1.57.0]: #1570---2026-09-30

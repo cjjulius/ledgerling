@@ -307,6 +307,8 @@ INDEX_HTML = r"""<!doctype html>
   table.data thead th { background:var(--panel2); position:sticky; top:0; font-weight:700;
     color:var(--muted); font-size:12px; text-transform:uppercase; letter-spacing:.04em; }
   table.data tbody tr:hover { background:var(--panel2); }
+  table.data td.num { text-align:right; font-variant-numeric:tabular-nums;
+    font-family:ui-monospace,Menlo,Consolas,monospace; }
   table.data tbody th { background:var(--panel2); white-space:nowrap; }
   .kv > div { padding:5px 2px; border-bottom:1px solid var(--line);
     font:13px ui-monospace,Menlo,Consolas,monospace; }
@@ -971,6 +973,29 @@ function fmtCell(v) {
   return String(v);
 }
 
+// A numeric column whose name implies a money amount (not a count/rate/date).
+function isMoneyKey(k) {
+  if (/^\d{4}-\d{2}$/.test(k)) return true;   // matrix/tagmatrix month columns
+  return /total|amount|spend|income|\bnet\b|balance|budget|spent|limit|remaining|average|cumulative|projected|annual|monthly|per_?(day|week|month)|value/i.test(k)
+    && !/count|rate|share|days|year|\bid\b|day\b/i.test(k);
+}
+// Column header label: humanize names, but leave YYYY-MM month columns alone.
+function colLabel(k) {
+  return /^\d{4}-\d{2}$/.test(k) ? k : humanize({dest: k});
+}
+// Format one cell knowing its column name, so money reads as money and
+// percentages get a % - numbers come back right-aligned via the 'num' flag.
+function fmtValue(key, v) {
+  if (v === null || v === undefined) return {text: '', num: false};
+  if (typeof v === 'number') {
+    if (/rate|share|percent/i.test(key)) return {text: v + '%', num: true};
+    if (isMoneyKey(key)) return {text: money(v), num: true};
+    return {text: String(v), num: true};
+  }
+  if (typeof v === 'object') return {text: JSON.stringify(v), num: false};
+  return {text: String(v), num: false};
+}
+
 function renderData(data) {
   if (Array.isArray(data)) {
     if (data.length && typeof data[0] === 'object' && !Array.isArray(data[0]))
@@ -978,6 +1003,25 @@ function renderData(data) {
     const box = document.createElement('div'); box.className = 'kv';
     data.forEach(v => { const d = document.createElement('div');
       d.textContent = fmtCell(v); box.appendChild(d); });
+    return box;
+  }
+  // Object with a nested array-of-objects (matrix.rows, year.months,
+  // heatmap.days, quarter.quarters...): render that array as the table and
+  // list the remaining scalar fields as a small summary below.
+  const arrKey = Object.keys(data).find(k => Array.isArray(data[k]) &&
+    data[k].length && typeof data[k][0] === 'object' && !Array.isArray(data[k][0]));
+  if (arrKey) {
+    const box = document.createElement('div');
+    box.appendChild(objArrayTable(data[arrKey]));
+    const scalars = {};
+    Object.entries(data).forEach(([k, v]) => {
+      if (k !== arrKey && (v === null || typeof v !== 'object')) scalars[k] = v;
+    });
+    if (Object.keys(scalars).length) {
+      const h = document.createElement('div'); h.className = 'muted';
+      h.style.margin = '12px 2px 4px'; h.textContent = 'Summary';
+      box.appendChild(h); box.appendChild(fieldTable(scalars));
+    }
     return box;
   }
   return fieldTable(data);
@@ -988,11 +1032,15 @@ function objArrayTable(rows) {
   rows.forEach(r => Object.keys(r).forEach(k => { if (!cols.includes(k)) cols.push(k); }));
   const t = document.createElement('table'); t.className = 'data';
   const thead = document.createElement('thead'); const htr = document.createElement('tr');
-  cols.forEach(c => { const th = document.createElement('th'); th.textContent = c; htr.appendChild(th); });
+  cols.forEach(c => { const th = document.createElement('th');
+    th.textContent = colLabel(c); htr.appendChild(th); });
   thead.appendChild(htr); t.appendChild(thead);
   const tb = document.createElement('tbody');
   rows.forEach(r => { const tr = document.createElement('tr');
-    cols.forEach(c => { const td = document.createElement('td'); td.textContent = fmtCell(r[c]); tr.appendChild(td); });
+    cols.forEach(c => { const td = document.createElement('td');
+      const cell = fmtValue(c, r[c]); td.textContent = cell.text;
+      if (cell.num) td.className = 'num';
+      tr.appendChild(td); });
     tb.appendChild(tr); });
   t.appendChild(tb); return t;
 }
@@ -1002,8 +1050,10 @@ function fieldTable(obj) {
   const tb = document.createElement('tbody');
   Object.entries(obj).forEach(([k, v]) => {
     const tr = document.createElement('tr');
-    const th = document.createElement('th'); th.textContent = k;
-    const td = document.createElement('td'); td.textContent = fmtCell(v);
+    const th = document.createElement('th'); th.textContent = colLabel(k);
+    const td = document.createElement('td');
+    const cell = fmtValue(k, v); td.textContent = cell.text;
+    if (cell.num) td.className = 'num';
     tr.appendChild(th); tr.appendChild(td); tb.appendChild(tr);
   });
   t.appendChild(tb); return t;
