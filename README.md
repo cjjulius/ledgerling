@@ -57,6 +57,7 @@ ledgerling add 12.50 food "lunch burrito"
 ledgerling add 45 food "groceries" --date yesterday
 ledgerling edit 1 --amount 13.75 --note "lunch (with tip)"
 ledgerling delete 2
+ledgerling clone 1                    # duplicate entry #1 dated today
 
 # Record income (net + savings rate then show up in stats/report)
 ledgerling income 3000 salary "march pay"

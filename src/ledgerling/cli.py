@@ -21,6 +21,7 @@ Commands:
     list      Show recent expenses (with optional filters)
     edit      Change fields on an existing expense
     delete    Remove an expense by id
+    clone     Duplicate an entry (defaults to today's date)
     search    Find expenses by keyword, #tag, category, month, or amount range
     summary   Totals by category with an ASCII bar chart
     report    Month-over-month trend and budget adherence
@@ -61,7 +62,7 @@ import sys
 import tempfile
 from datetime import datetime, date, timedelta
 
-__version__ = "1.14.0"
+__version__ = "1.15.0"
 
 # --------------------------------------------------------------------------- #
 # Sandbox + storage
@@ -447,6 +448,28 @@ def cmd_edit(args):
     note = f" - {e['note']}" if e["note"] else ""
     print(f"updated #{e['id']}: {money(e['amount'])} [{e['category']}]{note} "
           f"on {e['date']}")
+
+
+def cmd_clone(args):
+    data = load()
+    e = find(data["expenses"], args.id)
+    if not e:
+        sys.exit(f"error: no entry with id #{args.id}")
+    note = e["note"]
+    entry = {
+        "id": next_id(data["expenses"]),
+        "amount": e["amount"],
+        "category": e["category"],
+        "note": note,
+        "date": parse_date(args.date),
+        "tags": parse_tags(note),
+        "kind": kind_of(e),
+    }
+    data["expenses"].append(entry)
+    save(data)
+    what = "income" if entry["kind"] == "income" else "expense"
+    print(f"cloned #{e['id']} -> {what} #{entry['id']}: {money(entry['amount'])} "
+          f"[{entry['category']}] on {entry['date']}")
 
 
 def cmd_delete(args):
@@ -1730,6 +1753,12 @@ def build_parser():
     d = sub.add_parser("delete", help="remove an expense by id")
     d.add_argument("id", type=int, help="expense id (see `list`)")
     d.set_defaults(func=cmd_delete)
+
+    cl = sub.add_parser("clone", help="duplicate an entry (defaults to today)")
+    cl.add_argument("id", type=int, help="entry id to copy (see `list`)")
+    cl.add_argument("--date", default="today",
+                    help="date for the copy: YYYY-MM-DD, 'today', or 'yesterday'")
+    cl.set_defaults(func=cmd_clone)
 
     s = sub.add_parser("summary", help="totals by category with a chart")
     s.add_argument("--month", help="month to summarize, YYYY-MM (default: current)")

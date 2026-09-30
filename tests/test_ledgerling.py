@@ -312,6 +312,23 @@ class CLI(TempAppCase):
         with self.assertRaises(SystemExit):        # conflicting kind flags
             self._main(["recur", "edit", "1", "--income", "--expense"])
 
+    def test_clone(self):
+        self._main(["income", "500", "salary", "bonus #q3", "--date", "2026-05-01"])
+        self._main(["clone", "1", "--date", "2026-06-01"])
+        exp = L.load()["expenses"]
+        self.assertEqual(len(exp), 2)
+        c = exp[1]
+        self.assertEqual(c["amount"], 500.0)
+        self.assertEqual(c["category"], "salary")
+        self.assertEqual(c["kind"], "income")          # kind is preserved
+        self.assertEqual(c["tags"], ["q3"])            # tags re-parsed
+        self.assertEqual(c["date"], "2026-06-01")
+        self.assertNotEqual(c["id"], 1)
+
+    def test_clone_missing(self):
+        with self.assertRaises(SystemExit):
+            self._main(["clone", "99"])
+
     def test_duplicates_json(self):
         self._main(["add", "40", "food", "dinner", "--date", "2026-09-10"])
         self._main(["add", "40", "food", "dinner", "--date", "2026-09-10"])  # dup
