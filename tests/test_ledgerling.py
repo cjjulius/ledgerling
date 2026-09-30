@@ -987,6 +987,30 @@ class CLI(TempAppCase):
         self.assertIsNone(d["daily_allowance"])
         self.assertEqual(d["categories"]["food"]["remaining"], 250.0)
 
+    def test_refund_full_and_partial(self):
+        self._main(["add", "50", "electronics", "cable", "--date", "2026-05-01"])
+        # full refund creates an offsetting income for the same category
+        self._main(["refund", "1", "--date", "2026-05-03"])
+        rows = json.loads(self._main(["list", "--all", "--json"]))
+        refund = next(r for r in rows if r["kind"] == "income")
+        self.assertEqual(refund["amount"], 50.0)
+        self.assertEqual(refund["category"], "electronics")
+        self.assertIn("refund of #1", refund["note"])
+        # net for the month is zero (50 spent, 50 refunded)
+        m = json.loads(self._main(["month", "--month", "2026-05", "--json"]))
+        self.assertEqual(m["net"], 0.0)
+        # partial refund
+        self._main(["add", "80", "food", "party", "--date", "2026-05-04"])
+        self._main(["refund", "3", "--amount", "30"])
+        rows = json.loads(self._main(["list", "--all", "--json"]))
+        self.assertTrue(any(r["kind"] == "income" and r["amount"] == 30.0
+                            for r in rows))
+
+    def test_refund_rejects_income(self):
+        self._main(["income", "100", "salary", "pay", "--date", "2026-05-01"])
+        with self.assertRaises(SystemExit):
+            self._main(["refund", "1"])
+
     def test_year_json(self):
         self._main(["add", "100", "food", "a", "--date", "2026-01-15"])
         self._main(["add", "200", "food", "b", "--date", "2026-03-10"])

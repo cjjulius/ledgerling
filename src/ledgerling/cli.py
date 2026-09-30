@@ -23,6 +23,7 @@ Commands:
     edit      Change fields on an existing expense
     delete    Remove an expense by id
     clone     Duplicate an entry (defaults to today's date)
+    refund    Record a refund for an expense (as offsetting income)
     search    Find expenses by keyword, #tag, category, month, or amount range
     summary   Totals by category with an ASCII bar chart
     report    Month-over-month trend and budget adherence
@@ -92,7 +93,7 @@ import sys
 import tempfile
 from datetime import datetime, date, timedelta
 
-__version__ = "1.52.0"
+__version__ = "1.53.0"
 
 # --------------------------------------------------------------------------- #
 # Sandbox + storage
@@ -499,6 +500,34 @@ def cmd_clone(args):
     save(data)
     what = "income" if entry["kind"] == "income" else "expense"
     print(f"cloned #{e['id']} -> {what} #{entry['id']}: {money(entry['amount'])} "
+          f"[{entry['category']}] on {entry['date']}")
+
+
+def cmd_refund(args):
+    data = load()
+    e = find(data["expenses"], args.id)
+    if not e:
+        sys.exit(f"error: no entry with id #{args.id}")
+    if kind_of(e) != "expense":
+        sys.exit(f"error: #{args.id} is income, not an expense to refund")
+    amount = round(args.amount, 2) if args.amount is not None else e["amount"]
+    if amount <= 0:
+        sys.exit("error: refund amount must be greater than zero")
+    orig = e["note"] or e["category"]
+    note = f"refund of #{e['id']} ({orig})"
+    entry = {
+        "id": next_id(data["expenses"]),
+        "amount": amount,
+        "category": e["category"],
+        "note": note,
+        "date": parse_date(args.date),
+        "tags": parse_tags(note),
+        "kind": "income",
+    }
+    data["expenses"].append(entry)
+    save(data)
+    part = "" if amount == e["amount"] else " (partial)"
+    print(f"refunded #{e['id']} -> income #{entry['id']}: {money(amount)}{part} "
           f"[{entry['category']}] on {entry['date']}")
 
 
@@ -3000,6 +3029,15 @@ def build_parser():
     cl.add_argument("--date", default="today",
                     help="date for the copy: YYYY-MM-DD, 'today', or 'yesterday'")
     cl.set_defaults(func=cmd_clone)
+
+    rf = sub.add_parser("refund",
+                        help="record a refund for an expense (as income)")
+    rf.add_argument("id", type=int, help="expense id being refunded")
+    rf.add_argument("--amount", type=float,
+                    help="refund amount (default: the full expense amount)")
+    rf.add_argument("--date", default="today",
+                    help="refund date: YYYY-MM-DD, 'today', or 'yesterday'")
+    rf.set_defaults(func=cmd_refund)
 
     s = sub.add_parser("summary", help="totals by category with a chart")
     s.add_argument("--month", help="month to summarize, YYYY-MM (default: current)")
