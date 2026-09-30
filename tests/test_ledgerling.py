@@ -397,6 +397,21 @@ class CLI(TempAppCase):
         out = self._main(["pace"])
         self.assertIn("no budgets set", out)
 
+    def test_average_json(self):
+        self._main(["add", "100", "food", "a", "--date", "2026-01-01"])
+        self._main(["add", "100", "food", "b", "--date", "2026-01-11"])  # 11-day span
+        self._main(["income", "9999", "salary", "x", "--date", "2026-01-05"])  # ignored
+        d = json.loads(self._main(["average", "--json"]))
+        self.assertEqual(d["days"], 11)
+        self.assertEqual(d["total"], 200.0)
+        self.assertEqual(d["per_day"], round(200 / 11, 2))
+        self.assertEqual(d["first"], "2026-01-01")
+        self.assertEqual(d["last"], "2026-01-11")
+
+    def test_average_empty(self):
+        out = self._main(["average"])
+        self.assertIn("no expenses to average", out)
+
     def test_top_json(self):
         for amt, cat in [(10, "food"), (500, "rent"), (30, "food"),
                          (200, "travel"), (5, "coffee")]:

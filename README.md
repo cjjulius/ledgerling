@@ -137,6 +137,9 @@ ledgerling compare 2026-08 2026-09
 ledgerling top --limit 10
 ledgerling top --month 2026-09 --category food
 
+# Average spending per day / week / month across your records
+ledgerling average
+
 # Monthly spending trend for one category
 ledgerling trend food --months 6
 

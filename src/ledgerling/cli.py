@@ -35,6 +35,7 @@ Commands:
     compare   Compare two months side by side (with per-category deltas)
     trend     Monthly spending trend for one category
     top       List your largest expenses (optionally by month/category)
+    average   Average spending per day / week / month
     upcoming  Forecast recurring charges/income due in the next N days
     categories  List categories with counts and totals
     tags      List #tags with counts and totals
@@ -69,7 +70,7 @@ import sys
 import tempfile
 from datetime import datetime, date, timedelta
 
-__version__ = "1.23.0"
+__version__ = "1.24.0"
 
 # --------------------------------------------------------------------------- #
 # Sandbox + storage
@@ -1171,6 +1172,43 @@ def cmd_pace(args):
               f"{money(c['limit'])}{proj_flag}")
 
 
+def cmd_average(args):
+    data = load()
+    exp = expenses_only(data["expenses"])
+    if not exp:
+        if getattr(args, "json", False):
+            print(json.dumps({"total": 0}, indent=2))
+        else:
+            print("no expenses to average")
+        return
+
+    dates = [date.fromisoformat(e["date"]) for e in exp]
+    first, last = min(dates), max(dates)
+    span = (last - first).days + 1
+    total = round(sum(e["amount"] for e in exp), 2)
+    per_day = total / span
+    per_week = round(per_day * 7, 2)
+    per_month = round(per_day * 30.44, 2)  # avg calendar-month length
+    per_day = round(per_day, 2)
+
+    if getattr(args, "json", False):
+        print(json.dumps({
+            "first": first.isoformat(), "last": last.isoformat(),
+            "days": span, "total": total, "per_day": per_day,
+            "per_week": per_week, "per_month": per_month,
+        }, indent=2))
+        return
+
+    print("Average spending")
+    print("=" * 48)
+    print(f"{'range':<12} {first.isoformat()} to {last.isoformat()} "
+          f"({span} day(s))")
+    print(f"{'total':<12} {money(total)}")
+    print(f"{'per day':<12} {money(per_day)}")
+    print(f"{'per week':<12} {money(per_week)}")
+    print(f"{'per month':<12} {money(per_month)}")
+
+
 def cmd_top(args):
     check_month(args.month)
     data = load()
@@ -2134,6 +2172,10 @@ def build_parser():
     pc.add_argument("--json", action="store_true", help="output JSON instead of text")
     pc.set_defaults(func=cmd_pace)
 
+    av = sub.add_parser("average", help="average spending per day/week/month")
+    av.add_argument("--json", action="store_true", help="output JSON instead of text")
+    av.set_defaults(func=cmd_average)
+
     tp = sub.add_parser("top", help="list your largest expenses")
     tp.add_argument("--limit", type=int, default=10,
                     help="how many to show (default 10)")
@@ -2259,7 +2301,7 @@ def main(argv=None):
                         "stats", "search", "categories", "tags", "month",
                         "upcoming", "compare", "trend", "top", "pace",
                         "duplicates", "week", "streak", "weekday", "day",
-                        "year", "untagged"):
+                        "year", "untagged", "average"):
         data = load()
         if apply_recurring(data):
             save(data)
