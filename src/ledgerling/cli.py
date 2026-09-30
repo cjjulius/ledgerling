@@ -45,6 +45,7 @@ Commands:
     distribution  Histogram of expense sizes
     upcoming  Forecast recurring charges/income due in the next N days
     commitments  Recurring rules normalized to monthly/annual cost
+    suggest   Suggest per-category budgets from recent average spending
     categories  List categories with counts and totals
     tags      List #tags with counts and totals
     untagged  List expenses that have no #tags
@@ -80,7 +81,7 @@ import sys
 import tempfile
 from datetime import datetime, date, timedelta
 
-__version__ = "1.37.0"
+__version__ = "1.38.0"
 
 # --------------------------------------------------------------------------- #
 # Sandbox + storage
@@ -1498,6 +1499,63 @@ def cmd_upcoming(args):
           f"net {money(inc_total - exp_total)}")
 
 
+def _nice_budget(avg):
+    """Round an average up to a friendly budget figure (nearest 5/10/25)."""
+    if avg <= 0:
+        return 0.0
+    target = avg * 1.1  # a little headroom
+    step = 5 if target < 100 else (10 if target < 500 else 25)
+    return float(int((target + step - 0.01) // step * step))
+
+
+def cmd_suggest(args):
+    months = args.months
+    if months < 1:
+        sys.exit("error: --months must be at least 1")
+    data = load()
+    today = date.today()
+    window = {add_months(today, -i).isoformat()[:7] for i in range(months)}
+
+    # per category: total spend and the set of months (within window) with spend
+    agg = {}
+    for e in expenses_only(data["expenses"]):
+        m = month_of(e["date"])
+        if m in window:
+            a = agg.setdefault(e["category"], {"total": 0.0, "months": set()})
+            a["total"] = round(a["total"] + e["amount"], 2)
+            a["months"].add(m)
+
+    suggestions = []
+    for cat in sorted(agg):
+        active = len(agg[cat]["months"]) or 1
+        avg = round(agg[cat]["total"] / active, 2)
+        suggestions.append({
+            "category": cat,
+            "average": avg,
+            "suggested": _nice_budget(avg),
+            "current": round(data["budgets"].get(cat, 0.0), 2)
+            if cat in data["budgets"] else None,
+        })
+
+    if getattr(args, "json", False):
+        print(json.dumps({"months": months, "window": sorted(window),
+                          "suggestions": suggestions}, indent=2))
+        return
+    if not suggestions:
+        print(f"no spending in the last {months} month(s) to base budgets on")
+        return
+
+    print(f"Suggested budgets (avg of last {months} month(s) with spend)")
+    print("=" * 60)
+    for s in suggestions:
+        cur = "  (no budget)" if s["current"] is None else \
+            f"  (now {money(s['current'])})"
+        print(f"{s['category']:<16} avg {money(s['average']):>11}   "
+              f"suggest {money(s['suggested']):>11}{cur}")
+    print("-" * 60)
+    print("set one with:  budget --category CAT --amount N")
+
+
 def cmd_categories(args):
     data = load()
     rows = expenses_only(data["expenses"])
@@ -2542,6 +2600,13 @@ def build_parser():
     up.add_argument("--json", action="store_true", help="output JSON instead of text")
     up.set_defaults(func=cmd_upcoming)
 
+    sg = sub.add_parser("suggest",
+                        help="suggest per-category budgets from recent spending")
+    sg.add_argument("--months", type=int, default=3,
+                    help="how many recent months to average (default 3)")
+    sg.add_argument("--json", action="store_true", help="output JSON instead of text")
+    sg.set_defaults(func=cmd_suggest)
+
     ct = sub.add_parser("categories", help="list categories with counts and totals")
     ct.add_argument("--json", action="store_true", help="output JSON instead of text")
     ct.set_defaults(func=cmd_categories)
@@ -2718,7 +2783,7 @@ def main(argv=None):
                         "duplicates", "week", "streak", "weekday", "day",
                         "year", "untagged", "average", "distribution",
                         "sources", "quarter", "forecast", "balance",
-                        "commitments", "savings", "heatmap"):
+                        "commitments", "savings", "heatmap", "suggest"):
         data = load()
         if apply_recurring(data):
             save(data)

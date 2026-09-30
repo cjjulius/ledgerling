@@ -4,6 +4,17 @@ All notable changes to Ledgerling are documented here. The format is based on
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and this project
 adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.38.0] - 2026-09-29
+
+### Added
+
+- `suggest` command — recommends a monthly budget per category from recent
+  average spending (`--months`, default 3; averaged over the months in that
+  window that actually had spend), rounded up to a friendly figure with a little
+  headroom. Shows your current budget alongside each suggestion, and prints the
+  `budget` command to set it. Series-shaped, so the web UI renders a
+  table/chart. Supports `--json`.
+
 ## [1.37.0] - 2026-09-29
 
 ### Added
@@ -373,6 +384,7 @@ file, standard library only, strictly confined to its own folder.
   guard (`_within_app`) that refuses any path escaping the app folder; imports
   and restores are reduced to a basename and looked up only within the folder.
 
+[1.38.0]: #1380---2026-09-29
 [1.37.0]: #1370---2026-09-29
 [1.36.0]: #1360---2026-09-29
 [1.35.0]: #1350---2026-09-29

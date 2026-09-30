@@ -89,6 +89,10 @@ ledgerling summary --month 2026-08
 ledgerling budget --category food --amount 200
 ledgerling budget
 
+# Suggest budgets from recent average spending (last 3 months by default)
+ledgerling suggest
+ledgerling suggest --months 6
+
 # Budget pace: are you ahead or behind, and projected end-of-month?
 ledgerling pace
 

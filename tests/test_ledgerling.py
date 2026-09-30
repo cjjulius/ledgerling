@@ -738,6 +738,18 @@ class CLI(TempAppCase):
         d1 = next(x for x in d["days"] if x["date"] == "2026-03-01")
         self.assertEqual(d1["spending"], 15.0)
 
+    def test_suggest_json(self):
+        this = date.today().isoformat()[:7]
+        self._main(["add", "80", "food", "a", "--date", f"{this}-05"])
+        self._main(["add", "40", "food", "b", "--date", f"{this}-06"])
+        self._main(["budget", "--category", "food", "--amount", "100"])
+        d = json.loads(self._main(["suggest", "--months", "1", "--json"]))
+        s = next(x for x in d["suggestions"] if x["category"] == "food")
+        self.assertEqual(s["average"], 120.0)   # one active month, 80 + 40
+        self.assertEqual(s["current"], 100.0)
+        # suggested rounds average*1.1 up to a friendly step, so >= average
+        self.assertGreaterEqual(s["suggested"], s["average"])
+
     def test_year_json(self):
         self._main(["add", "100", "food", "a", "--date", "2026-01-15"])
         self._main(["add", "200", "food", "b", "--date", "2026-03-10"])
