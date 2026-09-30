@@ -4,6 +4,19 @@ All notable changes to Ledgerling are documented here. The format is based on
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and this project
 adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.58.0] - 2026-09-30
+
+### Changed
+
+- Web UI forms are much friendlier. Fields now use human labels ("List limit",
+  not `--list-limit`); the internal `--json` flag is hidden (the UI fetches JSON
+  itself); amounts get a currency-prefixed number field; `--month` renders as a
+  month picker and `--date`/`--start`/`--end` as date pickers; and category
+  fields autocomplete from your existing categories (kept current as you add
+  entries). Commands with nothing to fill in now say "No options - just run it."
+  The parser-introspection contract is unchanged — every command still generates
+  its own form automatically.
+
 ## [1.57.0] - 2026-09-30
 
 ### Added
@@ -592,6 +605,7 @@ file, standard library only, strictly confined to its own folder.
   guard (`_within_app`) that refuses any path escaping the app folder; imports
   and restores are reduced to a basename and looked up only within the folder.
 
+[1.58.0]: #1580---2026-09-30
 [1.57.0]: #1570---2026-09-30
 [1.56.0]: #1560---2026-09-29
 [1.55.0]: #1550---2026-09-29

@@ -276,6 +276,14 @@ INDEX_HTML = r"""<!doctype html>
     outline:2px solid color-mix(in srgb,var(--accent) 45%,transparent); outline-offset:1px;
     border-color:var(--accent); }
   .field.bool label { display:flex; align-items:center; gap:8px; font-weight:500; }
+  .amtbox { display:flex; align-items:stretch; border:1px solid var(--line);
+    border-radius:9px; overflow:hidden; background:var(--panel2); }
+  .amtbox:focus-within { outline:2px solid color-mix(in srgb,var(--accent) 45%,transparent);
+    outline-offset:1px; border-color:var(--accent); }
+  .amtbox .amtpfx { display:flex; align-items:center; padding:0 11px;
+    background:color-mix(in srgb,var(--accent) 12%,transparent); color:var(--muted);
+    font-weight:600; }
+  .amtbox input { border:0; outline:0; background:transparent; }
   .req { color:var(--neg); }
   button.run { justify-self:start; padding:10px 22px; border:0; border-radius:10px;
     background:var(--accent); color:var(--accent-ink); font-weight:600; cursor:pointer;
@@ -361,7 +369,7 @@ INDEX_HTML = r"""<!doctype html>
   <main id="main"><div class="empty">Loading&hellip;</div></main>
 </div>
 <script>
-let COMMANDS = [], CURRENT = null, CURRENCY = '$', ACTIVE = 'home';
+let COMMANDS = [], CURRENT = null, CURRENCY = '$', ACTIVE = 'home', CATEGORIES = [];
 
 // Command groups for the sidebar. Any command not listed here (e.g. a newly
 // added one) still shows up automatically under "More", so the nav stays
@@ -389,6 +397,31 @@ function curMonth() {
   const n = new Date();
   return n.getFullYear() + '-' + String(n.getMonth() + 1).padStart(2, '0');
 }
+function todayISO() {
+  const n = new Date();
+  return n.getFullYear() + '-' + String(n.getMonth() + 1).padStart(2, '0') +
+    '-' + String(n.getDate()).padStart(2, '0');
+}
+// Human label for a form field: "--list-limit" -> "List limit", "amount" -> "Amount".
+function humanize(a) {
+  let s = (a.flag ? a.flag.replace(/^--/, '') : a.dest).replace(/[-_]/g, ' ');
+  return s.charAt(0).toUpperCase() + s.slice(1);
+}
+// Pick a friendly input widget from the field's name.
+function widgetType(a) {
+  if (a.dest === 'month' || a.flag === '--month') return 'month';
+  if (['date', 'start', 'end'].includes(a.dest) ||
+      ['--date', '--start', '--end'].includes(a.flag)) return 'date';
+  if (a.dest === 'amount' || a.flag === '--amount') return 'amount';
+  if (a.dest === 'category' || a.flag === '--category') return 'category';
+  return null;
+}
+async function refreshCategories() {
+  const r = await postRun(['categories', '--json']);
+  if (r && r.code === 0) {
+    try { CATEGORIES = Object.keys(JSON.parse(r.stdout)); } catch (e) {}
+  }
+}
 function money(n) {
   const neg = n < 0;
   const s = CURRENCY + Math.abs(Number(n) || 0).toLocaleString(undefined,
@@ -405,6 +438,7 @@ async function boot() {
   document.getElementById('newbtn').onclick = () => {
     const a = findCmd('add'); if (a) selectCmd(a);
   };
+  await refreshCategories();
   renderList('');
   showDashboard();
 }
@@ -450,10 +484,17 @@ function selectCmd(c) {
   m.appendChild(ph);
   const fcard = document.createElement('div'); fcard.className = 'card';
   const form = document.createElement('form');
-  c.args.forEach(a => form.appendChild(fieldFor(a)));
-  if (!c.args.length) {
+  // The UI fetches JSON itself, so don't expose the --json flag as a field.
+  const fields = c.args.filter(a => a.flag !== '--json');
+  fields.forEach(a => form.appendChild(fieldFor(a)));
+  if (!fields.length) {
     const p = document.createElement('p'); p.className = 'muted';
     p.textContent = 'No options - just run it.'; form.appendChild(p);
+  }
+  if (fields.some(a => widgetType(a) === 'category')) {
+    const dl = document.createElement('datalist'); dl.id = 'catlist';
+    CATEGORIES.forEach(c2 => dl.appendChild(new Option(c2)));
+    form.appendChild(dl);
   }
   const btn = document.createElement('button'); btn.className = 'run';
   btn.textContent = 'Run ' + c.name; form.appendChild(btn);
@@ -644,19 +685,41 @@ function fieldFor(a) {
   if (a.type === 'bool') {
     const lab = document.createElement('label');
     const cb = document.createElement('input'); cb.type = 'checkbox'; cb.className = 'inp';
-    lab.appendChild(cb); lab.appendChild(document.createTextNode(a.flag + ' - ' + (a.help||'')));
+    lab.appendChild(cb);
+    lab.appendChild(document.createTextNode(' ' + humanize(a) +
+      (a.help ? ' - ' + a.help : '')));
     wrap.appendChild(lab);
     return wrap;
   }
   const lab = document.createElement('label');
-  lab.innerHTML = (a.flag || a.dest) + (req ? ' <span class="req">*</span>' : '');
+  lab.innerHTML = humanize(a) + (req ? ' <span class="req">*</span>' : '');
   wrap.appendChild(lab);
-  if (a.help) { const hp = document.createElement('div'); hp.className='help'; hp.textContent=a.help; wrap.appendChild(hp); }
+  if (a.help) {
+    const hp = document.createElement('div'); hp.className = 'help';
+    hp.textContent = a.help; wrap.appendChild(hp);
+  }
+  const w = widgetType(a);
+  if (w === 'amount') {   // currency-prefixed number field
+    const box = document.createElement('div'); box.className = 'amtbox';
+    const pfx = document.createElement('span'); pfx.className = 'amtpfx';
+    pfx.textContent = CURRENCY;
+    const inp = document.createElement('input'); inp.className = 'inp';
+    inp.type = 'number'; inp.step = '0.01'; inp.min = '0'; inp.placeholder = '0.00';
+    box.appendChild(pfx); box.appendChild(inp); wrap.appendChild(box);
+    return wrap;
+  }
   let inp;
   if (a.type === 'choice') {
     inp = document.createElement('select');
-    if (!req) inp.appendChild(new Option('(none)', ''));
+    if (!req) inp.appendChild(new Option('(any)', ''));
     a.choices.forEach(ch => inp.appendChild(new Option(ch, ch)));
+  } else if (w === 'month') {
+    inp = document.createElement('input'); inp.type = 'month';
+  } else if (w === 'date') {
+    inp = document.createElement('input'); inp.type = 'date';
+  } else if (w === 'category') {
+    inp = document.createElement('input'); inp.type = 'text';
+    inp.setAttribute('list', 'catlist'); inp.placeholder = 'e.g. food';
   } else {
     inp = document.createElement('input');
     inp.type = (a.type === 'int' || a.type === 'float') ? 'number' : 'text';
@@ -703,6 +766,7 @@ async function runCmd(c, form) {
     if (jr.code === 0) { try { data = JSON.parse(jr.stdout); } catch (e) {} }
   }
   buildTabs(data);
+  if (res.code === 0) refreshCategories();  // keep autocomplete current
 }
 
 function buildTabs(data) {
