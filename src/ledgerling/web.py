@@ -217,6 +217,18 @@ INDEX_HTML = r"""<!doctype html>
     Menlo,Consolas,monospace; white-space:pre-wrap; word-break:break-word; min-height:40px; }
   pre.err { color:#ff9b8a; }
   .empty { color:var(--muted); padding:40px 0; }
+  .tabs { display:flex; gap:6px; margin:6px 0 8px; }
+  .tab { padding:5px 12px; border:1px solid var(--line); background:var(--panel);
+    color:var(--muted); border-radius:7px; cursor:pointer; font-size:13px; }
+  .tab.active { background:var(--accent); color:var(--accent-ink); border-color:var(--accent); }
+  #outtable { overflow:auto; }
+  table.data { border-collapse:collapse; width:100%; font-size:13px; }
+  table.data th, table.data td { border:1px solid var(--line); padding:6px 9px;
+    text-align:left; vertical-align:top; }
+  table.data thead th { background:var(--bg); position:sticky; top:0; }
+  table.data tbody th { background:var(--bg); white-space:nowrap; }
+  .kv > div { padding:4px 2px; border-bottom:1px solid var(--line);
+    font:13px ui-monospace,Menlo,Consolas,monospace; }
 </style>
 </head>
 <body>
@@ -273,8 +285,19 @@ function select(c) {
   form.onsubmit = ev => { ev.preventDefault(); runCmd(c, form); };
   m.appendChild(form);
   const out = document.createElement('div'); out.className = 'out'; out.id = 'out';
-  out.innerHTML = '<h3>Output</h3><pre id="outpre">(run the command to see output)</pre>';
+  out.innerHTML = '<h3>Output</h3><div class="tabs" id="tabs"></div>' +
+    '<pre id="outpre">(run the command to see output)</pre>' +
+    '<div id="outtable" style="display:none"></div>';
   m.appendChild(out);
+}
+
+function cmdHasJson(c) { return c.args.some(a => a.flag === '--json'); }
+
+async function postRun(argv) {
+  return fetch('/api/run', {
+    method: 'POST', headers: {'Content-Type':'application/json'},
+    body: JSON.stringify({argv})
+  }).then(r => r.json());
 }
 
 function fieldFor(a) {
@@ -326,19 +349,90 @@ function buildArgv(c, form) {
 
 async function runCmd(c, form) {
   const pre = document.getElementById('outpre');
+  const tableEl = document.getElementById('outtable');
+  const tabs = document.getElementById('tabs');
   pre.className = ''; pre.textContent = 'running...';
+  tableEl.style.display = 'none'; tabs.innerHTML = '';
   const argv = buildArgv(c, form);
-  const res = await fetch('/api/run', {
-    method: 'POST', headers: {'Content-Type':'application/json'},
-    body: JSON.stringify({argv})
-  }).then(r => r.json());
-  if (res.code === 0) {
-    pre.className = '';
-    pre.textContent = res.stdout || '(no output)';
-  } else {
-    pre.className = 'err';
-    pre.textContent = (res.stderr || res.stdout || 'error') ;
+  const res = await postRun(argv);
+  pre.className = res.code === 0 ? '' : 'err';
+  pre.textContent = res.code === 0 ? (res.stdout || '(no output)')
+    : (res.stderr || res.stdout || 'error');
+
+  let data = null;
+  if (res.code === 0 && argv.includes('--json')) {
+    try { data = JSON.parse(res.stdout); } catch (e) {}
+  } else if (res.code === 0 && cmdHasJson(c)) {
+    const jr = await postRun(argv.concat(['--json']));
+    if (jr.code === 0) { try { data = JSON.parse(jr.stdout); } catch (e) {} }
   }
+  buildTabs(pre, tableEl, tabs, data);
+}
+
+function buildTabs(pre, tableEl, tabs, data) {
+  tabs.innerHTML = '';
+  const mk = (label, on) => {
+    const b = document.createElement('button'); b.className = 'tab'; b.textContent = label;
+    b.onclick = () => { [...tabs.children].forEach(x => x.classList.remove('active'));
+      b.classList.add('active'); on(); };
+    return b;
+  };
+  const showText = () => { pre.style.display = ''; tableEl.style.display = 'none'; };
+  const showTable = () => { pre.style.display = 'none'; tableEl.style.display = ''; };
+  const tText = mk('Text', showText); tabs.appendChild(tText);
+  const has = data !== null &&
+    (Array.isArray(data) ? data.length : Object.keys(data).length);
+  if (has) {
+    tableEl.innerHTML = ''; tableEl.appendChild(renderData(data));
+    const tTab = mk('Table', showTable); tabs.appendChild(tTab);
+    tTab.classList.add('active'); showTable();
+  } else {
+    tText.classList.add('active'); showText();
+  }
+}
+
+function fmtCell(v) {
+  if (v === null || v === undefined) return '';
+  if (typeof v === 'object') return JSON.stringify(v);
+  return String(v);
+}
+
+function renderData(data) {
+  if (Array.isArray(data)) {
+    if (data.length && typeof data[0] === 'object' && !Array.isArray(data[0]))
+      return objArrayTable(data);
+    const box = document.createElement('div'); box.className = 'kv';
+    data.forEach(v => { const d = document.createElement('div');
+      d.textContent = fmtCell(v); box.appendChild(d); });
+    return box;
+  }
+  return fieldTable(data);
+}
+
+function objArrayTable(rows) {
+  const cols = [];
+  rows.forEach(r => Object.keys(r).forEach(k => { if (!cols.includes(k)) cols.push(k); }));
+  const t = document.createElement('table'); t.className = 'data';
+  const thead = document.createElement('thead'); const htr = document.createElement('tr');
+  cols.forEach(c => { const th = document.createElement('th'); th.textContent = c; htr.appendChild(th); });
+  thead.appendChild(htr); t.appendChild(thead);
+  const tb = document.createElement('tbody');
+  rows.forEach(r => { const tr = document.createElement('tr');
+    cols.forEach(c => { const td = document.createElement('td'); td.textContent = fmtCell(r[c]); tr.appendChild(td); });
+    tb.appendChild(tr); });
+  t.appendChild(tb); return t;
+}
+
+function fieldTable(obj) {
+  const t = document.createElement('table'); t.className = 'data';
+  const tb = document.createElement('tbody');
+  Object.entries(obj).forEach(([k, v]) => {
+    const tr = document.createElement('tr');
+    const th = document.createElement('th'); th.textContent = k;
+    const td = document.createElement('td'); td.textContent = fmtCell(v);
+    tr.appendChild(th); tr.appendChild(td); tb.appendChild(tr);
+  });
+  t.appendChild(tb); return t;
 }
 
 boot();
