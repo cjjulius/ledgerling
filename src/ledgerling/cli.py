@@ -81,7 +81,7 @@ import sys
 import tempfile
 from datetime import datetime, date, timedelta
 
-__version__ = "1.38.0"
+__version__ = "1.39.0"
 
 # --------------------------------------------------------------------------- #
 # Sandbox + storage

@@ -4,6 +4,24 @@ All notable changes to Ledgerling are documented here. The format is based on
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and this project
 adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.39.0] - 2026-09-29
+
+### Changed
+
+- **Web UI redesign.** The app now opens on a **Dashboard** instead of a raw
+  command form: this month's income / spending / net as stat cards, top
+  categories and budget progress as bars, and savings-goal status, with a month
+  picker — all built from `month --json`. The sidebar now groups commands
+  (Record / Analyze / Budgets & goals / Recurring / Data / Settings) with a
+  quick "New expense" action, replacing the flat list; any command not in a
+  group still appears automatically under "More", so the nav stays
+  comprehensive. A card-based visual pass (typography, spacing, pill tabs,
+  zebra tables, light/dark polish) applies throughout. The parser-introspection
+  contract is unchanged — new commands still generate their own form, and the
+  Text / Table / Chart / Calendar output views are preserved.
+- `/api/describe` now also reports the configured currency symbol, so the
+  dashboard formats amounts correctly.
+
 ## [1.38.0] - 2026-09-29
 
 ### Added
@@ -384,6 +402,7 @@ file, standard library only, strictly confined to its own folder.
   guard (`_within_app`) that refuses any path escaping the app folder; imports
   and restores are reduced to a basename and looked up only within the folder.
 
+[1.39.0]: #1390---2026-09-29
 [1.38.0]: #1380---2026-09-29
 [1.37.0]: #1370---2026-09-29
 [1.36.0]: #1360---2026-09-29

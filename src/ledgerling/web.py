@@ -71,7 +71,8 @@ def describe():
 
     walk(top, [])
     commands.sort(key=lambda c: c["name"])
-    return {"version": L.__version__, "commands": commands}
+    currency = L.load_config().get("currency", "$")
+    return {"version": L.__version__, "currency": currency, "commands": commands}
 
 
 # --------------------------------------------------------------------------- #
@@ -168,150 +169,395 @@ INDEX_HTML = r"""<!doctype html>
 <title>Ledgerling</title>
 <style>
   :root {
-    --bg:#f6f7f9; --panel:#ffffff; --ink:#1c2430; --muted:#67727e;
-    --line:#e2e6ea; --accent:#2f6f4f; --accent-ink:#ffffff; --code:#0f1720;
-    --code-ink:#d7e3d9;
+    --bg:#eef1f4; --panel:#ffffff; --panel2:#f7f9fb; --ink:#1b2330; --muted:#6a7684;
+    --line:#e0e5ea; --accent:#2f6f4f; --accent2:#3f8a63; --accent-ink:#ffffff;
+    --pos:#2f8f5b; --neg:#c8503a; --code:#0f1720; --code-ink:#d7e3d9;
+    --shadow:0 1px 2px rgba(20,30,45,.06), 0 6px 18px rgba(20,30,45,.06);
   }
   @media (prefers-color-scheme: dark) {
-    :root { --bg:#12161b; --panel:#1a2027; --ink:#e6ebf0; --muted:#9aa6b2;
-      --line:#2a323c; --accent:#4f9e73; --accent-ink:#08120c; --code:#0c1116;
-      --code-ink:#cfe6d8; }
+    :root { --bg:#0e1217; --panel:#171d24; --panel2:#1d242c; --ink:#e6ebf0;
+      --muted:#98a4b0; --line:#2a323c; --accent:#4f9e73; --accent2:#5fae83;
+      --accent-ink:#08120c; --pos:#5cba86; --neg:#e88b76; --code:#0b0f14;
+      --code-ink:#cfe6d8; --shadow:0 1px 2px rgba(0,0,0,.3), 0 8px 22px rgba(0,0,0,.35); }
   }
   * { box-sizing:border-box; }
   body { margin:0; font:15px/1.45 system-ui,-apple-system,Segoe UI,Roboto,sans-serif;
     background:var(--bg); color:var(--ink); }
-  header { display:flex; align-items:baseline; gap:10px; padding:14px 20px;
-    border-bottom:1px solid var(--line); background:var(--panel); position:sticky; top:0; }
-  header h1 { font-size:19px; margin:0; letter-spacing:.2px; }
-  header .ver { color:var(--muted); font-size:13px; }
-  header .tag { margin-left:auto; color:var(--muted); font-size:12px; }
-  .wrap { display:grid; grid-template-columns:260px 1fr; gap:0;
-    height:calc(100vh - 53px); }
+  header { display:flex; align-items:center; gap:12px; padding:12px 20px;
+    border-bottom:1px solid var(--line); background:var(--panel); position:sticky;
+    top:0; z-index:5; }
+  header .brand { display:flex; align-items:baseline; gap:9px; }
+  header .logo { width:22px; height:22px; border-radius:7px; background:
+    linear-gradient(135deg,var(--accent2),var(--accent)); display:inline-block;
+    position:relative; top:3px; box-shadow:var(--shadow); }
+  header h1 { font-size:19px; margin:0; letter-spacing:.2px; font-weight:700; }
+  header .ver { color:var(--muted); font-size:12px; }
+  header .tag { margin-left:auto; color:var(--muted); font-size:12px;
+    display:flex; align-items:center; gap:6px; }
+  header .tag::before { content:""; width:8px; height:8px; border-radius:50%;
+    background:var(--pos); box-shadow:0 0 0 3px color-mix(in srgb,var(--pos) 25%,transparent); }
+  .wrap { display:grid; grid-template-columns:264px 1fr; gap:0;
+    height:calc(100vh - 52px); }
   .side { border-right:1px solid var(--line); background:var(--panel);
-    overflow:auto; padding:12px; }
-  .side input { width:100%; padding:8px 10px; border:1px solid var(--line);
-    border-radius:8px; background:var(--bg); color:var(--ink); margin-bottom:10px; }
-  .cmd { padding:7px 10px; border-radius:8px; cursor:pointer; }
-  .cmd:hover { background:var(--bg); }
-  .cmd.active { background:var(--accent); color:var(--accent-ink); }
-  .cmd .h { font-size:12px; color:var(--muted); }
-  .cmd.active .h { color:var(--accent-ink); opacity:.85; }
-  main { overflow:auto; padding:22px 26px; }
-  h2 { margin:0 0 2px; font-size:20px; }
-  .sub { color:var(--muted); margin:0 0 18px; }
-  form { display:grid; gap:14px; max-width:560px; }
+    overflow:auto; padding:14px 12px; }
+  .side .newbtn { width:100%; padding:10px 12px; border:0; border-radius:10px;
+    background:var(--accent); color:var(--accent-ink); font-weight:600; cursor:pointer;
+    font-size:14px; margin-bottom:10px; box-shadow:var(--shadow); }
+  .side .newbtn:hover { background:var(--accent2); }
+  .side .filter { width:100%; padding:8px 11px; border:1px solid var(--line);
+    border-radius:9px; background:var(--panel2); color:var(--ink); margin-bottom:12px;
+    font-size:13px; }
+  .navitem { padding:8px 11px; border-radius:9px; cursor:pointer; display:flex;
+    flex-direction:column; gap:1px; }
+  .navitem:hover { background:var(--panel2); }
+  .navitem.active { background:var(--accent); color:var(--accent-ink); box-shadow:var(--shadow); }
+  .navitem .n { font-size:13.5px; font-weight:500; }
+  .navitem .h { font-size:11.5px; color:var(--muted); overflow:hidden;
+    text-overflow:ellipsis; white-space:nowrap; }
+  .navitem.active .h { color:var(--accent-ink); opacity:.85; }
+  .navitem.home .n { font-weight:600; }
+  .grouphd { font-size:11px; text-transform:uppercase; letter-spacing:.07em;
+    color:var(--muted); font-weight:700; margin:14px 8px 4px; }
+  main { overflow:auto; padding:24px 28px 40px; }
+  .page-h { display:flex; align-items:flex-end; gap:12px; flex-wrap:wrap;
+    margin-bottom:18px; }
+  .page-h h2 { margin:0; font-size:22px; font-weight:700; }
+  .page-h .sub { color:var(--muted); margin:0; font-size:14px; }
+  .page-h .spacer { flex:1; }
+  .card { background:var(--panel); border:1px solid var(--line); border-radius:14px;
+    padding:18px; box-shadow:var(--shadow); }
+  .card h3 { margin:0 0 12px; font-size:13px; text-transform:uppercase;
+    letter-spacing:.05em; color:var(--muted); font-weight:700; }
+  .grid { display:grid; gap:16px; }
+  .stat-grid { grid-template-columns:repeat(auto-fit,minmax(180px,1fr)); }
+  .dash-grid { grid-template-columns:repeat(auto-fit,minmax(300px,1fr)); align-items:start; }
+  .stat { }
+  .stat .k { font-size:12px; text-transform:uppercase; letter-spacing:.05em;
+    color:var(--muted); font-weight:700; margin-bottom:6px; }
+  .stat .v { font-size:28px; font-weight:700; font-variant-numeric:tabular-nums;
+    letter-spacing:-.5px; }
+  .stat .m { font-size:12px; color:var(--muted); margin-top:3px; }
+  .v.pos { color:var(--pos); } .v.neg { color:var(--neg); }
+  .rowbar { display:grid; grid-template-columns:1fr auto; gap:4px 10px; align-items:center;
+    margin-bottom:11px; }
+  .rowbar:last-child { margin-bottom:0; }
+  .rowbar .lab { font-size:13px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+  .rowbar .amt { font:12px ui-monospace,Menlo,Consolas,monospace; text-align:right;
+    color:var(--muted); }
+  .rowbar .track { grid-column:1/3; height:8px; border-radius:6px; background:var(--panel2);
+    overflow:hidden; }
+  .rowbar .fill { height:100%; border-radius:6px; background:var(--accent);
+    min-width:2px; transition:width .3s; }
+  .rowbar .fill.over { background:var(--neg); }
+  .pill { display:inline-block; padding:2px 9px; border-radius:20px; font-size:11px;
+    font-weight:600; background:color-mix(in srgb,var(--accent) 15%,transparent);
+    color:var(--accent2); }
+  .pill.over { background:color-mix(in srgb,var(--neg) 16%,transparent); color:var(--neg); }
+  .goalwrap { text-align:center; }
+  .goalwrap .big { font-size:26px; font-weight:700; margin:4px 0; }
+  .muted { color:var(--muted); }
+  .empty { color:var(--muted); padding:36px 0; text-align:center; }
+  .monthpick { padding:7px 10px; border:1px solid var(--line); border-radius:9px;
+    background:var(--panel); color:var(--ink); font-size:13px; }
+  form { display:grid; gap:14px; }
   .field label { display:block; font-weight:600; margin-bottom:4px; font-size:13px; }
   .field .help { color:var(--muted); font-size:12px; margin-bottom:5px; }
   .field input[type=text], .field input[type=number], .field select {
-    width:100%; padding:8px 10px; border:1px solid var(--line); border-radius:8px;
-    background:var(--panel); color:var(--ink); }
+    width:100%; padding:9px 11px; border:1px solid var(--line); border-radius:9px;
+    background:var(--panel2); color:var(--ink); font-size:14px; }
+  .field input:focus, .field select:focus, .monthpick:focus {
+    outline:2px solid color-mix(in srgb,var(--accent) 45%,transparent); outline-offset:1px;
+    border-color:var(--accent); }
   .field.bool label { display:flex; align-items:center; gap:8px; font-weight:500; }
-  .req { color:#c0492b; }
-  button.run { justify-self:start; padding:9px 18px; border:0; border-radius:8px;
-    background:var(--accent); color:var(--accent-ink); font-weight:600; cursor:pointer; }
-  .out { margin-top:20px; }
-  .out h3 { font-size:13px; text-transform:uppercase; letter-spacing:.06em;
-    color:var(--muted); margin:0 0 6px; }
-  pre { background:var(--code); color:var(--code-ink); padding:14px 16px;
-    border-radius:10px; overflow:auto; font:13px/1.5 ui-monospace,SFMono-Regular,
-    Menlo,Consolas,monospace; white-space:pre-wrap; word-break:break-word; min-height:40px; }
+  .req { color:var(--neg); }
+  button.run { justify-self:start; padding:10px 22px; border:0; border-radius:10px;
+    background:var(--accent); color:var(--accent-ink); font-weight:600; cursor:pointer;
+    font-size:14px; box-shadow:var(--shadow); }
+  button.run:hover { background:var(--accent2); }
+  .out { margin-top:18px; }
+  pre { background:var(--code); color:var(--code-ink); padding:15px 17px;
+    border-radius:11px; overflow:auto; font:13px/1.5 ui-monospace,SFMono-Regular,
+    Menlo,Consolas,monospace; white-space:pre-wrap; word-break:break-word; min-height:40px;
+    margin:0; }
   pre.err { color:#ff9b8a; }
-  .empty { color:var(--muted); padding:40px 0; }
-  .tabs { display:flex; gap:6px; margin:6px 0 8px; }
-  .tab { padding:5px 12px; border:1px solid var(--line); background:var(--panel);
-    color:var(--muted); border-radius:7px; cursor:pointer; font-size:13px; }
+  .tabs { display:flex; gap:6px; margin:0 0 12px; }
+  .tab { padding:6px 14px; border:1px solid var(--line); background:var(--panel);
+    color:var(--muted); border-radius:20px; cursor:pointer; font-size:13px; font-weight:500; }
+  .tab:hover { color:var(--ink); }
   .tab.active { background:var(--accent); color:var(--accent-ink); border-color:var(--accent); }
   #outtable { overflow:auto; }
   table.data { border-collapse:collapse; width:100%; font-size:13px; }
-  table.data th, table.data td { border:1px solid var(--line); padding:6px 9px;
-    text-align:left; vertical-align:top; }
-  table.data thead th { background:var(--bg); position:sticky; top:0; }
-  table.data tbody th { background:var(--bg); white-space:nowrap; }
-  .kv > div { padding:4px 2px; border-bottom:1px solid var(--line);
+  table.data th, table.data td { padding:7px 11px; text-align:left; vertical-align:top;
+    border-bottom:1px solid var(--line); }
+  table.data thead th { background:var(--panel2); position:sticky; top:0; font-weight:700;
+    color:var(--muted); font-size:12px; text-transform:uppercase; letter-spacing:.04em; }
+  table.data tbody tr:hover { background:var(--panel2); }
+  table.data tbody th { background:var(--panel2); white-space:nowrap; }
+  .kv > div { padding:5px 2px; border-bottom:1px solid var(--line);
     font:13px ui-monospace,Menlo,Consolas,monospace; }
   .chart { display:flex; flex-direction:column; gap:6px; }
-  .chart .metric { margin-bottom:6px; }
-  .chart .metric select { padding:5px 8px; border:1px solid var(--line);
-    border-radius:7px; background:var(--panel); color:var(--ink); }
+  .chart .metric { margin-bottom:8px; }
+  .chart .metric select { padding:6px 10px; border:1px solid var(--line);
+    border-radius:9px; background:var(--panel2); color:var(--ink); }
   .crow { display:grid; grid-template-columns:130px 1fr 96px; align-items:center; gap:10px; }
   .clab { font-size:13px; color:var(--muted); white-space:nowrap; overflow:hidden;
     text-overflow:ellipsis; }
-  .cbarwrap { background:var(--bg); border-radius:5px; height:20px; overflow:hidden; }
-  .cbar { background:var(--accent); height:100%; border-radius:5px; min-width:2px; }
+  .cbarwrap { background:var(--panel2); border-radius:6px; height:20px; overflow:hidden; }
+  .cbar { background:var(--accent); height:100%; border-radius:6px; min-width:2px; }
   .cval { font:12px ui-monospace,Menlo,Consolas,monospace; text-align:right; }
-  .cal { display:flex; flex-direction:column; gap:8px; max-width:420px; }
-  .cal .cgrid { display:grid; grid-template-columns:repeat(7,1fr); gap:4px; }
-  .cal .cdow { font-size:11px; color:var(--muted); text-align:center; padding:2px 0; }
-  .cal .ccell { aspect-ratio:1; border:1px solid var(--line); border-radius:6px;
-    display:flex; flex-direction:column; justify-content:space-between; padding:4px 5px; }
+  .cal { display:flex; flex-direction:column; gap:8px; max-width:440px; }
+  .cal .cgrid { display:grid; grid-template-columns:repeat(7,1fr); gap:5px; }
+  .cal .cdow { font-size:11px; color:var(--muted); text-align:center; padding:2px 0; font-weight:600; }
+  .cal .ccell { aspect-ratio:1; border:1px solid var(--line); border-radius:8px;
+    display:flex; flex-direction:column; justify-content:space-between; padding:5px 6px; }
   .cal .ccell.pad { border:none; background:transparent; }
   .cal .ccell .dnum { font-size:11px; color:var(--muted); }
   .cal .ccell .damt { font:11px ui-monospace,Menlo,Consolas,monospace; text-align:right; }
   .cal .clegend { display:flex; align-items:center; gap:6px; font-size:12px;
     color:var(--muted); }
-  .cal .cswatch { width:16px; height:16px; border-radius:4px; border:1px solid var(--line); }
+  .cal .cswatch { width:16px; height:16px; border-radius:5px; border:1px solid var(--line); }
+  @media (max-width:720px) {
+    .wrap { grid-template-columns:1fr; height:auto; }
+    .side { border-right:0; border-bottom:1px solid var(--line); max-height:40vh; }
+    header .tag span { display:none; }
+  }
 </style>
 </head>
 <body>
 <header>
-  <h1>Ledgerling</h1><span class="ver" id="ver"></span>
-  <span class="tag">local &amp; sandboxed - data stays in your Ledgerling folder</span>
+  <div class="brand"><span class="logo"></span><h1>Ledgerling</h1>
+    <span class="ver" id="ver"></span></div>
+  <span class="tag"><span>local &amp; sandboxed &mdash; data stays in your Ledgerling folder</span></span>
 </header>
 <div class="wrap">
   <nav class="side">
-    <input id="filter" placeholder="Filter commands...">
+    <button class="newbtn" id="newbtn">+ New expense</button>
+    <input class="filter" id="filter" placeholder="Filter commands...">
     <div id="list"></div>
   </nav>
-  <main id="main"><div class="empty">Loading commands...</div></main>
+  <main id="main"><div class="empty">Loading&hellip;</div></main>
 </div>
 <script>
-let COMMANDS = [], CURRENT = null;
+let COMMANDS = [], CURRENT = null, CURRENCY = '$', ACTIVE = 'home';
+
+// Command groups for the sidebar. Any command not listed here (e.g. a newly
+// added one) still shows up automatically under "More", so the nav stays
+// comprehensive without per-command edits.
+const GROUP_DEFS = [
+  ['Record', ['add', 'income', 'edit', 'delete', 'clone']],
+  ['Analyze', ['month', 'summary', 'report', 'stats', 'week', 'day', 'year',
+    'quarter', 'weekday', 'trend', 'top', 'compare', 'average', 'distribution',
+    'balance', 'savings', 'heatmap', 'streak', 'pace', 'forecast', 'sources',
+    'categories', 'tags', 'untagged', 'search', 'list']],
+  ['Budgets & goals', ['budget', 'goal', 'suggest', 'commitments', 'upcoming']],
+  ['Recurring', ['recur add', 'recur list', 'recur edit', 'recur remove', 'recur run']],
+  ['Data', ['export', 'import', 'backup', 'restore', 'dedupe', 'duplicates',
+    'retag', 'recategorize', 'undo']],
+  ['Settings', ['config', 'version', 'completion', 'web']],
+];
+function groupOf(name) {
+  for (const [g, names] of GROUP_DEFS) if (names.includes(name)) return g;
+  return 'More';
+}
+
+function esc(s){ return String(s).replace(/[&<>]/g, m => ({'&':'&amp;','<':'&lt;','>':'&gt;'}[m])); }
+function findCmd(name) { return COMMANDS.find(c => c.name === name); }
+function curMonth() {
+  const n = new Date();
+  return n.getFullYear() + '-' + String(n.getMonth() + 1).padStart(2, '0');
+}
+function money(n) {
+  const neg = n < 0;
+  const s = CURRENCY + Math.abs(Number(n) || 0).toLocaleString(undefined,
+    {minimumFractionDigits: 2, maximumFractionDigits: 2});
+  return neg ? '-' + s : s;
+}
 
 async function boot() {
   const d = await fetch('/api/describe').then(r => r.json());
-  COMMANDS = d.commands;
+  COMMANDS = d.commands; CURRENCY = d.currency || '$';
   document.getElementById('ver').textContent = 'v' + d.version;
+  document.getElementById('filter').addEventListener('input',
+    e => renderList(e.target.value));
+  document.getElementById('newbtn').onclick = () => {
+    const a = findCmd('add'); if (a) selectCmd(a);
+  };
   renderList('');
-  if (COMMANDS.length) select(COMMANDS.find(c => c.name === 'month') || COMMANDS[0]);
-  document.getElementById('filter').addEventListener('input', e => renderList(e.target.value));
+  showDashboard();
+}
+
+function navItem(name, help, active, onclick) {
+  const el = document.createElement('div');
+  el.className = 'navitem' + (active ? ' active' : '');
+  el.innerHTML = '<div class="n">' + esc(name) + '</div>' +
+    (help ? '<div class="h">' + esc(help) + '</div>' : '');
+  el.onclick = onclick;
+  return el;
 }
 
 function renderList(q) {
-  q = q.trim().toLowerCase();
+  q = (q || '').trim().toLowerCase();
   const list = document.getElementById('list');
   list.innerHTML = '';
-  COMMANDS.filter(c => !q || c.name.includes(q) || (c.help||'').toLowerCase().includes(q))
-    .forEach(c => {
-      const el = document.createElement('div');
-      el.className = 'cmd' + (CURRENT && CURRENT.name === c.name ? ' active' : '');
-      el.innerHTML = '<div>' + c.name + '</div><div class="h">' + esc(c.help||'') + '</div>';
-      el.onclick = () => select(c);
-      list.appendChild(el);
-    });
+  if (!q || 'dashboard'.includes(q)) {
+    const h = navItem('Dashboard', 'This month at a glance', ACTIVE === 'home',
+      () => showDashboard());
+    h.classList.add('home'); list.appendChild(h);
+  }
+  const match = COMMANDS.filter(c => !q || c.name.includes(q) ||
+    (c.help || '').toLowerCase().includes(q));
+  const groups = {};
+  match.forEach(c => { (groups[groupOf(c.name)] = groups[groupOf(c.name)] || []).push(c); });
+  GROUP_DEFS.map(g => g[0]).concat(['More']).forEach(g => {
+    const items = groups[g]; if (!items || !items.length) return;
+    const hd = document.createElement('div'); hd.className = 'grouphd';
+    hd.textContent = g; list.appendChild(hd);
+    items.forEach(c => list.appendChild(
+      navItem(c.name, c.help || '', ACTIVE === c.name, () => selectCmd(c))));
+  });
 }
 
-function esc(s){ return s.replace(/[&<>]/g, m => ({'&':'&amp;','<':'&lt;','>':'&gt;'}[m])); }
-
-function select(c) {
-  CURRENT = c;
+function selectCmd(c) {
+  ACTIVE = c.name; CURRENT = c;
   renderList(document.getElementById('filter').value);
-  const m = document.getElementById('main');
-  m.innerHTML = '';
-  const h = document.createElement('h2'); h.textContent = c.name; m.appendChild(h);
-  const s = document.createElement('p'); s.className = 'sub'; s.textContent = c.help || ''; m.appendChild(s);
+  const m = document.getElementById('main'); m.innerHTML = '';
+  const ph = document.createElement('div'); ph.className = 'page-h';
+  ph.innerHTML = '<div><h2>' + esc(c.name) + '</h2><p class="sub">' +
+    esc(c.help || '') + '</p></div>';
+  m.appendChild(ph);
+  const fcard = document.createElement('div'); fcard.className = 'card';
   const form = document.createElement('form');
   c.args.forEach(a => form.appendChild(fieldFor(a)));
-  const btn = document.createElement('button'); btn.className = 'run'; btn.textContent = 'Run';
-  form.appendChild(btn);
+  if (!c.args.length) {
+    const p = document.createElement('p'); p.className = 'muted';
+    p.textContent = 'No options - just run it.'; form.appendChild(p);
+  }
+  const btn = document.createElement('button'); btn.className = 'run';
+  btn.textContent = 'Run ' + c.name; form.appendChild(btn);
   form.onsubmit = ev => { ev.preventDefault(); runCmd(c, form); };
-  m.appendChild(form);
-  const out = document.createElement('div'); out.className = 'out'; out.id = 'out';
-  out.innerHTML = '<h3>Output</h3><div class="tabs" id="tabs"></div>' +
+  fcard.appendChild(form); m.appendChild(fcard);
+  const out = document.createElement('div'); out.className = 'out card'; out.id = 'out';
+  out.innerHTML = '<div class="tabs" id="tabs"></div>' +
     '<pre id="outpre">(run the command to see output)</pre>' +
     '<div id="outtable" style="display:none"></div>' +
     '<div id="outchart" style="display:none"></div>' +
     '<div id="outcal" style="display:none"></div>';
   m.appendChild(out);
+}
+
+// --- Dashboard (bespoke home view, built from `month --json`) --------------- //
+function muted(t) { const p = document.createElement('p'); p.className = 'muted';
+  p.textContent = t; return p; }
+
+function statCard(k, v, sub, cls) {
+  const c = document.createElement('div'); c.className = 'card stat';
+  c.innerHTML = '<div class="k">' + esc(k) + '</div>' +
+    '<div class="v ' + cls + '">' + esc(v) + '</div>' +
+    '<div class="m">' + esc(sub) + '</div>';
+  return c;
+}
+
+function barRow(label, amt, frac, over) {
+  const r = document.createElement('div'); r.className = 'rowbar';
+  const l = document.createElement('div'); l.className = 'lab'; l.textContent = label;
+  const a = document.createElement('div'); a.className = 'amt'; a.textContent = amt;
+  const t = document.createElement('div'); t.className = 'track';
+  const f = document.createElement('div'); f.className = 'fill' + (over ? ' over' : '');
+  f.style.width = Math.max(0, Math.min(1, frac || 0)) * 100 + '%';
+  t.appendChild(f); r.appendChild(l); r.appendChild(a); r.appendChild(t);
+  return r;
+}
+
+function topCatCard(byCat) {
+  const c = document.createElement('div'); c.className = 'card';
+  const h = document.createElement('h3'); h.textContent = 'Top categories'; c.appendChild(h);
+  const entries = Object.entries(byCat || {}).sort((a, b) => b[1] - a[1]).slice(0, 6);
+  if (!entries.length) { c.appendChild(muted('No spending yet.')); return c; }
+  const max = Math.max.apply(null, entries.map(e => e[1]));
+  entries.forEach(([cat, amt]) => c.appendChild(barRow(cat, money(amt), amt / max, false)));
+  return c;
+}
+
+function budgetCard(budgets) {
+  const c = document.createElement('div'); c.className = 'card';
+  const h = document.createElement('h3'); h.textContent = 'Budgets'; c.appendChild(h);
+  Object.keys(budgets).sort().forEach(cat => {
+    const b = budgets[cat]; const frac = b.limit ? b.spent / b.limit : 0;
+    c.appendChild(barRow(cat, money(b.spent) + ' / ' + money(b.limit), frac, b.spent > b.limit));
+  });
+  return c;
+}
+
+function goalCard(goal, net) {
+  const c = document.createElement('div'); c.className = 'card';
+  const h = document.createElement('h3'); h.textContent = 'Savings goal'; c.appendChild(h);
+  if (goal === null || goal === undefined) {
+    c.appendChild(muted('No monthly goal set.'));
+    const b = document.createElement('button'); b.className = 'run';
+    b.style.marginTop = '10px'; b.textContent = 'Set a goal';
+    b.onclick = () => { const g = findCmd('goal'); if (g) selectCmd(g); };
+    c.appendChild(b); return c;
+  }
+  const met = net >= goal;
+  const frac = goal > 0 ? net / goal : (net >= 0 ? 1 : 0);
+  const w = document.createElement('div'); w.className = 'goalwrap';
+  w.innerHTML = '<div class="big">' + esc(money(net)) + '</div>' +
+    '<div class="muted">of ' + esc(money(goal)) + ' goal</div>';
+  c.appendChild(w);
+  c.appendChild(barRow('progress', Math.round(Math.max(0, frac) * 100) + '%', frac, false));
+  const p = document.createElement('div'); p.style.marginTop = '10px';
+  p.style.textAlign = 'center';
+  p.innerHTML = met ? '<span class="pill">met (+' + esc(money(net - goal)) + ')</span>'
+    : '<span class="pill over">' + esc(money(goal - net)) + ' to go</span>';
+  c.appendChild(p); return c;
+}
+
+async function showDashboard(month) {
+  ACTIVE = 'home'; CURRENT = null;
+  renderList(document.getElementById('filter').value);
+  month = month || curMonth();
+  const m = document.getElementById('main'); m.innerHTML = '';
+  const ph = document.createElement('div'); ph.className = 'page-h';
+  ph.innerHTML = '<div><h2>Dashboard</h2><p class="sub">Your money at a glance</p></div>' +
+    '<div class="spacer"></div>';
+  const pick = document.createElement('input'); pick.type = 'month';
+  pick.className = 'monthpick'; pick.value = month;
+  pick.onchange = () => showDashboard(pick.value);
+  ph.appendChild(pick); m.appendChild(ph);
+  const body = document.createElement('div'); body.appendChild(muted('Loading...'));
+  m.appendChild(body);
+
+  const res = await postRun(['month', '--month', month, '--json']);
+  let d = null; if (res.code === 0) { try { d = JSON.parse(res.stdout); } catch (e) {} }
+  body.innerHTML = '';
+  if (!d) { const c = document.createElement('div'); c.className = 'card empty';
+    c.textContent = 'Could not load this month.'; body.appendChild(c); return; }
+
+  if (!d.expense_count && !d.income_count) {
+    const c = document.createElement('div'); c.className = 'card empty';
+    const p = document.createElement('p');
+    p.textContent = 'Nothing recorded for ' + d.month + ' yet.'; c.appendChild(p);
+    const b = document.createElement('button'); b.className = 'run';
+    b.textContent = '+ Add your first expense';
+    b.onclick = () => { const a = findCmd('add'); if (a) selectCmd(a); };
+    c.appendChild(b); body.appendChild(c); return;
+  }
+
+  const stats = document.createElement('div'); stats.className = 'grid stat-grid';
+  stats.appendChild(statCard('Income', money(d.income),
+    d.income_count + (d.income_count === 1 ? ' entry' : ' entries'), 'pos'));
+  stats.appendChild(statCard('Spending', money(d.spending),
+    d.expense_count + (d.expense_count === 1 ? ' expense' : ' expenses'), ''));
+  stats.appendChild(statCard('Net', money(d.net),
+    d.net >= 0 ? 'saved this month' : 'over this month', d.net >= 0 ? 'pos' : 'neg'));
+  body.appendChild(stats);
+
+  const dg = document.createElement('div'); dg.className = 'grid dash-grid';
+  dg.style.marginTop = '16px';
+  dg.appendChild(topCatCard(d.by_category));
+  if (d.budgets && Object.keys(d.budgets).length) dg.appendChild(budgetCard(d.budgets));
+  dg.appendChild(goalCard(d.goal, d.net));
+  body.appendChild(dg);
 }
 
 function cmdHasJson(c) { return c.args.some(a => a.flag === '--json'); }
