@@ -104,6 +104,10 @@ ledgerling search lunch --month 2026-09
 ledgerling search --tag work --month 2026-09
 ledgerling search --min 50 --max 200 --category food
 
+# This week's spending by day (Mon-Sun); --offset N for weeks back
+ledgerling week
+ledgerling week --offset 1
+
 # One-screen dashboard for a month (income, spend, net, top cats, budgets, goal)
 ledgerling month
 ledgerling month --month 2026-08

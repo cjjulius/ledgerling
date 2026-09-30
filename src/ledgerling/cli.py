@@ -26,6 +26,7 @@ Commands:
     summary   Totals by category with an ASCII bar chart
     report    Month-over-month trend and budget adherence
     stats     Analytics: extremes, averages, per-tag totals, projection
+    week      This week's spending by day (Mon-Sun), income and net
     month     One-screen dashboard for a month (income, spend, net, budgets)
     compare   Compare two months side by side (with per-category deltas)
     trend     Monthly spending trend for one category
@@ -62,7 +63,7 @@ import sys
 import tempfile
 from datetime import datetime, date, timedelta
 
-__version__ = "1.15.0"
+__version__ = "1.16.0"
 
 # --------------------------------------------------------------------------- #
 # Sandbox + storage
@@ -1335,6 +1336,49 @@ def cmd_categories(args):
         print(f"{cat:<14} {v['count']:>3} item(s)  {money(v['total']):>12}{budget}")
 
 
+def cmd_week(args):
+    if args.offset < 0:
+        sys.exit("error: --offset cannot be negative")
+    data = load()
+    today = date.today()
+    monday = today - timedelta(days=today.weekday())
+    start = monday - timedelta(weeks=args.offset)
+    end = start + timedelta(days=6)
+    days = [(start + timedelta(days=i)).isoformat() for i in range(7)]
+
+    per_day = {d: 0.0 for d in days}
+    income = 0.0
+    for e in data["expenses"]:
+        d = e["date"]
+        if days[0] <= d <= days[-1]:
+            if kind_of(e) == "income":
+                income += e["amount"]
+            else:
+                per_day[d] = round(per_day[d] + e["amount"], 2)
+    spending = round(sum(per_day.values()), 2)
+    income = round(income, 2)
+
+    if getattr(args, "json", False):
+        print(json.dumps({
+            "start": days[0], "end": days[-1],
+            "days": [{"date": d, "spending": per_day[d]} for d in days],
+            "spending": spending, "income": income,
+            "net": round(income - spending, 2),
+        }, indent=2))
+        return
+
+    print(f"Week of {days[0]} to {days[-1]}")
+    print("=" * 48)
+    peak = max(per_day.values()) if any(per_day.values()) else 0
+    for d in days:
+        label = datetime.strptime(d, "%Y-%m-%d").strftime("%a %m-%d")
+        chart = bar(per_day[d] / peak, width=18) if peak else bar(0, width=18)
+        print(f"{label}  {money(per_day[d]):>10}  {chart}")
+    print("-" * 48)
+    print(f"spending {money(spending)}, income {money(income)}, "
+          f"net {money(income - spending)}")
+
+
 def cmd_month(args):
     check_month(args.month)
     data = load()
@@ -1802,6 +1846,12 @@ def build_parser():
     st.add_argument("--json", action="store_true", help="output JSON instead of text")
     st.set_defaults(func=cmd_stats)
 
+    wk = sub.add_parser("week", help="this week's spending by day (Mon-Sun)")
+    wk.add_argument("--offset", type=int, default=0,
+                    help="how many weeks back (0 = this week)")
+    wk.add_argument("--json", action="store_true", help="output JSON instead of text")
+    wk.set_defaults(func=cmd_week)
+
     mo = sub.add_parser("month", help="one-screen dashboard for a month")
     mo.add_argument("--month", help="which month, YYYY-MM (default: current)")
     mo.add_argument("--json", action="store_true", help="output JSON instead of text")
@@ -1951,7 +2001,7 @@ def main(argv=None):
     if args.command in ("list", "summary", "budget", "export", "report",
                         "stats", "search", "categories", "tags", "month",
                         "upcoming", "compare", "trend", "top", "pace",
-                        "duplicates"):
+                        "duplicates", "week"):
         data = load()
         if apply_recurring(data):
             save(data)

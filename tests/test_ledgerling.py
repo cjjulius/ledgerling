@@ -472,6 +472,25 @@ class CLI(TempAppCase):
     def test_completion_default_is_bash(self):
         self.assertEqual(self._main(["completion"]), self._main(["completion", "bash"]))
 
+    def test_week_json(self):
+        monday = date.today() - timedelta(days=date.today().weekday())
+        d0 = monday.isoformat()
+        d1 = (monday + timedelta(days=1)).isoformat()
+        self._main(["add", "10", "food", "a", "--date", d0])
+        self._main(["add", "20", "food", "b", "--date", d1])
+        self._main(["income", "100", "salary", "c", "--date", d0])
+        d = json.loads(self._main(["week", "--json"]))
+        self.assertEqual(len(d["days"]), 7)
+        self.assertEqual(d["spending"], 30.0)
+        self.assertEqual(d["income"], 100.0)
+        self.assertEqual(d["net"], 70.0)
+        self.assertEqual(d["start"], d0)
+
+    def test_week_offset_excludes_this_week(self):
+        self._main(["add", "50", "food", "now"])          # this week
+        d = json.loads(self._main(["week", "--offset", "1", "--json"]))
+        self.assertEqual(d["spending"], 0.0)              # last week is empty
+
     def test_month_dashboard_json(self):
         self._main(["income", "3000", "salary", "pay", "--date", "2026-05-01"])
         self._main(["add", "1200", "rent", "flat", "--date", "2026-05-02"])

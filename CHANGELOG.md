@@ -4,6 +4,13 @@ All notable changes to Ledgerling are documented here. The format is based on
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and this project
 adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.16.0] - 2026-09-29
+
+### Added
+
+- `week` command — this week's spending broken down by day (Mon-Sun) with a bar
+  chart, plus income and net. `--offset N` looks back N weeks; supports `--json`.
+
 ## [1.15.0] - 2026-09-29
 
 ### Added
@@ -188,6 +195,7 @@ file, standard library only, strictly confined to its own folder.
   guard (`_within_app`) that refuses any path escaping the app folder; imports
   and restores are reduced to a basename and looked up only within the folder.
 
+[1.16.0]: #1160---2026-09-29
 [1.15.0]: #1150---2026-09-29
 [1.14.0]: #1140---2026-09-29
 [1.13.0]: #1130---2026-09-29
