@@ -4,6 +4,14 @@ All notable changes to Ledgerling are documented here. The format is based on
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and this project
 adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.62.0] - 2026-09-30
+
+### Added
+
+- Web UI: a "+ New income" quick-action button in the sidebar (next to
+  "+ New expense") that jumps straight to the income form. Recording income was
+  previously buried in the command list.
+
 ## [1.61.0] - 2026-09-30
 
 ### Changed
@@ -633,6 +641,7 @@ file, standard library only, strictly confined to its own folder.
   guard (`_within_app`) that refuses any path escaping the app folder; imports
   and restores are reduced to a basename and looked up only within the folder.
 
+[1.62.0]: #1620---2026-09-30
 [1.61.0]: #1610---2026-09-30
 [1.60.0]: #1600---2026-09-30
 [1.59.0]: #1590---2026-09-30

@@ -211,6 +211,9 @@ INDEX_HTML = r"""<!doctype html>
     background:var(--accent); color:var(--accent-ink); font-weight:600; cursor:pointer;
     font-size:14px; margin-bottom:10px; box-shadow:var(--shadow); }
   .side .newbtn:hover { background:var(--accent2); }
+  .side .newbtn.alt { background:var(--panel2); color:var(--ink);
+    border:1px solid var(--line); box-shadow:none; }
+  .side .newbtn.alt:hover { background:var(--bg); border-color:var(--accent); }
   .side .filter { width:100%; padding:8px 11px; border:1px solid var(--line);
     border-radius:9px; background:var(--panel2); color:var(--ink); margin-bottom:12px;
     font-size:13px; }
@@ -365,6 +368,7 @@ INDEX_HTML = r"""<!doctype html>
 <div class="wrap">
   <nav class="side">
     <button class="newbtn" id="newbtn">+ New expense</button>
+    <button class="newbtn alt" id="incbtn">+ New income</button>
     <input class="filter" id="filter" placeholder="Filter commands...">
     <div id="list"></div>
   </nav>
@@ -444,6 +448,9 @@ async function boot() {
     e => renderList(e.target.value));
   document.getElementById('newbtn').onclick = () => {
     const a = findCmd('add'); if (a) selectCmd(a);
+  };
+  document.getElementById('incbtn').onclick = () => {
+    const a = findCmd('income'); if (a) selectCmd(a);
   };
   await refreshCategories();
   renderList('');
