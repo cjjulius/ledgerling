@@ -367,7 +367,7 @@ let COMMANDS = [], CURRENT = null, CURRENCY = '$', ACTIVE = 'home';
 // added one) still shows up automatically under "More", so the nav stays
 // comprehensive without per-command edits.
 const GROUP_DEFS = [
-  ['Record', ['add', 'income', 'edit', 'delete', 'clone']],
+  ['Record', ['add', 'income', 'edit', 'delete', 'clone', 'note']],
   ['Analyze', ['month', 'insights', 'range', 'summary', 'report', 'stats', 'week', 'day', 'year',
     'quarter', 'weekday', 'trend', 'tagtrend', 'matrix', 'top', 'compare', 'average', 'distribution',
     'balance', 'savings', 'heatmap', 'streak', 'pace', 'forecast', 'sources',

@@ -4,6 +4,15 @@ All notable changes to Ledgerling are documented here. The format is based on
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and this project
 adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.49.0] - 2026-09-29
+
+### Added
+
+- `note ID [text]` — set, append to (`--append`), or clear (`--clear`) an entry's
+  note without the full `edit` command; with no text it just prints the current
+  note. Tags are re-parsed from the new note, and the change is undoable. Rounds
+  out per-entry editing alongside `tag`/`untag`.
+
 ## [1.48.0] - 2026-09-29
 
 ### Added
@@ -507,6 +516,7 @@ file, standard library only, strictly confined to its own folder.
   guard (`_within_app`) that refuses any path escaping the app folder; imports
   and restores are reduced to a basename and looked up only within the folder.
 
+[1.49.0]: #1490---2026-09-29
 [1.48.0]: #1480---2026-09-29
 [1.47.0]: #1470---2026-09-29
 [1.46.0]: #1460---2026-09-29

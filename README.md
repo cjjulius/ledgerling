@@ -226,6 +226,11 @@ ledgerling untagged
 ledgerling tag 1 work reimbursable
 ledgerling untag 1 reimbursable
 
+# Set, append to, or clear an entry's note (tags re-parsed)
+ledgerling note 1 "team lunch #work"
+ledgerling note 1 "#reimbursable" --append
+ledgerling note 1 --clear
+
 # Find likely double-entered records (same date/amount/category/note)
 ledgerling duplicates
 

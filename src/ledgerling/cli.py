@@ -58,6 +58,7 @@ Commands:
     retag     Rename a #tag across all records
     tag       Add #tag(s) to an existing entry
     untag     Remove #tag(s) from an existing entry
+    note      Set, append to, or clear an entry's note
     duplicates  Find likely double-entered records
     dedupe    Remove duplicate entries (keeps one per group; undoable)
     undo      Revert the last data change (toggles redo)
@@ -89,7 +90,7 @@ import sys
 import tempfile
 from datetime import datetime, date, timedelta
 
-__version__ = "1.48.0"
+__version__ = "1.49.0"
 
 # --------------------------------------------------------------------------- #
 # Sandbox + storage
@@ -2516,6 +2517,32 @@ def cmd_untag(args):
           f"  (now: {', '.join('#' + t for t in e['tags']) or 'none'})")
 
 
+def cmd_note(args):
+    data = load()
+    e = find(data["expenses"], args.id)
+    if not e:
+        sys.exit(f"error: no expense with id #{args.id}")
+    if args.clear and args.text is not None:
+        sys.exit("error: pass either new text or --clear, not both")
+    if args.append and not args.text:
+        sys.exit("error: --append needs text to append")
+
+    if args.clear:
+        e["note"] = ""
+    elif args.text is not None:
+        text = args.text.strip()
+        if args.append and e.get("note"):
+            e["note"] = (e["note"].rstrip() + " " + text).strip()
+        else:
+            e["note"] = text
+    else:  # no change requested - just show the current note
+        print(f"#{e['id']}: {e.get('note') or '(no note)'}")
+        return
+    e["tags"] = parse_tags(e["note"])
+    save(data)
+    print(f"#{e['id']} note: {e['note'] or '(cleared)'}")
+
+
 def cmd_recategorize(args):
     old = clean_category(args.old)
     new = clean_category(args.new)
@@ -3118,6 +3145,14 @@ def build_parser():
     utg.add_argument("id", type=int, help="entry id")
     utg.add_argument("tags", nargs="+", help="tag name(s), with or without #")
     utg.set_defaults(func=cmd_untag)
+
+    nt = sub.add_parser("note", help="set, append to, or clear an entry's note")
+    nt.add_argument("id", type=int, help="entry id")
+    nt.add_argument("text", nargs="?", help="new note text (omit to just view)")
+    nt.add_argument("--append", action="store_true",
+                    help="append to the existing note instead of replacing it")
+    nt.add_argument("--clear", action="store_true", help="clear the note")
+    nt.set_defaults(func=cmd_note)
 
     un = sub.add_parser("undo", help="revert the last data change (toggles redo)")
     un.set_defaults(func=cmd_undo)

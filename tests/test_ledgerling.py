@@ -908,6 +908,33 @@ class CLI(TempAppCase):
         self._main(["unbudget", "--all"])
         self.assertEqual(L.load()["budgets"], {})
 
+    def test_note_set_append_clear(self):
+        self._main(["add", "10", "food", "lunch", "--date", "2026-05-01"])
+        # set replaces
+        self._main(["note", "1", "team lunch #work"])
+        e = json.loads(self._main(["list", "--json"]))[0]
+        self.assertEqual(e["note"], "team lunch #work")
+        self.assertEqual(e["tags"], ["work"])
+        # append adds on
+        self._main(["note", "1", "#reimbursable", "--append"])
+        e = json.loads(self._main(["list", "--json"]))[0]
+        self.assertEqual(e["note"], "team lunch #work #reimbursable")
+        self.assertEqual(e["tags"], ["reimbursable", "work"])
+        # clear empties note and tags
+        self._main(["note", "1", "--clear"])
+        e = json.loads(self._main(["list", "--json"]))[0]
+        self.assertEqual(e["note"], "")
+        self.assertEqual(e["tags"], [])
+
+    def test_note_view_and_conflicts(self):
+        self._main(["add", "5", "food", "snack", "--date", "2026-05-01"])
+        # viewing (no text) leaves it unchanged
+        self._main(["note", "1"])
+        self.assertEqual(json.loads(self._main(["list", "--json"]))[0]["note"], "snack")
+        # text + --clear is an error
+        with self.assertRaises(SystemExit):
+            self._main(["note", "1", "x", "--clear"])
+
     def test_year_json(self):
         self._main(["add", "100", "food", "a", "--date", "2026-01-15"])
         self._main(["add", "200", "food", "b", "--date", "2026-03-10"])
