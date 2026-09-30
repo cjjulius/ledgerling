@@ -530,6 +530,21 @@ class CLI(TempAppCase):
         with self.assertRaises(SystemExit):
             self._main(["compare", "2026-13", "2026-08"])
 
+    def test_sources_json(self):
+        self._main(["income", "3000", "salary", "march"])
+        self._main(["income", "2000", "salary", "april"])
+        self._main(["income", "500", "freelance", "gig"])
+        self._main(["add", "10", "food", "x"])       # expense excluded
+        d = json.loads(self._main(["sources", "--json"]))
+        self.assertEqual(d["salary"], {"count": 2, "total": 5000.0})
+        self.assertEqual(d["freelance"]["total"], 500.0)
+        self.assertNotIn("food", d)
+
+    def test_sources_empty(self):
+        self._main(["add", "10", "food", "x"])
+        out = self._main(["sources"])
+        self.assertIn("no income recorded", out)
+
     def test_untagged_json(self):
         self._main(["add", "10", "food", "tagged #x"])
         self._main(["add", "20", "food", "plain lunch"])

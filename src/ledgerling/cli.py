@@ -18,6 +18,7 @@ Data lives in `<data folder>/ledgerling_data.json`; exports go to
 Commands:
     add       Record an expense (supports #tags in the note)
     income    Record an income entry
+    sources   Income broken down by source
     list      Show recent expenses (with optional filters)
     edit      Change fields on an existing expense
     delete    Remove an expense by id
@@ -72,7 +73,7 @@ import sys
 import tempfile
 from datetime import datetime, date, timedelta
 
-__version__ = "1.27.0"
+__version__ = "1.28.0"
 
 # --------------------------------------------------------------------------- #
 # Sandbox + storage
@@ -1323,6 +1324,32 @@ def cmd_trend(args):
           f"total {money(window_total)}")
 
 
+def cmd_sources(args):
+    data = load()
+    rows = income_only(data["expenses"])
+    agg = {}
+    for e in rows:
+        a = agg.setdefault(e["category"], {"count": 0, "total": 0.0})
+        a["count"] += 1
+        a["total"] = round(a["total"] + e["amount"], 2)
+
+    if getattr(args, "json", False):
+        print(json.dumps(agg, indent=2))
+        return
+    if not agg:
+        print("no income recorded yet. Try: income 3000 salary \"march pay\"")
+        return
+
+    print("Income by source")
+    print("=" * 48)
+    total = 0.0
+    for cat, v in sorted(agg.items(), key=lambda kv: kv[1]["total"], reverse=True):
+        total += v["total"]
+        print(f"{cat:<16} {v['count']:>3} entr(y/ies)  {money(v['total']):>12}")
+    print("-" * 48)
+    print(f"{'TOTAL':<16} {'':>3}              {money(round(total, 2)):>12}")
+
+
 def cmd_untagged(args):
     check_month(args.month)
     data = load()
@@ -2204,6 +2231,10 @@ def build_parser():
     tg.add_argument("--json", action="store_true", help="output JSON instead of text")
     tg.set_defaults(func=cmd_tags)
 
+    so = sub.add_parser("sources", help="income broken down by source")
+    so.add_argument("--json", action="store_true", help="output JSON instead of text")
+    so.set_defaults(func=cmd_sources)
+
     ut = sub.add_parser("untagged", help="list expenses that have no #tags")
     ut.add_argument("--month", help="restrict to a month, YYYY-MM")
     ut.add_argument("--json", action="store_true", help="output JSON instead of text")
@@ -2359,7 +2390,8 @@ def main(argv=None):
                         "stats", "search", "categories", "tags", "month",
                         "upcoming", "compare", "trend", "top", "pace",
                         "duplicates", "week", "streak", "weekday", "day",
-                        "year", "untagged", "average", "distribution"):
+                        "year", "untagged", "average", "distribution",
+                        "sources"):
         data = load()
         if apply_recurring(data):
             save(data)

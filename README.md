@@ -73,6 +73,7 @@ ledgerling clone 1                    # duplicate entry #1 dated today
 
 # Record income (net + savings rate then show up in stats/report)
 ledgerling income 3000 salary "march pay"
+ledgerling sources                    # income broken down by source
 
 # See recent expenses (filter by category or month); * marks recurring items
 ledgerling list                       # expenses only (default)
