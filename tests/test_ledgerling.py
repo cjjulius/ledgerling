@@ -96,6 +96,22 @@ class RecurringEngine(unittest.TestCase):
         self.assertIn("home", data["expenses"][0]["tags"])
 
 
+    def test_apply_recurring_honours_skips(self):
+        data = {"expenses": [], "budgets": {}, "recurring": [{
+            "id": 1, "amount": 15.0, "category": "subscriptions", "note": "music",
+            "every": "month", "start": "2026-01-01", "last": None,
+            "skips": ["2026-03-01"],
+        }]}
+        L.apply_recurring(data)
+        dates = [e["date"] for e in data["expenses"]]
+        self.assertNotIn("2026-03-01", dates)   # skipped occurrence not generated
+        self.assertIn("2026-02-01", dates)      # neighbours still generated
+        self.assertIn("2026-04-01", dates)
+        before = len(data["expenses"])
+        L.apply_recurring(data)                 # idempotent, skip stays skipped
+        self.assertEqual(len(data["expenses"]), before)
+
+
 class TempAppCase(unittest.TestCase):
     """Base class: redirect the app's paths to a temp dir so all writes stay
     sandboxed there, and reset live settings between tests."""
@@ -1010,6 +1026,19 @@ class CLI(TempAppCase):
         self._main(["income", "100", "salary", "pay", "--date", "2026-05-01"])
         with self.assertRaises(SystemExit):
             self._main(["refund", "1"])
+
+    def test_recur_skip_next_and_undo(self):
+        self._main(["recur", "add", "15", "subscriptions", "music",
+                    "--every", "month", "--start", "2026-01-01"])
+        self._main(["recur", "skip", "1"])
+        rule = L.load()["recurring"][0]
+        self.assertEqual(len(rule["skips"]), 1)
+        self.assertGreater(rule["skips"][0], date.today().isoformat())  # future
+        # explicit date, and undo reverts the skip
+        self._main(["recur", "skip", "1", "--date", "2027-01-01"])
+        self.assertIn("2027-01-01", L.load()["recurring"][0]["skips"])
+        self._main(["undo"])
+        self.assertNotIn("2027-01-01", L.load()["recurring"][0]["skips"])
 
     def test_where_json(self):
         self._main(["add", "10", "food", "a"])   # creates the data file

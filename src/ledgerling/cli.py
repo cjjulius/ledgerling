@@ -69,7 +69,7 @@ Commands:
     pace      Budget pace: spent vs day-adjusted expected, projected EOM
     allowance  How much you can still spend per day to stay on budget
     goal      Set / view a monthly savings goal
-    recur     Manage recurring expenses (add / edit / list / remove / run)
+    recur     Manage recurring expenses (add / edit / list / remove / run / skip)
     export    Write expenses to a CSV file (inside the data folder)
     import    Read expenses back from a CSV (deduped)
     backup    Save a timestamped copy of your data
@@ -94,7 +94,7 @@ import sys
 import tempfile
 from datetime import datetime, date, timedelta
 
-__version__ = "1.54.0"
+__version__ = "1.55.0"
 
 # --------------------------------------------------------------------------- #
 # Sandbox + storage
@@ -340,8 +340,14 @@ def apply_recurring(data):
     for rule in data["recurring"]:
         last = date.fromisoformat(rule["last"]) if rule.get("last") else None
         latest = last
+        skips = set(rule.get("skips", []))
         for d in _occurrences(rule, today):
             if last is not None and d <= last:
+                continue
+            if d.isoformat() in skips:
+                # honour a `recur skip`: don't generate, but move past it
+                if latest is None or d > latest:
+                    latest = d
                 continue
             data["expenses"].append({
                 "id": next_id(data["expenses"]),
@@ -3005,6 +3011,34 @@ def cmd_recur_remove(args):
           f"(past expenses it created are kept)")
 
 
+def cmd_recur_skip(args):
+    data = load()
+    rule = find(data["recurring"], args.id)
+    if not rule:
+        sys.exit(f"error: no recurring rule with id #{args.id}")
+    if args.date:
+        target = parse_date(args.date)
+    else:
+        today = date.today()
+        after = today
+        if rule.get("last"):
+            after = max(after, date.fromisoformat(rule["last"]))
+        horizon = today + timedelta(days=400)
+        nxt = next((d for d in _occurrences(rule, horizon) if d > after), None)
+        if nxt is None:
+            sys.exit("error: no upcoming occurrence to skip in the next ~year")
+        target = nxt.isoformat()
+    skips = rule.setdefault("skips", [])
+    if target in skips:
+        print(f"rule #{rule['id']} already skips {target}")
+        return
+    skips.append(target)
+    skips.sort()
+    save(data)
+    print(f"rule #{rule['id']} [{rule['category']}] will skip its "
+          f"{target} occurrence.  undo with `undo`.")
+
+
 def cmd_recur_run(args):
     data = load()
     created = apply_recurring(data)
@@ -3446,6 +3480,12 @@ def build_parser():
 
     rn = rsub.add_parser("run", help="generate any due recurring expenses now")
     rn.set_defaults(func=cmd_recur_run)
+
+    rk = rsub.add_parser("skip", help="skip a rule's next (or a given) occurrence")
+    rk.add_argument("id", type=int, help="recurring rule id (see `recur list`)")
+    rk.add_argument("--date",
+                    help="occurrence to skip, YYYY-MM-DD (default: the next one)")
+    rk.set_defaults(func=cmd_recur_skip)
 
     r.set_defaults(func=lambda args: r.print_help())
 
