@@ -31,6 +31,7 @@ Commands:
     week      This week's spending by day (Mon-Sun), income and net
     streak    No-spend-day streaks for a month
     weekday   Spending by day of week (which days you spend most)
+    heatmap   Daily-spending calendar for a month (with a web calendar view)
     month     One-screen dashboard for a month (income, spend, net, budgets)
     forecast  Project this year's spending/income/net to year-end
     quarter   Quarterly rollup (Q1-Q4) for a year
@@ -79,7 +80,7 @@ import sys
 import tempfile
 from datetime import datetime, date, timedelta
 
-__version__ = "1.36.0"
+__version__ = "1.37.0"
 
 # --------------------------------------------------------------------------- #
 # Sandbox + storage
@@ -1567,6 +1568,58 @@ def cmd_weekday(args):
         print(f"{w['day']}  {money(w['total']):>12}  ({w['count']:>3})  {chart}")
 
 
+_HEATMAP_GLYPHS = [".", ":", "+", "*", "#"]  # none, low, med, high, peak
+
+
+def cmd_heatmap(args):
+    check_month(args.month)
+    data = load()
+    period = args.month or date.today().isoformat()[:7]
+    year, mon = (int(x) for x in period.split("-"))
+    days_in_month = calendar.monthrange(year, mon)[1]
+
+    spend = {d: 0.0 for d in range(1, days_in_month + 1)}
+    for e in expenses_only(data["expenses"]):
+        if month_of(e["date"]) == period:
+            d = int(e["date"][8:10])
+            spend[d] = round(spend[d] + e["amount"], 2)
+
+    days = [{"date": f"{period}-{d:02d}", "day": d, "spending": spend[d]}
+            for d in range(1, days_in_month + 1)]
+    total = round(sum(spend.values()), 2)
+    peak = max(spend.values()) if spend else 0.0
+    busiest = None
+    if peak > 0:
+        bd = max(spend, key=lambda d: spend[d])
+        busiest = {"date": f"{period}-{bd:02d}", "spending": spend[bd]}
+
+    if getattr(args, "json", False):
+        print(json.dumps({"month": period, "days": days, "total": total,
+                          "max": round(peak, 2), "busiest": busiest}, indent=2))
+        return
+
+    def glyph(amount):
+        if peak <= 0 or amount <= 0:
+            return _HEATMAP_GLYPHS[0]
+        return _HEATMAP_GLYPHS[1 + min(3, int(amount / peak * 3.999))]
+
+    print(f"Spending heatmap - {period}")
+    print("=" * 36)
+    print(" Mo  Tu  We  Th  Fr  Sa  Su")
+    for week in calendar.Calendar(firstweekday=0).monthdayscalendar(year, mon):
+        cells = []
+        for d in week:
+            cells.append("    " if d == 0 else f"{d:2d}{glyph(spend[d])} ")
+        print("".join(cells).rstrip())
+    print("-" * 36)
+    legend = "  ".join(f"{g} {lbl}" for g, lbl in zip(
+        _HEATMAP_GLYPHS, ["none", "low", "med", "high", "peak"]))
+    print(legend)
+    print(f"total {money(total)}" + (
+        f"   busiest {busiest['date']} ({money(busiest['spending'])})"
+        if busiest else ""))
+
+
 def cmd_streak(args):
     check_month(args.month)
     data = load()
@@ -2426,6 +2479,11 @@ def build_parser():
     wd.add_argument("--json", action="store_true", help="output JSON instead of text")
     wd.set_defaults(func=cmd_weekday)
 
+    hm = sub.add_parser("heatmap", help="daily-spending calendar for a month")
+    hm.add_argument("--month", help="which month, YYYY-MM (default: current)")
+    hm.add_argument("--json", action="store_true", help="output JSON instead of text")
+    hm.set_defaults(func=cmd_heatmap)
+
     sk = sub.add_parser("streak", help="no-spend-day streaks for a month")
     sk.add_argument("--month", help="which month, YYYY-MM (default: current)")
     sk.add_argument("--json", action="store_true", help="output JSON instead of text")
@@ -2660,7 +2718,7 @@ def main(argv=None):
                         "duplicates", "week", "streak", "weekday", "day",
                         "year", "untagged", "average", "distribution",
                         "sources", "quarter", "forecast", "balance",
-                        "commitments", "savings"):
+                        "commitments", "savings", "heatmap"):
         data = load()
         if apply_recurring(data):
             save(data)

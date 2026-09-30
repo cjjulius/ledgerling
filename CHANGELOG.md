@@ -4,6 +4,18 @@ All notable changes to Ledgerling are documented here. The format is based on
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and this project
 adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.37.0] - 2026-09-29
+
+### Added
+
+- `heatmap` command — a daily-spending calendar for a month. In the terminal it
+  prints a Mon-Sun calendar grid with intensity glyphs (`. : + * #`) plus the
+  month total and busiest day; `--json` emits per-day spending.
+- Web UI: a bespoke **Calendar** view for `heatmap` — a real month grid whose
+  cells are shaded by spending intensity (with a less-to-more legend and the
+  peak day), shown as its own tab alongside Text / Table / Chart. This is the
+  first command with a hand-built UI element beyond the auto-generated views.
+
 ## [1.36.0] - 2026-09-29
 
 ### Added
@@ -361,6 +373,7 @@ file, standard library only, strictly confined to its own folder.
   guard (`_within_app`) that refuses any path escaping the app folder; imports
   and restores are reduced to a basename and looked up only within the folder.
 
+[1.37.0]: #1370---2026-09-29
 [1.36.0]: #1360---2026-09-29
 [1.35.0]: #1350---2026-09-29
 [1.34.0]: #1340---2026-09-29

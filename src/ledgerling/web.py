@@ -239,6 +239,17 @@ INDEX_HTML = r"""<!doctype html>
   .cbarwrap { background:var(--bg); border-radius:5px; height:20px; overflow:hidden; }
   .cbar { background:var(--accent); height:100%; border-radius:5px; min-width:2px; }
   .cval { font:12px ui-monospace,Menlo,Consolas,monospace; text-align:right; }
+  .cal { display:flex; flex-direction:column; gap:8px; max-width:420px; }
+  .cal .cgrid { display:grid; grid-template-columns:repeat(7,1fr); gap:4px; }
+  .cal .cdow { font-size:11px; color:var(--muted); text-align:center; padding:2px 0; }
+  .cal .ccell { aspect-ratio:1; border:1px solid var(--line); border-radius:6px;
+    display:flex; flex-direction:column; justify-content:space-between; padding:4px 5px; }
+  .cal .ccell.pad { border:none; background:transparent; }
+  .cal .ccell .dnum { font-size:11px; color:var(--muted); }
+  .cal .ccell .damt { font:11px ui-monospace,Menlo,Consolas,monospace; text-align:right; }
+  .cal .clegend { display:flex; align-items:center; gap:6px; font-size:12px;
+    color:var(--muted); }
+  .cal .cswatch { width:16px; height:16px; border-radius:4px; border:1px solid var(--line); }
 </style>
 </head>
 <body>
@@ -298,7 +309,8 @@ function select(c) {
   out.innerHTML = '<h3>Output</h3><div class="tabs" id="tabs"></div>' +
     '<pre id="outpre">(run the command to see output)</pre>' +
     '<div id="outtable" style="display:none"></div>' +
-    '<div id="outchart" style="display:none"></div>';
+    '<div id="outchart" style="display:none"></div>' +
+    '<div id="outcal" style="display:none"></div>';
   m.appendChild(out);
 }
 
@@ -368,6 +380,7 @@ async function runCmd(c, form) {
   const res = await postRun(argv);
   const chartEl = document.getElementById('outchart');
   chartEl.style.display = 'none';
+  document.getElementById('outcal').style.display = 'none';
   pre.className = res.code === 0 ? '' : 'err';
   pre.textContent = res.code === 0 ? (res.stdout || '(no output)')
     : (res.stderr || res.stdout || 'error');
@@ -386,9 +399,10 @@ function buildTabs(data) {
   const pre = document.getElementById('outpre');
   const tableEl = document.getElementById('outtable');
   const chartEl = document.getElementById('outchart');
+  const calEl = document.getElementById('outcal');
   const tabs = document.getElementById('tabs');
   tabs.innerHTML = '';
-  const panels = {text: pre, table: tableEl, chart: chartEl};
+  const panels = {text: pre, table: tableEl, chart: chartEl, cal: calEl};
   const show = which => Object.entries(panels).forEach(
     ([k, el]) => el.style.display = (k === which ? '' : 'none'));
   const mk = (label, which) => {
@@ -400,18 +414,76 @@ function buildTabs(data) {
   const tText = mk('Text', 'text'); tabs.appendChild(tText);
   const has = data !== null &&
     (Array.isArray(data) ? data.length : Object.keys(data).length);
+  const cal = has ? calendarData(data) : null;
   const cd = has ? chartData(data) : null;
-  let active = tText;
+  let active = tText, prefer = 'text';
   if (has) {
     tableEl.innerHTML = ''; tableEl.appendChild(renderData(data));
-    active = mk('Table', 'table'); tabs.appendChild(active);
+    active = mk('Table', 'table'); tabs.appendChild(active); prefer = 'table';
   }
   if (cd) {
     chartEl.innerHTML = ''; chartEl.appendChild(renderChart(cd));
-    active = mk('Chart', 'chart'); tabs.appendChild(active);  // prefer chart
+    active = mk('Chart', 'chart'); tabs.appendChild(active); prefer = 'chart';
+  }
+  if (cal) {
+    calEl.innerHTML = ''; calEl.appendChild(renderCalendar(cal));
+    active = mk('Calendar', 'cal'); tabs.appendChild(active); prefer = 'cal';
   }
   active.classList.add('active');
-  show(active === tText ? 'text' : (cd ? 'chart' : 'table'));
+  show(prefer);
+}
+
+function calendarData(data) {
+  // heatmap: {month:"YYYY-MM", days:[{date, day, spending}], max}
+  if (!data || typeof data !== 'object' || Array.isArray(data)) return null;
+  if (typeof data.month !== 'string' || !Array.isArray(data.days)) return null;
+  const d0 = data.days[0];
+  if (!d0 || typeof d0.spending !== 'number' || typeof d0.date !== 'string')
+    return null;
+  return data;
+}
+
+function renderCalendar(data) {
+  const wrap = document.createElement('div'); wrap.className = 'cal';
+  const max = Number(data.max) || 0;
+  const shade = amt => {
+    if (max <= 0 || amt <= 0) return 'transparent';
+    return 'color-mix(in srgb, var(--accent) ' +
+      Math.round(18 + (amt / max) * 82) + '%, transparent)';
+  };
+  const grid = document.createElement('div'); grid.className = 'cgrid';
+  ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'].forEach(n => {
+    const h = document.createElement('div'); h.className = 'cdow'; h.textContent = n;
+    grid.appendChild(h);
+  });
+  // Monday-first offset from the first day's weekday (parse as UTC to avoid TZ drift)
+  const first = new Date(data.days[0].date + 'T00:00:00Z');
+  const pad = (first.getUTCDay() + 6) % 7;
+  for (let i = 0; i < pad; i++) {
+    const c = document.createElement('div'); c.className = 'ccell pad'; grid.appendChild(c);
+  }
+  data.days.forEach(d => {
+    const c = document.createElement('div'); c.className = 'ccell';
+    c.style.background = shade(d.spending);
+    c.title = d.date + ': ' + d.spending;
+    const n = document.createElement('div'); n.className = 'dnum';
+    n.textContent = d.day != null ? d.day : Number(d.date.slice(8));
+    const a = document.createElement('div'); a.className = 'damt';
+    a.textContent = d.spending ? d.spending : '';
+    c.appendChild(n); c.appendChild(a); grid.appendChild(c);
+  });
+  wrap.appendChild(grid);
+  const legend = document.createElement('div'); legend.className = 'clegend';
+  legend.appendChild(document.createTextNode('less'));
+  [0, 0.33, 0.66, 1].forEach(f => {
+    const s = document.createElement('div'); s.className = 'cswatch';
+    s.style.background = f === 0 ? 'transparent' : shade(f * (max || 1));
+    legend.appendChild(s);
+  });
+  legend.appendChild(document.createTextNode('more'));
+  if (max > 0) legend.appendChild(document.createTextNode('  (peak ' + max + ')'));
+  wrap.appendChild(legend);
+  return wrap;
 }
 
 function pickValueKey(numKeys) {

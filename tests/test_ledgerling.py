@@ -724,6 +724,20 @@ class CLI(TempAppCase):
         self.assertEqual(d["removed"], [])
         self.assertEqual(d["count"], 0)
 
+    def test_heatmap_json(self):
+        self._main(["add", "10", "food", "a", "--date", "2026-03-01"])
+        self._main(["add", "5", "food", "b", "--date", "2026-03-01"])
+        self._main(["add", "40", "food", "c", "--date", "2026-03-15"])
+        self._main(["income", "999", "salary", "d", "--date", "2026-03-10"])  # excluded
+        d = json.loads(self._main(["heatmap", "--month", "2026-03", "--json"]))
+        self.assertEqual(d["month"], "2026-03")
+        self.assertEqual(len(d["days"]), 31)          # March
+        self.assertEqual(d["total"], 55.0)            # income excluded
+        self.assertEqual(d["max"], 40.0)
+        self.assertEqual(d["busiest"], {"date": "2026-03-15", "spending": 40.0})
+        d1 = next(x for x in d["days"] if x["date"] == "2026-03-01")
+        self.assertEqual(d1["spending"], 15.0)
+
     def test_year_json(self):
         self._main(["add", "100", "food", "a", "--date", "2026-01-15"])
         self._main(["add", "200", "food", "b", "--date", "2026-03-10"])
