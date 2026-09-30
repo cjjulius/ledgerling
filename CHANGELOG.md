@@ -4,6 +4,17 @@ All notable changes to Ledgerling are documented here. The format is based on
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and this project
 adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.42.0] - 2026-09-29
+
+### Added
+
+- `range START [END]` — totals over an arbitrary date range (not just a calendar
+  month): income, spending, net, per-day average, and a per-category breakdown,
+  over the inclusive `START`..`END` window (`END` defaults to today; reversed
+  dates are swapped). Dates accept `YYYY-MM-DD`, `today`, or `yesterday`.
+  Supports `--json`. This is the first range-based summary — every other rollup
+  is month-bound.
+
 ## [1.41.0] - 2026-09-29
 
 ### Added
@@ -425,6 +436,7 @@ file, standard library only, strictly confined to its own folder.
   guard (`_within_app`) that refuses any path escaping the app folder; imports
   and restores are reduced to a basename and looked up only within the folder.
 
+[1.42.0]: #1420---2026-09-29
 [1.41.0]: #1410---2026-09-29
 [1.40.0]: #1400---2026-09-29
 [1.39.0]: #1390---2026-09-29

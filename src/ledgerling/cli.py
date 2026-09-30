@@ -34,6 +34,7 @@ Commands:
     heatmap   Daily-spending calendar for a month (with a web calendar view)
     month     One-screen dashboard for a month (income, spend, net, budgets)
     insights  Plain-language observations about a month
+    range     Totals over an arbitrary date range (start [end])
     forecast  Project this year's spending/income/net to year-end
     quarter   Quarterly rollup (Q1-Q4) for a year
     balance   Running cumulative net (income - spending) month over month
@@ -83,7 +84,7 @@ import sys
 import tempfile
 from datetime import datetime, date, timedelta
 
-__version__ = "1.41.0"
+__version__ = "1.42.0"
 
 # --------------------------------------------------------------------------- #
 # Sandbox + storage
@@ -2240,6 +2241,50 @@ def cmd_insights(args):
         print(f"- {s}")
 
 
+def cmd_range(args):
+    start = parse_date(args.start)
+    end = parse_date(args.end) if args.end else date.today().isoformat()
+    if end < start:
+        start, end = end, start
+    data = load()
+    rows = [e for e in data["expenses"] if start <= e["date"] <= end]
+    exp = expenses_only(rows)
+    inc = income_only(rows)
+    spending = round(sum(e["amount"] for e in exp), 2)
+    income = round(sum(e["amount"] for e in inc), 2)
+    days = (date.fromisoformat(end) - date.fromisoformat(start)).days + 1
+
+    cat_tot = {}
+    for e in exp:
+        cat_tot[e["category"]] = round(cat_tot.get(e["category"], 0) + e["amount"], 2)
+    by_category = dict(sorted(cat_tot.items(), key=lambda kv: kv[1], reverse=True))
+
+    if getattr(args, "json", False):
+        print(json.dumps({
+            "start": start, "end": end, "days": days,
+            "income": income, "spending": spending,
+            "net": round(income - spending, 2),
+            "expense_count": len(exp), "income_count": len(inc),
+            "by_category": by_category,
+            "per_day": round(spending / days, 2) if days else 0.0,
+        }, indent=2))
+        return
+
+    print(f"{start} to {end}  ({days} day{'' if days == 1 else 's'})")
+    print("=" * 52)
+    print(f"{'income':<10} {money(income):>14}")
+    print(f"{'spending':<10} {money(spending):>14}")
+    print(f"{'net':<10} {money(income - spending):>14}")
+    print(f"{'per day':<10} {money(spending / days if days else 0):>14}")
+    if by_category:
+        peak = max(by_category.values())
+        print()
+        print("By category")
+        print("-" * 52)
+        for cat, amt in by_category.items():
+            print(f"{cat:<14} {money(amt):>12}  {bar(amt / peak)}")
+
+
 def cmd_retag(args):
     old = args.old.strip().lstrip("#").lower()
     new = args.new.strip().lstrip("#").lower()
@@ -2736,6 +2781,13 @@ def build_parser():
     ins.add_argument("--json", action="store_true", help="output JSON instead of text")
     ins.set_defaults(func=cmd_insights)
 
+    rg = sub.add_parser("range", help="totals over an arbitrary date range")
+    rg.add_argument("start", help="start date: YYYY-MM-DD, 'today', or 'yesterday'")
+    rg.add_argument("end", nargs="?",
+                    help="end date (default: today); YYYY-MM-DD/today/yesterday")
+    rg.add_argument("--json", action="store_true", help="output JSON instead of text")
+    rg.set_defaults(func=cmd_range)
+
     up = sub.add_parser("upcoming",
                         help="forecast recurring charges/income due soon")
     up.add_argument("--days", type=int, default=30,
@@ -2934,7 +2986,7 @@ def main(argv=None):
                         "year", "untagged", "average", "distribution",
                         "sources", "quarter", "forecast", "balance",
                         "commitments", "savings", "heatmap", "suggest",
-                        "insights", "tagtrend"):
+                        "insights", "tagtrend", "range"):
         data = load()
         if apply_recurring(data):
             save(data)

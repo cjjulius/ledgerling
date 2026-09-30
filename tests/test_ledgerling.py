@@ -788,6 +788,26 @@ class CLI(TempAppCase):
         self.assertEqual(by[prev], 25.0)
         self.assertEqual(d["total"], 125.0)
 
+    def test_range_json(self):
+        self._main(["add", "10", "food", "a", "--date", "2026-05-01"])   # before? no, in
+        self._main(["add", "20", "food", "b", "--date", "2026-05-10"])
+        self._main(["add", "30", "transit", "c", "--date", "2026-05-20"])
+        self._main(["income", "500", "salary", "d", "--date", "2026-05-15"])
+        self._main(["add", "99", "food", "out", "--date", "2026-06-01"])  # out of range
+        d = json.loads(self._main(["range", "2026-05-05", "2026-05-25", "--json"]))
+        self.assertEqual((d["start"], d["end"], d["days"]),
+                         ("2026-05-05", "2026-05-25", 21))
+        self.assertEqual(d["spending"], 50.0)   # 20 + 30 (10 is before start)
+        self.assertEqual(d["income"], 500.0)
+        self.assertEqual(d["net"], 450.0)
+        self.assertEqual(d["by_category"], {"transit": 30.0, "food": 20.0})
+
+    def test_range_swaps_reversed_dates(self):
+        self._main(["add", "12", "food", "a", "--date", "2026-05-10"])
+        d = json.loads(self._main(["range", "2026-05-31", "2026-05-01", "--json"]))
+        self.assertEqual((d["start"], d["end"]), ("2026-05-01", "2026-05-31"))
+        self.assertEqual(d["spending"], 12.0)
+
     def test_year_json(self):
         self._main(["add", "100", "food", "a", "--date", "2026-01-15"])
         self._main(["add", "200", "food", "b", "--date", "2026-03-10"])

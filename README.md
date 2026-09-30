@@ -154,6 +154,10 @@ ledgerling month --month 2026-08
 ledgerling insights
 ledgerling insights --month 2026-08
 
+# Totals over an arbitrary date range (end defaults to today)
+ledgerling range 2026-08-01 2026-08-15
+ledgerling range 2026-09-01            # 2026-09-01 through today
+
 # Quarterly and calendar-year rollups, and a year-end forecast
 ledgerling quarter 2026
 ledgerling year

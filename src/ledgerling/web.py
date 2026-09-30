@@ -351,7 +351,7 @@ let COMMANDS = [], CURRENT = null, CURRENCY = '$', ACTIVE = 'home';
 // comprehensive without per-command edits.
 const GROUP_DEFS = [
   ['Record', ['add', 'income', 'edit', 'delete', 'clone']],
-  ['Analyze', ['month', 'insights', 'summary', 'report', 'stats', 'week', 'day', 'year',
+  ['Analyze', ['month', 'insights', 'range', 'summary', 'report', 'stats', 'week', 'day', 'year',
     'quarter', 'weekday', 'trend', 'tagtrend', 'top', 'compare', 'average', 'distribution',
     'balance', 'savings', 'heatmap', 'streak', 'pace', 'forecast', 'sources',
     'categories', 'tags', 'untagged', 'search', 'list']],
