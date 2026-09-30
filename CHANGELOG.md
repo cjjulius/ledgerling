@@ -4,6 +4,23 @@ All notable changes to Ledgerling are documented here. The format is based on
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and this project
 adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.44.0] - 2026-09-29
+
+### Added
+
+- Web UI dashboard: an **Insights** strip (the top observations from the
+  `insights` command) and a **Recent activity** card (the latest entries for the
+  month, newest first, income marked) now appear on the home view, alongside the
+  existing stat/category/budget/goal cards.
+
+### Fixed
+
+- Web UI: `run_cli` now serializes command execution with a lock. It redirects
+  the process-wide stdout/stderr to capture output, so concurrent requests (e.g.
+  the dashboard fetching several commands at once) could previously clobber each
+  other's captured output. Commands are fast and local, so serializing them has
+  no practical cost.
+
 ## [1.43.0] - 2026-09-29
 
 ### Added
@@ -446,6 +463,7 @@ file, standard library only, strictly confined to its own folder.
   guard (`_within_app`) that refuses any path escaping the app folder; imports
   and restores are reduced to a basename and looked up only within the folder.
 
+[1.44.0]: #1440---2026-09-29
 [1.43.0]: #1430---2026-09-29
 [1.42.0]: #1420---2026-09-29
 [1.41.0]: #1410---2026-09-29

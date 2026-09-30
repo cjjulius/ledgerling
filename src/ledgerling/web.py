@@ -9,11 +9,17 @@ commands - no shell, no network egress - and binds only to 127.0.0.1.
 import argparse
 import io
 import json
+import threading
 import webbrowser
 from contextlib import redirect_stdout, redirect_stderr
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 
 from . import cli as L
+
+# run_cli redirects the process-wide sys.stdout/stderr to capture a command's
+# output, so concurrent requests would clobber each other's capture. Serialize
+# them (commands are fast and purely local, so this is not a bottleneck).
+_RUN_LOCK = threading.Lock()
 
 
 # --------------------------------------------------------------------------- #
@@ -82,14 +88,15 @@ def describe():
 def run_cli(argv):
     out, err = io.StringIO(), io.StringIO()
     code = 0
-    with redirect_stdout(out), redirect_stderr(err):
-        try:
-            L.main(list(argv))
-        except SystemExit as exc:
-            code = exc.code if isinstance(exc.code, int) else 1
-        except Exception as exc:  # never crash the request
-            code = 1
-            err.write(f"internal error: {exc}\n")
+    with _RUN_LOCK:  # serialize: stdout/stderr capture is process-wide
+        with redirect_stdout(out), redirect_stderr(err):
+            try:
+                L.main(list(argv))
+            except SystemExit as exc:
+                code = exc.code if isinstance(exc.code, int) else 1
+            except Exception as exc:  # never crash the request
+                code = 1
+                err.write(f"internal error: {exc}\n")
     return {"code": code, "stdout": out.getvalue(), "stderr": err.getvalue()}
 
 
@@ -322,6 +329,16 @@ INDEX_HTML = r"""<!doctype html>
   .insrow .dot { width:8px; height:8px; border-radius:50%; background:var(--accent);
     margin-top:7px; flex:none; }
   .insrow .txt { font-size:14px; }
+  .recent { display:flex; flex-direction:column; }
+  .recrow { display:grid; grid-template-columns:auto 1fr auto; gap:10px;
+    align-items:baseline; padding:8px 2px; border-bottom:1px solid var(--line); }
+  .recrow:last-child { border-bottom:0; }
+  .recrow .rdate { font:12px ui-monospace,Menlo,Consolas,monospace; color:var(--muted); }
+  .recrow .rcat { font-size:13px; overflow:hidden; text-overflow:ellipsis;
+    white-space:nowrap; }
+  .recrow .ramt { font:12px ui-monospace,Menlo,Consolas,monospace; text-align:right;
+    font-weight:600; }
+  .recrow .ramt.pos { color:var(--pos); }
   @media (max-width:720px) {
     .wrap { grid-template-columns:1fr; height:auto; }
     .side { border-right:0; border-bottom:1px solid var(--line); max-height:40vh; }
@@ -558,12 +575,53 @@ async function showDashboard(month) {
     d.net >= 0 ? 'saved this month' : 'over this month', d.net >= 0 ? 'pos' : 'neg'));
   body.appendChild(stats);
 
+  // Insights strip + recent activity, fetched in parallel.
+  const [insRes, listRes] = await Promise.all([
+    postRun(['insights', '--month', month, '--json']),
+    postRun(['list', '--all', '--month', month, '--limit', '8', '--json']),
+  ]);
+  let insD = null, recent = null;
+  try { insD = JSON.parse(insRes.stdout); } catch (e) {}
+  try { recent = JSON.parse(listRes.stdout); } catch (e) {}
+
+  if (insD && Array.isArray(insD.insights) && insD.insights.length) {
+    const c = insightsCard(insD.insights.slice(0, 4));
+    c.style.marginTop = '16px'; body.appendChild(c);
+  }
+
   const dg = document.createElement('div'); dg.className = 'grid dash-grid';
   dg.style.marginTop = '16px';
   dg.appendChild(topCatCard(d.by_category));
   if (d.budgets && Object.keys(d.budgets).length) dg.appendChild(budgetCard(d.budgets));
   dg.appendChild(goalCard(d.goal, d.net));
+  if (Array.isArray(recent) && recent.length) dg.appendChild(recentCard(recent));
   body.appendChild(dg);
+}
+
+function insightsCard(list) {
+  const c = document.createElement('div'); c.className = 'card';
+  const h = document.createElement('h3'); h.textContent = 'Insights'; c.appendChild(h);
+  c.appendChild(renderInsights(list));
+  return c;
+}
+
+function recentCard(rows) {
+  const c = document.createElement('div'); c.className = 'card';
+  const h = document.createElement('h3'); h.textContent = 'Recent activity'; c.appendChild(h);
+  const list = document.createElement('div'); list.className = 'recent';
+  rows.slice().reverse().forEach(e => {
+    const income = e.kind === 'income';
+    const row = document.createElement('div'); row.className = 'recrow';
+    const d = document.createElement('div'); d.className = 'rdate'; d.textContent = e.date;
+    const cat = document.createElement('div'); cat.className = 'rcat';
+    cat.textContent = e.category + (e.note ? ' - ' + e.note : '');
+    const amt = document.createElement('div');
+    amt.className = 'ramt' + (income ? ' pos' : '');
+    amt.textContent = (income ? '+' : '') + money(e.amount);
+    row.appendChild(d); row.appendChild(cat); row.appendChild(amt); list.appendChild(row);
+  });
+  c.appendChild(list);
+  return c;
 }
 
 function cmdHasJson(c) { return c.args.some(a => a.flag === '--json'); }

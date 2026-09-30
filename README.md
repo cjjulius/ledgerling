@@ -28,8 +28,9 @@ ledgerling web --port 9000 --no-browser
 ```
 
 The UI is a local, sandboxed web app (stdlib only; binds to `127.0.0.1`). It
-opens on a **Dashboard** — this month's income, spending, net, top categories,
-budget progress, and savings-goal status at a glance, with a month picker. The
+opens on a **Dashboard** — this month's income, spending, net, an insights
+strip, top categories, budget progress, savings-goal status, and recent
+activity at a glance, with a month picker. The
 sidebar groups every command (Record / Analyze / Budgets & goals / Recurring /
 Data / Settings); it still **generates itself from the CLI**, so every command —
 and every command added in the future — appears automatically as a form with its
