@@ -108,6 +108,9 @@ ledgerling month --month 2026-08
 ledgerling compare
 ledgerling compare 2026-08 2026-09
 
+# Monthly spending trend for one category
+ledgerling trend food --months 6
+
 # Forecast recurring charges/income coming up (default 30 days)
 ledgerling upcoming
 ledgerling upcoming --days 60
