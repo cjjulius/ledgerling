@@ -127,6 +127,7 @@ ledgerling export --start 2026-08-01 --end 2026-08-15   # an arbitrary range
 
 # Import a CSV (looked up in exports/ then the data folder; dedupes automatically)
 ledgerling import --file august.csv
+ledgerling import --file august.csv --dry-run   # preview counts, import nothing
 
 # Month-over-month trend + budget adherence
 ledgerling report

@@ -4,6 +4,14 @@ All notable changes to Ledgerling are documented here. The format is based on
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and this project
 adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.73.0] - 2026-09-30
+
+### Added
+
+- `import --dry-run` — preview how many rows a CSV would add, skip as
+  duplicates, and reject as malformed, without importing anything. Lets you
+  sanity-check a file before committing it.
+
 ## [1.72.0] - 2026-09-30
 
 ### Added
@@ -726,6 +734,7 @@ file, standard library only, strictly confined to its own folder.
   guard (`_within_app`) that refuses any path escaping the app folder; imports
   and restores are reduced to a basename and looked up only within the folder.
 
+[1.73.0]: #1730---2026-09-30
 [1.72.0]: #1720---2026-09-30
 [1.71.0]: #1710---2026-09-30
 [1.70.0]: #1700---2026-09-30

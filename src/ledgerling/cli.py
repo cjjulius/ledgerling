@@ -96,7 +96,7 @@ import sys
 import tempfile
 from datetime import datetime, date, timedelta
 
-__version__ = "1.72.0"
+__version__ = "1.73.0"
 
 # --------------------------------------------------------------------------- #
 # Sandbox + storage
@@ -717,15 +717,22 @@ def cmd_import(args):
                     skipped += 1
                     continue
                 seen.add(key)
-                data["expenses"].append({
-                    "id": next_id(data["expenses"]),
-                    "amount": amount, "category": category,
-                    "note": note, "date": d, "tags": parse_tags(note),
-                    "kind": kind,
-                })
+                if not getattr(args, "dry_run", False):
+                    data["expenses"].append({
+                        "id": next_id(data["expenses"]),
+                        "amount": amount, "category": category,
+                        "note": note, "date": d, "tags": parse_tags(note),
+                        "kind": kind,
+                    })
                 added += 1
     except OSError as exc:
         sys.exit(f"error: could not read {path}: {exc}")
+
+    if getattr(args, "dry_run", False):
+        print(f"dry run of {path} (nothing imported)")
+        print(f"  would add {added}, skip {skipped} duplicate(s), "
+              f"{bad} malformed row(s)")
+        return
 
     save(data)
     print(f"imported from {path}")
@@ -3328,6 +3335,8 @@ def build_parser():
     im = sub.add_parser("import", help="import expenses from a CSV in the data folder")
     im.add_argument("--file", required=True,
                     help="file name (looked up in exports/ then the data folder)")
+    im.add_argument("--dry-run", action="store_true",
+                    help="preview counts without importing anything")
     im.set_defaults(func=cmd_import)
 
     rp = sub.add_parser("report", help="month-over-month trend and budget adherence")

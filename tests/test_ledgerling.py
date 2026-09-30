@@ -185,7 +185,11 @@ class FileRoundTrip(TempAppCase):
             fh.write("2026-09-01,10.00,food,dup\n")            # duplicate
             fh.write("2026-13-99,5,food,bad date\n")           # malformed
 
-        self._run(L.cmd_import, Namespace(file="in.csv"))
+        # a dry run reports the same counts but changes nothing
+        self._run(L.cmd_import, Namespace(file="in.csv", dry_run=True))
+        self.assertEqual(len(L.load()["expenses"]), 1)
+
+        self._run(L.cmd_import, Namespace(file="in.csv", dry_run=False))
         exp = L.load()["expenses"]
         self.assertEqual(len(exp), 2)                          # only the new one
         new = [e for e in exp if e["category"] == "coffee"][0]
