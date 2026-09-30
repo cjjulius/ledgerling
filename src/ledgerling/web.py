@@ -393,6 +393,11 @@ function groupOf(name) {
 
 function esc(s){ return String(s).replace(/[&<>]/g, m => ({'&':'&amp;','<':'&lt;','>':'&gt;'}[m])); }
 function findCmd(name) { return COMMANDS.find(c => c.name === name); }
+// Friendly Title-Case label for a command name (search still uses the raw name).
+function prettyName(name) {
+  return name.split(' ')
+    .map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(' ');
+}
 function curMonth() {
   const n = new Date();
   return n.getFullYear() + '-' + String(n.getMonth() + 1).padStart(2, '0');
@@ -470,7 +475,7 @@ function renderList(q) {
     const hd = document.createElement('div'); hd.className = 'grouphd';
     hd.textContent = g; list.appendChild(hd);
     items.forEach(c => list.appendChild(
-      navItem(c.name, c.help || '', ACTIVE === c.name, () => selectCmd(c))));
+      navItem(prettyName(c.name), c.help || '', ACTIVE === c.name, () => selectCmd(c))));
   });
 }
 
@@ -479,7 +484,7 @@ function selectCmd(c) {
   renderList(document.getElementById('filter').value);
   const m = document.getElementById('main'); m.innerHTML = '';
   const ph = document.createElement('div'); ph.className = 'page-h';
-  ph.innerHTML = '<div><h2>' + esc(c.name) + '</h2><p class="sub">' +
+  ph.innerHTML = '<div><h2>' + esc(prettyName(c.name)) + '</h2><p class="sub">' +
     esc(c.help || '') + '</p></div>';
   m.appendChild(ph);
   const fcard = document.createElement('div'); fcard.className = 'card';
@@ -497,9 +502,11 @@ function selectCmd(c) {
     form.appendChild(dl);
   }
   const btn = document.createElement('button'); btn.className = 'run';
-  btn.textContent = 'Run ' + c.name; form.appendChild(btn);
+  btn.textContent = 'Run ' + prettyName(c.name); form.appendChild(btn);
   form.onsubmit = ev => { ev.preventDefault(); runCmd(c, form); };
   fcard.appendChild(form); m.appendChild(fcard);
+  const firstInput = form.querySelector('.inp');
+  if (firstInput) firstInput.focus();   // ready to type immediately
   const out = document.createElement('div'); out.className = 'out card'; out.id = 'out';
   out.innerHTML = '<div class="tabs" id="tabs"></div>' +
     '<pre id="outpre">(run the command to see output)</pre>' +

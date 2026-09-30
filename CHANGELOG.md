@@ -4,6 +4,15 @@ All notable changes to Ledgerling are documented here. The format is based on
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and this project
 adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.59.0] - 2026-09-30
+
+### Changed
+
+- Web UI polish: command names show as friendly Title Case in the sidebar and
+  page heading ("Recur Skip", not `recur skip`) while search still matches the
+  raw name; the Run button reads "Run Add" etc.; and opening a command now
+  auto-focuses its first field so you can type right away.
+
 ## [1.58.0] - 2026-09-30
 
 ### Changed
@@ -605,6 +614,7 @@ file, standard library only, strictly confined to its own folder.
   guard (`_within_app`) that refuses any path escaping the app folder; imports
   and restores are reduced to a basename and looked up only within the folder.
 
+[1.59.0]: #1590---2026-09-30
 [1.58.0]: #1580---2026-09-30
 [1.57.0]: #1570---2026-09-30
 [1.56.0]: #1560---2026-09-29
