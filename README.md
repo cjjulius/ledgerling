@@ -144,6 +144,9 @@ ledgerling year
 ledgerling year 2026
 ledgerling forecast
 
+# Running cumulative net (income - spending) month over month
+ledgerling balance
+
 # Compare two months side by side (defaults to last month vs this month)
 ledgerling compare
 ledgerling compare 2026-08 2026-09

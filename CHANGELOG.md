@@ -4,6 +4,15 @@ All notable changes to Ledgerling are documented here. The format is based on
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and this project
 adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.33.0] - 2026-09-29
+
+### Added
+
+- `balance` command — a running cumulative net (income − spending) accumulated
+  month over month, showing how your tracked balance has evolved over time.
+  Series-shaped, so it inherits the web UI's Table and Chart views; the chart
+  defaults to the cumulative balance line. Supports `--json`.
+
 ## [1.32.0] - 2026-09-29
 
 ### Added
@@ -322,6 +331,7 @@ file, standard library only, strictly confined to its own folder.
   guard (`_within_app`) that refuses any path escaping the app folder; imports
   and restores are reduced to a basename and looked up only within the folder.
 
+[1.33.0]: #1330---2026-09-29
 [1.32.0]: #1320---2026-09-29
 [1.31.0]: #1310---2026-09-29
 [1.30.0]: #1300---2026-09-29

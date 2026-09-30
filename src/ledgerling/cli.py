@@ -34,6 +34,7 @@ Commands:
     month     One-screen dashboard for a month (income, spend, net, budgets)
     forecast  Project this year's spending/income/net to year-end
     quarter   Quarterly rollup (Q1-Q4) for a year
+    balance   Running cumulative net (income - spending) month over month
     year      Calendar-year rollup by month (spending, income, net)
     compare   Compare two months side by side (with per-category deltas)
     trend     Monthly spending trend for one category
@@ -75,7 +76,7 @@ import sys
 import tempfile
 from datetime import datetime, date, timedelta
 
-__version__ = "1.32.0"
+__version__ = "1.33.0"
 
 # --------------------------------------------------------------------------- #
 # Sandbox + storage
@@ -1561,6 +1562,33 @@ def cmd_streak(args):
     print(f"{'current no-spend streak':<24} {current} day(s)")
 
 
+def cmd_balance(args):
+    data = load()
+    per_month = {}
+    for e in data["expenses"]:
+        m = month_of(e["date"])
+        delta = e["amount"] if kind_of(e) == "income" else -e["amount"]
+        per_month[m] = round(per_month.get(m, 0) + delta, 2)
+
+    rows, running = [], 0.0
+    for m in sorted(per_month):
+        running = round(running + per_month[m], 2)
+        rows.append({"month": m, "net": per_month[m], "balance": running})
+
+    if getattr(args, "json", False):
+        print(json.dumps({"months": rows}, indent=2))
+        return
+    if not rows:
+        print("nothing recorded yet")
+        return
+
+    print("Running balance (cumulative net)")
+    print("=" * 52)
+    for r in rows:
+        print(f"{r['month']}   net {money(r['net']):>12}   "
+              f"balance {money(r['balance']):>12}")
+
+
 def cmd_forecast(args):
     data = load()
     today = date.today()
@@ -2265,6 +2293,10 @@ def build_parser():
     sk.add_argument("--json", action="store_true", help="output JSON instead of text")
     sk.set_defaults(func=cmd_streak)
 
+    ba = sub.add_parser("balance", help="running cumulative net over time")
+    ba.add_argument("--json", action="store_true", help="output JSON instead of text")
+    ba.set_defaults(func=cmd_balance)
+
     fc = sub.add_parser("forecast", help="project this year to year-end")
     fc.add_argument("--json", action="store_true", help="output JSON instead of text")
     fc.set_defaults(func=cmd_forecast)
@@ -2473,7 +2505,7 @@ def main(argv=None):
                         "upcoming", "compare", "trend", "top", "pace",
                         "duplicates", "week", "streak", "weekday", "day",
                         "year", "untagged", "average", "distribution",
-                        "sources", "quarter", "forecast"):
+                        "sources", "quarter", "forecast", "balance"):
         data = load()
         if apply_recurring(data):
             save(data)
