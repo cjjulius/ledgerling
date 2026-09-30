@@ -95,7 +95,7 @@ import sys
 import tempfile
 from datetime import datetime, date, timedelta
 
-__version__ = "1.66.0"
+__version__ = "1.67.0"
 
 # --------------------------------------------------------------------------- #
 # Sandbox + storage
@@ -836,7 +836,13 @@ def cmd_search(args):
     if args.max is not None:
         rows = [e for e in rows if e["amount"] <= args.max]
 
-    rows = sorted(rows, key=lambda e: (e["date"], e["id"]))
+    sort = getattr(args, "sort", None) or "date"
+    keyfn = {
+        "date": lambda e: (e["date"], e["id"]),
+        "amount": lambda e: (e["amount"], e["date"]),
+        "category": lambda e: (e["category"], e["date"]),
+    }[sort]
+    rows = sorted(rows, key=keyfn, reverse=getattr(args, "desc", False))
 
     if getattr(args, "json", False):
         print(json.dumps(rows, indent=2))
@@ -3293,6 +3299,9 @@ def build_parser():
     sr.add_argument("--max", type=float, help="maximum amount")
     sr.add_argument("--income", action="store_true", help="search income instead")
     sr.add_argument("--all", action="store_true", help="search expenses and income")
+    sr.add_argument("--sort", choices=["date", "amount", "category"],
+                    default="date", help="sort order (default date)")
+    sr.add_argument("--desc", action="store_true", help="sort descending")
     sr.add_argument("--json", action="store_true", help="output JSON instead of text")
     sr.set_defaults(func=cmd_search)
 

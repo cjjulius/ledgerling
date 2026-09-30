@@ -888,6 +888,18 @@ class CLI(TempAppCase):
         with self.assertRaises(SystemExit):
             self._main(["tag", "999", "work"])
 
+    def test_search_sort(self):
+        self._main(["add", "10", "food", "a", "--date", "2026-05-03"])
+        self._main(["add", "80", "food", "b", "--date", "2026-05-01"])
+        self._main(["add", "30", "food", "c", "--date", "2026-05-02"])
+        # default: date ascending
+        d = json.loads(self._main(["search", "--json"]))
+        self.assertEqual([e["date"] for e in d],
+                         ["2026-05-01", "2026-05-02", "2026-05-03"])
+        # amount descending
+        d = json.loads(self._main(["search", "--sort", "amount", "--desc", "--json"]))
+        self.assertEqual([e["amount"] for e in d], [80.0, 30.0, 10.0])
+
     def test_sources_month_scope(self):
         self._main(["income", "3000", "salary", "a", "--date", "2026-05-01"])
         self._main(["income", "200", "freelance", "b", "--date", "2026-05-15"])

@@ -4,6 +4,15 @@ All notable changes to Ledgerling are documented here. The format is based on
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and this project
 adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.67.0] - 2026-09-30
+
+### Added
+
+- `search --sort {date,amount,category}` and `--desc` — sort search results by
+  date (default), amount, or category, ascending or descending. Handy for
+  finding the largest matching transactions (`search coffee --sort amount
+  --desc`).
+
 ## [1.66.0] - 2026-09-30
 
 ### Changed
@@ -675,6 +684,7 @@ file, standard library only, strictly confined to its own folder.
   guard (`_within_app`) that refuses any path escaping the app folder; imports
   and restores are reduced to a basename and looked up only within the folder.
 
+[1.67.0]: #1670---2026-09-30
 [1.66.0]: #1660---2026-09-30
 [1.65.0]: #1650---2026-09-30
 [1.64.0]: #1640---2026-09-30
