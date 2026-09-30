@@ -77,8 +77,10 @@ def describe():
 
     walk(top, [])
     commands.sort(key=lambda c: c["name"])
-    currency = L.load_config().get("currency", "$")
-    return {"version": L.__version__, "currency": currency, "commands": commands}
+    cfg = L.load_config()
+    return {"version": L.__version__, "currency": cfg.get("currency", "$"),
+            "symbol_position": cfg.get("symbol_position", "before"),
+            "commands": commands}
 
 
 # --------------------------------------------------------------------------- #
@@ -397,6 +399,7 @@ INDEX_HTML = r"""<!doctype html>
 </div>
 <script>
 let COMMANDS = [], CURRENT = null, CURRENCY = '$', ACTIVE = 'home', CATEGORIES = [];
+let SYMPOS = 'before';
 let COLLAPSED = new Set();
 try { COLLAPSED = new Set(JSON.parse(localStorage.getItem('ll_collapsed') || '[]')); }
 catch (e) {}
@@ -479,14 +482,16 @@ async function refreshCategories() {
 }
 function money(n) {
   const neg = n < 0;
-  const s = CURRENCY + Math.abs(Number(n) || 0).toLocaleString(undefined,
+  const num = Math.abs(Number(n) || 0).toLocaleString(undefined,
     {minimumFractionDigits: 2, maximumFractionDigits: 2});
+  const s = SYMPOS === 'after' ? num + ' ' + CURRENCY : CURRENCY + num;
   return neg ? '-' + s : s;
 }
 
 async function boot() {
   const d = await fetch('/api/describe').then(r => r.json());
   COMMANDS = d.commands; CURRENCY = d.currency || '$';
+  SYMPOS = d.symbol_position || 'before';
   document.getElementById('ver').textContent = 'v' + d.version;
   const filter = document.getElementById('filter');
   filter.addEventListener('input', e => renderList(e.target.value));

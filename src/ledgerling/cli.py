@@ -97,7 +97,7 @@ import sys
 import tempfile
 from datetime import datetime, date, timedelta
 
-__version__ = "1.78.0"
+__version__ = "1.79.0"
 
 # --------------------------------------------------------------------------- #
 # Sandbox + storage
@@ -122,7 +122,7 @@ BACKUP_DIR = os.path.join(HOME_DIR, "backups")
 _SUPPRESS_UNDO = False
 
 DEFAULT_DATA = {"expenses": [], "budgets": {}, "recurring": []}
-DEFAULT_CONFIG = {"currency": "$", "list_limit": 20}
+DEFAULT_CONFIG = {"currency": "$", "list_limit": 20, "symbol_position": "before"}
 
 # Live settings, loaded from CONFIG_FILE at startup (see main()). Kept as a
 # module-level dict so helpers like money() can read it without threading it
@@ -265,7 +265,10 @@ def parse_tags(note):
 
 
 def money(amount):
-    return f"{_CONFIG['currency']}{amount:,.2f}"
+    cur = _CONFIG.get("currency", "$")
+    if _CONFIG.get("symbol_position") == "after":
+        return f"{amount:,.2f} {cur}"
+    return f"{cur}{amount:,.2f}"
 
 
 def bar(fraction, width=24):
@@ -3065,14 +3068,20 @@ def cmd_config(args):
             sys.exit("error: --list-limit must be at least 1")
         cfg["list_limit"] = args.list_limit
         changed = True
+    if getattr(args, "symbol_position", None) is not None:
+        cfg["symbol_position"] = args.symbol_position
+        changed = True
 
     if changed:
         save_config(cfg)
+        _CONFIG.update(cfg)   # so the sample below prints with the new settings
         print("config updated")
 
     # Always show the resulting settings.
-    print(f"{'currency':<12} {cfg['currency']}")
-    print(f"{'list_limit':<12} {cfg['list_limit']}")
+    print(f"{'currency':<16} {cfg['currency']}")
+    print(f"{'list_limit':<16} {cfg['list_limit']}")
+    print(f"{'symbol_position':<16} {cfg.get('symbol_position', 'before')}")
+    print(f"{'sample':<16} {money(1234.5)}")
 
 
 def cmd_recur_add(args):
@@ -3686,6 +3695,9 @@ def build_parser():
     cf.add_argument("--currency", help="currency symbol, e.g. $ EUR kr")
     cf.add_argument("--list-limit", type=int, dest="list_limit",
                     help="default number of items `list` shows")
+    cf.add_argument("--symbol-position", dest="symbol_position",
+                    choices=["before", "after"],
+                    help="show the currency symbol before or after amounts")
     cf.add_argument("--reset", action="store_true", help="restore default settings")
     cf.set_defaults(func=cmd_config)
 

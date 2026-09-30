@@ -4,6 +4,15 @@ All notable changes to Ledgerling are documented here. The format is based on
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and this project
 adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.79.0] - 2026-09-30
+
+### Added
+
+- `config --symbol-position {before,after}` — choose whether the currency symbol
+  prints before (`$12.50`) or after (`12.50 kr`) the amount, for currencies that
+  trail the number. Applies everywhere amounts show, in the CLI and the web UI;
+  `config` now also prints a formatted sample.
+
 ## [1.78.0] - 2026-09-30
 
 ### Changed
@@ -776,6 +785,7 @@ file, standard library only, strictly confined to its own folder.
   guard (`_within_app`) that refuses any path escaping the app folder; imports
   and restores are reduced to a basename and looked up only within the folder.
 
+[1.79.0]: #1790---2026-09-30
 [1.78.0]: #1780---2026-09-30
 [1.77.0]: #1770---2026-09-30
 [1.76.0]: #1760---2026-09-30

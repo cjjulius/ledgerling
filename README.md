@@ -278,6 +278,7 @@ ledgerling where
 # Settings (currency symbol, default list size)
 ledgerling config
 ledgerling config --currency "€" --list-limit 50
+ledgerling config --currency kr --symbol-position after   # -> 12.50 kr
 ledgerling config --reset
 
 # Backup / restore (all copies live in backups/)
@@ -354,7 +355,8 @@ to GitHub.
   BOM that can break strict JSON parsers; redirect to a file, or pipe from bash/
   cmd, if you hit that.
 - **Settings** live in `ledgerling_config.json`: `currency` (used everywhere
-  amounts print) and `list_limit` (the default `list` size, overridable with
-  `--limit`). A missing or corrupted config safely falls back to defaults.
+  amounts print), `symbol_position` (`before` → `$12.50`, or `after` → `12.50 kr`),
+  and `list_limit` (the default `list` size, overridable with `--limit`). A
+  missing or corrupted config safely falls back to defaults.
 - Writes are atomic, so an interrupted run won't corrupt your data file.
 - Delete the data folder (`~/.ledgerling`, or `$LEDGERLING_HOME`) to start over.

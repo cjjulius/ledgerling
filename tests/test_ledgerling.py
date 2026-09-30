@@ -1157,6 +1157,13 @@ class CLI(TempAppCase):
         self._main(["recur", "unskip", "1", "--all"])
         self.assertEqual(L.load()["recurring"][0]["skips"], [])
 
+    def test_config_symbol_position(self):
+        out = self._main(["config", "--currency", "kr", "--symbol-position", "after"])
+        self.assertIn("1,234.50 kr", out)          # sample formats symbol after
+        # and it persists / applies to command output
+        self._main(["add", "10", "food", "x", "--date", "2026-09-01"])
+        self.assertIn("10.00 kr", self._main(["list"]))
+
     def test_where_json(self):
         self._main(["add", "10", "food", "a"])   # creates the data file
         d = json.loads(self._main(["where", "--json"]))
