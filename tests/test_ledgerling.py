@@ -515,6 +515,21 @@ class CLI(TempAppCase):
         self.assertEqual(d["longest_no_spend"], 27)    # days 4..30
         self.assertEqual(d["current_no_spend"], 27)
 
+    def test_day_json(self):
+        self._main(["add", "10", "food", "a", "--date", "2026-09-15"])
+        self._main(["income", "100", "salary", "b", "--date", "2026-09-15"])
+        self._main(["add", "5", "food", "c", "--date", "2026-09-16"])
+        d = json.loads(self._main(["day", "--date", "2026-09-15", "--json"]))
+        self.assertEqual(d["date"], "2026-09-15")
+        self.assertEqual(len(d["entries"]), 2)
+        self.assertEqual(d["spending"], 10.0)
+        self.assertEqual(d["income"], 100.0)
+        self.assertEqual(d["net"], 90.0)
+
+    def test_day_empty(self):
+        out = self._main(["day", "--date", "1999-01-01"])
+        self.assertIn("no entries", out)
+
     def test_week_json(self):
         monday = date.today() - timedelta(days=date.today().weekday())
         d0 = monday.isoformat()

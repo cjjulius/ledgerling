@@ -104,6 +104,10 @@ ledgerling search lunch --month 2026-09
 ledgerling search --tag work --month 2026-09
 ledgerling search --min 50 --max 200 --category food
 
+# Entries for a single day (today by default)
+ledgerling day
+ledgerling day --date yesterday
+
 # This week's spending by day (Mon-Sun); --offset N for weeks back
 ledgerling week
 ledgerling week --offset 1

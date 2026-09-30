@@ -26,6 +26,7 @@ Commands:
     summary   Totals by category with an ASCII bar chart
     report    Month-over-month trend and budget adherence
     stats     Analytics: extremes, averages, per-tag totals, projection
+    day       Entries for a single day (today by default)
     week      This week's spending by day (Mon-Sun), income and net
     streak    No-spend-day streaks for a month
     weekday   Spending by day of week (which days you spend most)
@@ -66,7 +67,7 @@ import sys
 import tempfile
 from datetime import datetime, date, timedelta
 
-__version__ = "1.19.0"
+__version__ = "1.20.0"
 
 # --------------------------------------------------------------------------- #
 # Sandbox + storage
@@ -1419,6 +1420,38 @@ def cmd_streak(args):
     print(f"{'current no-spend streak':<24} {current} day(s)")
 
 
+def cmd_day(args):
+    data = load()
+    d = parse_date(args.date)
+    rows = sorted((e for e in data["expenses"] if e["date"] == d),
+                  key=lambda e: e["id"])
+    spending = round(sum(e["amount"] for e in rows
+                         if kind_of(e) == "expense"), 2)
+    income = round(sum(e["amount"] for e in rows
+                       if kind_of(e) == "income"), 2)
+
+    if getattr(args, "json", False):
+        print(json.dumps({"date": d, "entries": rows, "spending": spending,
+                          "income": income, "net": round(income - spending, 2)},
+                         indent=2))
+        return
+
+    weekday = datetime.strptime(d, "%Y-%m-%d").strftime("%A")
+    print(f"{d} ({weekday})")
+    print("=" * 50)
+    if not rows:
+        print("no entries")
+        return
+    for e in rows:
+        note = f" - {e['note']}" if e["note"] else ""
+        mark = " +income" if kind_of(e) == "income" else ""
+        print(f"#{e['id']:<4} {money(e['amount']):>12}  [{e['category']}]"
+              f"{note}{mark}")
+    print("-" * 50)
+    print(f"spending {money(spending)}, income {money(income)}, "
+          f"net {money(income - spending)}")
+
+
 def cmd_week(args):
     if args.offset < 0:
         sys.exit("error: --offset cannot be negative")
@@ -1971,6 +2004,12 @@ def build_parser():
     sk.add_argument("--json", action="store_true", help="output JSON instead of text")
     sk.set_defaults(func=cmd_streak)
 
+    dy = sub.add_parser("day", help="entries for a single day")
+    dy.add_argument("--date", default="today",
+                    help="YYYY-MM-DD, 'today', or 'yesterday'")
+    dy.add_argument("--json", action="store_true", help="output JSON instead of text")
+    dy.set_defaults(func=cmd_day)
+
     wk = sub.add_parser("week", help="this week's spending by day (Mon-Sun)")
     wk.add_argument("--offset", type=int, default=0,
                     help="how many weeks back (0 = this week)")
@@ -2131,7 +2170,7 @@ def main(argv=None):
     if args.command in ("list", "summary", "budget", "export", "report",
                         "stats", "search", "categories", "tags", "month",
                         "upcoming", "compare", "trend", "top", "pace",
-                        "duplicates", "week", "streak", "weekday"):
+                        "duplicates", "week", "streak", "weekday", "day"):
         data = load()
         if apply_recurring(data):
             save(data)

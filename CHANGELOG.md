@@ -4,6 +4,13 @@ All notable changes to Ledgerling are documented here. The format is based on
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and this project
 adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.20.0] - 2026-09-29
+
+### Added
+
+- `day` command — lists the entries for a single day (today by default, or
+  `--date`) with spending, income, and net. Supports `--json`.
+
 ## [1.19.0] - 2026-09-29
 
 ### Added
@@ -216,6 +223,7 @@ file, standard library only, strictly confined to its own folder.
   guard (`_within_app`) that refuses any path escaping the app folder; imports
   and restores are reduced to a basename and looked up only within the folder.
 
+[1.20.0]: #1200---2026-09-29
 [1.19.0]: #1190---2026-09-29
 [1.18.0]: #1180---2026-09-29
 [1.17.0]: #1170---2026-09-29
