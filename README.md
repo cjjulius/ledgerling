@@ -20,6 +20,18 @@ pip install .
 Both give you a `ledgerling` command. Without installing, you can also run it
 from a checkout with `python -m ledgerling` (add `src/` to `PYTHONPATH`).
 
+### Web UI
+
+```bash
+ledgerling web              # opens a local UI at http://127.0.0.1:8730
+ledgerling web --port 9000 --no-browser
+```
+
+The UI is a local, sandboxed web app (stdlib only; binds to `127.0.0.1`). It
+**generates itself from the CLI**, so every command — and every command added
+in the future — appears automatically as a form with its options, and running
+it shows the command's output. No data leaves your machine.
+
 ### Shell completion (optional)
 
 ```bash

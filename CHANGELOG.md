@@ -4,6 +4,16 @@ All notable changes to Ledgerling are documented here. The format is based on
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and this project
 adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.26.0] - 2026-09-29
+
+### Added
+
+- **Web UI** (`web` command) — a local, sandboxed single-page app (stdlib
+  `http.server`, binds to 127.0.0.1) that drives every Ledgerling command. It
+  generates itself from the CLI parser, so all current commands — and any added
+  later — show up automatically as forms; running one shows its output. No shell
+  access and no network egress; data stays in the Ledgerling folder.
+
 ## [1.25.0] - 2026-09-29
 
 ### Added
@@ -260,6 +270,7 @@ file, standard library only, strictly confined to its own folder.
   guard (`_within_app`) that refuses any path escaping the app folder; imports
   and restores are reduced to a basename and looked up only within the folder.
 
+[1.26.0]: #1260---2026-09-29
 [1.25.0]: #1250---2026-09-29
 [1.24.0]: #1240---2026-09-29
 [1.23.0]: #1230---2026-09-29

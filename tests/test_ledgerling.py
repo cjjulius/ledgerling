@@ -167,6 +167,60 @@ class FileRoundTrip(TempAppCase):
         self.assertEqual(new["tags"], ["treat"])               # tags parsed on import
 
 
+class WebUI(TempAppCase):
+    """The local web UI is a thin bridge over the CLI; test schema + server."""
+
+    def test_describe_covers_all_commands(self):
+        from ledgerling import web
+        d = web.describe()
+        self.assertEqual(d["version"], L.__version__)
+        names = {c["name"] for c in d["commands"]}
+        # a representative spread, including nested recur subcommands
+        for expected in ("add", "income", "month", "web", "recur add",
+                         "recur edit", "distribution"):
+            self.assertIn(expected, names)
+        # the `add` command exposes its positional/option args
+        add = next(c for c in d["commands"] if c["name"] == "add")
+        dests = {a["dest"] for a in add["args"]}
+        self.assertTrue({"amount", "category", "note", "date"} <= dests)
+
+    def test_run_cli_bridge(self):
+        from ledgerling import web
+        web.run_cli(["add", "12.50", "food", "lunch #x"])
+        res = web.run_cli(["list", "--json"])
+        self.assertEqual(res["code"], 0)
+        rows = json.loads(res["stdout"])
+        self.assertEqual(len(rows), 1)
+        # errors are captured, not raised
+        bad = web.run_cli(["list", "--month", "2026-13"])
+        self.assertNotEqual(bad["code"], 0)
+
+    def test_http_endpoints(self):
+        import threading
+        import urllib.request
+        from ledgerling import web
+        httpd = web.make_server(0)
+        port = httpd.server_address[1]
+        t = threading.Thread(target=httpd.serve_forever, daemon=True)
+        t.start()
+        try:
+            base = f"http://127.0.0.1:{port}"
+            page = urllib.request.urlopen(base + "/").read().decode()
+            self.assertIn("Ledgerling", page)
+            desc = json.loads(urllib.request.urlopen(base + "/api/describe").read())
+            self.assertIn("commands", desc)
+            req = urllib.request.Request(
+                base + "/api/run",
+                data=json.dumps({"argv": ["add", "5", "food", "a"]}).encode(),
+                headers={"Content-Type": "application/json"})
+            res = json.loads(urllib.request.urlopen(req).read())
+            self.assertEqual(res["code"], 0)
+            self.assertEqual(len(L.load()["expenses"]), 1)
+        finally:
+            httpd.shutdown()
+            httpd.server_close()
+
+
 class CLI(TempAppCase):
     """End-to-end tests that drive main() with argv arrays."""
 

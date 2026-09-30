@@ -56,6 +56,7 @@ Commands:
     config    View or change settings (currency symbol, default list limit)
     version   Show the version (also `--version`)
     completion  Print a bash/zsh tab-completion script
+    web       Launch a local web UI covering every command
 
 Run `python ledgerling.py --help` or `<command> --help` for details.
 """
@@ -71,7 +72,7 @@ import sys
 import tempfile
 from datetime import datetime, date, timedelta
 
-__version__ = "1.25.0"
+__version__ = "1.26.0"
 
 # --------------------------------------------------------------------------- #
 # Sandbox + storage
@@ -1904,6 +1905,11 @@ def cmd_completion(args):
         print(_bash_completion(top, subs))
 
 
+def cmd_web(args):
+    from . import web  # lazy import (web imports cli)
+    web.serve(port=args.port, open_browser=not args.no_browser)
+
+
 def cmd_version(args):
     print(f"ledgerling {__version__}")
 
@@ -2282,6 +2288,12 @@ def build_parser():
 
     vs = sub.add_parser("version", help="show the version")
     vs.set_defaults(func=cmd_version)
+
+    wb = sub.add_parser("web", help="launch a local web UI (auto-covers every command)")
+    wb.add_argument("--port", type=int, default=8730, help="port (default 8730)")
+    wb.add_argument("--no-browser", action="store_true",
+                    help="don't open a browser automatically")
+    wb.set_defaults(func=cmd_web)
 
     cp = sub.add_parser("completion",
                         help="print a shell completion script (bash or zsh)")
