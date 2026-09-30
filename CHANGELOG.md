@@ -4,6 +4,16 @@ All notable changes to Ledgerling are documented here. The format is based on
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and this project
 adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.34.0] - 2026-09-29
+
+### Added
+
+- `commitments` command — normalizes every recurring rule to its
+  monthly-equivalent and annual cost (day × 365/12, week × 52/12, month × 1),
+  split into expense vs income with monthly and annual net. Shows your fixed
+  obligations at a glance. Series-shaped, so the web UI renders it as a
+  table/chart. Supports `--json`.
+
 ## [1.33.0] - 2026-09-29
 
 ### Added
@@ -331,6 +341,7 @@ file, standard library only, strictly confined to its own folder.
   guard (`_within_app`) that refuses any path escaping the app folder; imports
   and restores are reduced to a basename and looked up only within the folder.
 
+[1.34.0]: #1340---2026-09-29
 [1.33.0]: #1330---2026-09-29
 [1.32.0]: #1320---2026-09-29
 [1.31.0]: #1310---2026-09-29

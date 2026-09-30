@@ -42,6 +42,7 @@ Commands:
     average   Average spending per day / week / month
     distribution  Histogram of expense sizes
     upcoming  Forecast recurring charges/income due in the next N days
+    commitments  Recurring rules normalized to monthly/annual cost
     categories  List categories with counts and totals
     tags      List #tags with counts and totals
     untagged  List expenses that have no #tags
@@ -76,7 +77,7 @@ import sys
 import tempfile
 from datetime import datetime, date, timedelta
 
-__version__ = "1.33.0"
+__version__ = "1.34.0"
 
 # --------------------------------------------------------------------------- #
 # Sandbox + storage
@@ -1589,6 +1590,61 @@ def cmd_balance(args):
               f"balance {money(r['balance']):>12}")
 
 
+# monthly-equivalent multipliers for each recurring frequency
+_MONTHLY_FACTOR = {"day": 365 / 12, "week": 52 / 12, "month": 1.0}
+
+
+def cmd_commitments(args):
+    data = load()
+    rules = []
+    for r in data["recurring"]:
+        factor = _MONTHLY_FACTOR.get(r["every"], 1.0)
+        monthly = round(r["amount"] * factor, 2)
+        rules.append({
+            "id": r["id"],
+            "category": r["category"],
+            "note": r["note"],
+            "every": r["every"],
+            "amount": r["amount"],
+            "kind": r.get("kind", "expense"),
+            "monthly": monthly,
+            "annual": round(monthly * 12, 2),
+        })
+    rules.sort(key=lambda x: (x["kind"], -x["monthly"]))
+
+    m_exp = round(sum(x["monthly"] for x in rules if x["kind"] == "expense"), 2)
+    m_inc = round(sum(x["monthly"] for x in rules if x["kind"] == "income"), 2)
+
+    if getattr(args, "json", False):
+        print(json.dumps({
+            "rules": rules,
+            "monthly_expense": m_exp,
+            "monthly_income": m_inc,
+            "monthly_net": round(m_inc - m_exp, 2),
+            "annual_expense": round(m_exp * 12, 2),
+            "annual_income": round(m_inc * 12, 2),
+            "annual_net": round((m_inc - m_exp) * 12, 2),
+        }, indent=2))
+        return
+
+    if not rules:
+        print("no recurring rules. Try: recur add 1200 rent --every month")
+        return
+
+    print("Recurring commitments (normalized to monthly)")
+    print("=" * 60)
+    for x in rules:
+        note = f" - {x['note']}" if x["note"] else ""
+        mark = " +income" if x["kind"] == "income" else ""
+        print(f"#{x['id']:<3} {money(x['monthly']):>12}/mo  "
+              f"({money(x['amount'])}/{x['every']})  [{x['category']}]{note}{mark}")
+    print("-" * 60)
+    print(f"monthly: expense {money(m_exp)}, income {money(m_inc)}, "
+          f"net {money(m_inc - m_exp)}")
+    print(f"annual:  expense {money(m_exp * 12)}, income {money(m_inc * 12)}, "
+          f"net {money((m_inc - m_exp) * 12)}")
+
+
 def cmd_forecast(args):
     data = load()
     today = date.today()
@@ -2297,6 +2353,11 @@ def build_parser():
     ba.add_argument("--json", action="store_true", help="output JSON instead of text")
     ba.set_defaults(func=cmd_balance)
 
+    cm = sub.add_parser("commitments",
+                        help="recurring rules normalized to monthly/annual cost")
+    cm.add_argument("--json", action="store_true", help="output JSON instead of text")
+    cm.set_defaults(func=cmd_commitments)
+
     fc = sub.add_parser("forecast", help="project this year to year-end")
     fc.add_argument("--json", action="store_true", help="output JSON instead of text")
     fc.set_defaults(func=cmd_forecast)
@@ -2505,7 +2566,8 @@ def main(argv=None):
                         "upcoming", "compare", "trend", "top", "pace",
                         "duplicates", "week", "streak", "weekday", "day",
                         "year", "untagged", "average", "distribution",
-                        "sources", "quarter", "forecast", "balance"):
+                        "sources", "quarter", "forecast", "balance",
+                        "commitments"):
         data = load()
         if apply_recurring(data):
             save(data)

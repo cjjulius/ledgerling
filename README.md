@@ -168,6 +168,9 @@ ledgerling trend food --months 6
 ledgerling upcoming
 ledgerling upcoming --days 60
 
+# Recurring rules normalized to monthly / annual cost (your fixed obligations)
+ledgerling commitments
+
 # Analytics: extremes, averages, and end-of-month projection
 ledgerling stats
 

@@ -671,6 +671,22 @@ class CLI(TempAppCase):
             {"month": "2026-02", "net": -200.0, "balance": 500.0},
         ])
 
+    def test_commitments_json(self):
+        self._main(["recur", "add", "1200", "rent", "flat",
+                    "--every", "month", "--start", "2026-01-01"])
+        self._main(["recur", "add", "70", "food", "groceries",
+                    "--every", "week", "--start", "2026-01-01"])
+        self._main(["recur", "add", "3000", "salary", "pay",
+                    "--every", "month", "--start", "2026-01-01", "--income"])
+        d = json.loads(self._main(["commitments", "--json"]))
+        self.assertEqual(d["monthly_income"], 3000.0)
+        # rent 1200/mo + groceries 70*52/12 = 303.33
+        self.assertEqual(d["monthly_expense"], round(1200 + 70 * 52 / 12, 2))
+        self.assertEqual(d["monthly_net"],
+                         round(3000 - (1200 + 70 * 52 / 12), 2))
+        self.assertEqual(d["annual_income"], round(3000 * 12, 2))
+        self.assertEqual(len(d["rules"]), 3)
+
     def test_year_json(self):
         self._main(["add", "100", "food", "a", "--date", "2026-01-15"])
         self._main(["add", "200", "food", "b", "--date", "2026-03-10"])
