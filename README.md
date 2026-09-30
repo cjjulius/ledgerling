@@ -289,6 +289,7 @@ ledgerling restore --file ledgerling_data_20260929_173016.json
 ledgerling recur add 1200 rent "apartment" --every month --start 2026-08-01
 ledgerling recur add 15 subscriptions "music" --every month
 ledgerling recur add 3000 salary "paycheck" --every month --income
+ledgerling recur from 5 --every month   # turn entry #5 into a recurring rule
 ledgerling recur list
 ledgerling recur edit 1 --amount 1350 --note "rent increase"
 ledgerling recur remove 1

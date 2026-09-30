@@ -4,6 +4,15 @@ All notable changes to Ledgerling are documented here. The format is based on
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and this project
 adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.77.0] - 2026-09-30
+
+### Added
+
+- `recur from ID` — create a recurring rule from an existing entry (its amount,
+  category, note, and kind), so you can turn a one-off like rent or a paycheck
+  into a monthly rule without retyping. `--every` sets the frequency; `--start`
+  defaults to the entry's own date. Catches up immediately and is undoable.
+
 ## [1.76.0] - 2026-09-30
 
 ### Changed
@@ -759,6 +768,7 @@ file, standard library only, strictly confined to its own folder.
   guard (`_within_app`) that refuses any path escaping the app folder; imports
   and restores are reduced to a basename and looked up only within the folder.
 
+[1.77.0]: #1770---2026-09-30
 [1.76.0]: #1760---2026-09-30
 [1.75.0]: #1750---2026-09-30
 [1.74.0]: #1740---2026-09-30

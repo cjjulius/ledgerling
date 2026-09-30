@@ -72,7 +72,7 @@ Commands:
     pace      Budget pace: spent vs day-adjusted expected, projected EOM
     allowance  How much you can still spend per day to stay on budget
     goal      Set / view a monthly savings goal
-    recur     Recurring rules (add/edit/list/remove/run/skip/unskip/pause/resume)
+    recur     Recurring rules (add/from/edit/list/remove/run/skip/unskip/pause/resume)
     export    Write expenses to a CSV file (inside the data folder)
     import    Read expenses back from a CSV (deduped)
     backup    Save a timestamped copy of your data
@@ -97,7 +97,7 @@ import sys
 import tempfile
 from datetime import datetime, date, timedelta
 
-__version__ = "1.76.0"
+__version__ = "1.77.0"
 
 # --------------------------------------------------------------------------- #
 # Sandbox + storage
@@ -3099,6 +3099,34 @@ def cmd_recur_add(args):
         print(f"  generated {created} expense(s) up to today")
 
 
+def cmd_recur_from(args):
+    data = load()
+    e = find(data["expenses"], args.id)
+    if not e:
+        sys.exit(f"error: no entry with id #{args.id}")
+    note = e["note"]
+    rule = {
+        "id": next_id(data["recurring"]),
+        "amount": round(e["amount"], 2),
+        "category": e["category"],
+        "note": note,
+        "every": args.every,
+        "start": parse_date(args.start) if args.start else e["date"],
+        "last": None,
+        "kind": kind_of(e),
+    }
+    data["recurring"].append(rule)
+    created = apply_recurring(data)  # catch up immediately
+    save(data)
+    what = "income" if rule["kind"] == "income" else "expense"
+    print(f"created recurring {what} rule #{rule['id']} from entry #{e['id']}: "
+          f"{money(rule['amount'])} [{rule['category']}] every {rule['every']} "
+          f"from {rule['start']}")
+    if created:
+        print(f"  generated {created} entr{'y' if created == 1 else 'ies'} up to today")
+    print("undo with `undo`.")
+
+
 def cmd_recur_edit(args):
     data = load()
     r = find(data["recurring"], args.id)
@@ -3695,6 +3723,13 @@ def build_parser():
     ra.add_argument("--income", action="store_true",
                     help="mark this as recurring income (e.g. salary)")
     ra.set_defaults(func=cmd_recur_add)
+
+    rfr = rsub.add_parser("from", help="create a recurring rule from an existing entry")
+    rfr.add_argument("id", type=int, help="entry id to base the rule on (see `list`)")
+    rfr.add_argument("--every", choices=["day", "week", "month"], required=True,
+                     help="how often it recurs")
+    rfr.add_argument("--start", help="first date, YYYY-MM-DD (default: the entry's date)")
+    rfr.set_defaults(func=cmd_recur_from)
 
     re_ = rsub.add_parser("edit", help="change fields on a recurring rule")
     re_.add_argument("id", type=int, help="rule id (see `recur list`)")

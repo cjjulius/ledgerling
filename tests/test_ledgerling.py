@@ -1104,6 +1104,27 @@ class CLI(TempAppCase):
         self._main(["undo"])
         self.assertNotIn("2027-01-01", L.load()["recurring"][0]["skips"])
 
+    def test_recur_from_entry(self):
+        self._main(["add", "1200", "rent", "flat #home", "--date", "2026-01-01"])
+        self._main(["recur", "from", "1", "--every", "month", "--start", "2026-01-01"])
+        rules = L.load()["recurring"]
+        self.assertEqual(len(rules), 1)
+        r = rules[0]
+        self.assertEqual((r["amount"], r["category"], r["every"], r["kind"]),
+                         (1200.0, "rent", "month", "expense"))
+        self.assertEqual(r["start"], "2026-01-01")
+        # it catches up and generates the recurring rent entries (tags flow through)
+        gen = [e for e in L.load()["expenses"] if e.get("recur_id") == r["id"]]
+        self.assertTrue(gen)
+        self.assertIn("home", gen[0]["tags"])
+
+    def test_recur_from_defaults_start_to_entry_date(self):
+        self._main(["income", "3000", "salary", "pay", "--date", "2026-02-01"])
+        self._main(["recur", "from", "1", "--every", "month"])
+        r = L.load()["recurring"][0]
+        self.assertEqual(r["start"], "2026-02-01")   # defaults to the entry's date
+        self.assertEqual(r["kind"], "income")
+
     def test_recur_pause_and_resume(self):
         self._main(["recur", "add", "15", "subscriptions", "music",
                     "--every", "month", "--start", "2026-01-01"])
