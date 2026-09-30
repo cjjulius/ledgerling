@@ -130,6 +130,9 @@ ledgerling categories
 ledgerling tags
 ledgerling recategorize food dining
 
+# Find likely double-entered records (same date/amount/category/note)
+ledgerling duplicates
+
 # Undo the last data change (run it again to redo)
 ledgerling undo
 

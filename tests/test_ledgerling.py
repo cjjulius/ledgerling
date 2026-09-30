@@ -312,6 +312,21 @@ class CLI(TempAppCase):
         with self.assertRaises(SystemExit):        # conflicting kind flags
             self._main(["recur", "edit", "1", "--income", "--expense"])
 
+    def test_duplicates_json(self):
+        self._main(["add", "40", "food", "dinner", "--date", "2026-09-10"])
+        self._main(["add", "40", "food", "dinner", "--date", "2026-09-10"])  # dup
+        self._main(["add", "40", "food", "lunch", "--date", "2026-09-10"])   # not
+        d = json.loads(self._main(["duplicates", "--json"]))
+        self.assertEqual(len(d), 1)
+        self.assertEqual(d[0]["ids"], [1, 2])
+        self.assertEqual(d[0]["note"], "dinner")
+
+    def test_duplicates_none(self):
+        self._main(["add", "10", "food", "a"])
+        self._main(["add", "10", "food", "b"])       # different note -> not a dup
+        out = self._main(["duplicates"])
+        self.assertIn("no duplicates found", out)
+
     def test_pace_json(self):
         self._main(["budget", "--category", "food", "--amount", "300"])
         self._main(["add", "100", "food", "x"])       # current month

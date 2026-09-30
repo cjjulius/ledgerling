@@ -33,6 +33,7 @@ Commands:
     categories  List categories with counts and totals
     tags      List #tags with counts and totals
     recategorize  Rename a category across all records
+    duplicates  Find likely double-entered records
     undo      Revert the last data change (toggles redo)
     budget    Set / view monthly budgets
     pace      Budget pace: spent vs day-adjusted expected, projected EOM
@@ -60,7 +61,7 @@ import sys
 import tempfile
 from datetime import datetime, date, timedelta
 
-__version__ = "1.13.0"
+__version__ = "1.14.0"
 
 # --------------------------------------------------------------------------- #
 # Sandbox + storage
@@ -1060,6 +1061,39 @@ def cmd_compare(args):
                   f"{_signed(v['delta']):>16}")
 
 
+def cmd_duplicates(args):
+    data = load()
+    groups = {}
+    for e in data["expenses"]:
+        key = (e["date"], round(e["amount"], 2), e["category"],
+               e["note"], kind_of(e))
+        groups.setdefault(key, []).append(e["id"])
+    dupes = [{"date": k[0], "amount": k[1], "category": k[2], "note": k[3],
+              "kind": k[4], "ids": sorted(ids)}
+             for k, ids in groups.items() if len(ids) > 1]
+    dupes.sort(key=lambda g: (g["date"], g["category"]))
+
+    if getattr(args, "json", False):
+        print(json.dumps(dupes, indent=2))
+        return
+    if not dupes:
+        print("no duplicates found")
+        return
+
+    extra = sum(len(g["ids"]) - 1 for g in dupes)
+    print("Potential duplicates")
+    print("=" * 58)
+    for g in dupes:
+        note = f" - {g['note']}" if g["note"] else ""
+        mark = " +income" if g["kind"] == "income" else ""
+        ids = ", ".join(f"#{i}" for i in g["ids"])
+        print(f"{g['date']}  {money(g['amount']):>12}  [{g['category']}]{note}"
+              f"{mark}   ({ids})")
+    print("-" * 58)
+    print(f"{len(dupes)} group(s), {extra} extra entr{'y' if extra == 1 else 'ies'}."
+          "  Remove with `delete <id>`.")
+
+
 def cmd_pace(args):
     check_month(args.month)
     data = load()
@@ -1759,6 +1793,11 @@ def build_parser():
     tg.add_argument("--json", action="store_true", help="output JSON instead of text")
     tg.set_defaults(func=cmd_tags)
 
+    dp = sub.add_parser("duplicates",
+                        help="find likely double-entered records")
+    dp.add_argument("--json", action="store_true", help="output JSON instead of text")
+    dp.set_defaults(func=cmd_duplicates)
+
     pc = sub.add_parser("pace", help="budget pace: are you ahead or behind?")
     pc.add_argument("--month", help="which month, YYYY-MM (default: current)")
     pc.add_argument("--json", action="store_true", help="output JSON instead of text")
@@ -1882,7 +1921,8 @@ def main(argv=None):
     # file writes, inside the data folder.)
     if args.command in ("list", "summary", "budget", "export", "report",
                         "stats", "search", "categories", "tags", "month",
-                        "upcoming", "compare", "trend", "top", "pace"):
+                        "upcoming", "compare", "trend", "top", "pace",
+                        "duplicates"):
         data = load()
         if apply_recurring(data):
             save(data)
