@@ -863,6 +863,35 @@ class CLI(TempAppCase):
         allcats = json.loads(self._main(["categories", "--json"]))
         self.assertEqual(set(allcats), {"food", "transit"})
 
+    def test_autobudget_applies_and_is_undoable(self):
+        this = date.today().isoformat()[:7]
+        self._main(["add", "80", "food", "a", "--date", f"{this}-05"])
+        self._main(["add", "40", "transit", "b", "--date", f"{this}-06"])
+        # dry run changes nothing
+        d = json.loads(self._main(["autobudget", "--months", "1", "--dry-run", "--json"]))
+        self.assertTrue(d["dry_run"])
+        self.assertEqual({r["category"] for r in d["set"]}, {"food", "transit"})
+        self.assertEqual(L.load()["budgets"], {})
+        # apply
+        self._main(["autobudget", "--months", "1", "--json"])
+        budgets = L.load()["budgets"]
+        self.assertEqual(set(budgets), {"food", "transit"})
+        self.assertGreaterEqual(budgets["food"], 80.0)   # >= average, rounded up
+        # undoable
+        self._main(["undo"])
+        self.assertEqual(L.load()["budgets"], {})
+
+    def test_autobudget_keeps_existing_without_replace(self):
+        this = date.today().isoformat()[:7]
+        self._main(["add", "80", "food", "a", "--date", f"{this}-05"])
+        self._main(["budget", "--category", "food", "--amount", "500"])
+        # without --replace, the existing budget is kept
+        self._main(["autobudget", "--months", "1"])
+        self.assertEqual(L.load()["budgets"]["food"], 500.0)
+        # with --replace, it is overwritten by the suggestion
+        self._main(["autobudget", "--months", "1", "--replace"])
+        self.assertNotEqual(L.load()["budgets"]["food"], 500.0)
+
     def test_year_json(self):
         self._main(["add", "100", "food", "a", "--date", "2026-01-15"])
         self._main(["add", "200", "food", "b", "--date", "2026-03-10"])

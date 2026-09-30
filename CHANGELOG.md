@@ -4,6 +4,23 @@ All notable changes to Ledgerling are documented here. The format is based on
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and this project
 adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.47.0] - 2026-09-29
+
+### Added
+
+- `autobudget` command — sets monthly budgets for each category from recent
+  average spending in one step (the actionable counterpart to `suggest`, which
+  only prints them). By default it only sets categories that don't already have
+  a budget; `--replace` also overwrites existing ones, `--dry-run` previews, and
+  `--months` sets the averaging window (default 3). Undoable with `undo`.
+  Supports `--json`.
+
+### Changed
+
+- `suggest` and `autobudget` share the recent-average computation
+  (`_recent_category_averages`). `suggest --json` no longer includes the
+  redundant `window` field.
+
 ## [1.46.0] - 2026-09-29
 
 ### Added
@@ -482,6 +499,7 @@ file, standard library only, strictly confined to its own folder.
   guard (`_within_app`) that refuses any path escaping the app folder; imports
   and restores are reduced to a basename and looked up only within the folder.
 
+[1.47.0]: #1470---2026-09-29
 [1.46.0]: #1460---2026-09-29
 [1.45.0]: #1450---2026-09-29
 [1.44.0]: #1440---2026-09-29

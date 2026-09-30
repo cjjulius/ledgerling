@@ -50,6 +50,7 @@ Commands:
     upcoming  Forecast recurring charges/income due in the next N days
     commitments  Recurring rules normalized to monthly/annual cost
     suggest   Suggest per-category budgets from recent average spending
+    autobudget  Apply suggested budgets from recent spending (undoable)
     categories  List categories with counts and totals
     tags      List #tags with counts and totals
     untagged  List expenses that have no #tags
@@ -87,7 +88,7 @@ import sys
 import tempfile
 from datetime import datetime, date, timedelta
 
-__version__ = "1.46.0"
+__version__ = "1.47.0"
 
 # --------------------------------------------------------------------------- #
 # Sandbox + storage
@@ -1615,15 +1616,11 @@ def _nice_budget(avg):
     return float(int((target + step - 0.01) // step * step))
 
 
-def cmd_suggest(args):
-    months = args.months
-    if months < 1:
-        sys.exit("error: --months must be at least 1")
-    data = load()
+def _recent_category_averages(data, months):
+    """Average monthly spend per category over the last `months` months,
+    averaged only over the months in that window that actually had spend."""
     today = date.today()
     window = {add_months(today, -i).isoformat()[:7] for i in range(months)}
-
-    # per category: total spend and the set of months (within window) with spend
     agg = {}
     for e in expenses_only(data["expenses"]):
         m = month_of(e["date"])
@@ -1631,11 +1628,20 @@ def cmd_suggest(args):
             a = agg.setdefault(e["category"], {"total": 0.0, "months": set()})
             a["total"] = round(a["total"] + e["amount"], 2)
             a["months"].add(m)
+    return {c: round(v["total"] / (len(v["months"]) or 1), 2)
+            for c, v in agg.items()}
+
+
+def cmd_suggest(args):
+    months = args.months
+    if months < 1:
+        sys.exit("error: --months must be at least 1")
+    data = load()
+    averages = _recent_category_averages(data, months)
 
     suggestions = []
-    for cat in sorted(agg):
-        active = len(agg[cat]["months"]) or 1
-        avg = round(agg[cat]["total"] / active, 2)
+    for cat in sorted(averages):
+        avg = averages[cat]
         suggestions.append({
             "category": cat,
             "average": avg,
@@ -1645,8 +1651,7 @@ def cmd_suggest(args):
         })
 
     if getattr(args, "json", False):
-        print(json.dumps({"months": months, "window": sorted(window),
-                          "suggestions": suggestions}, indent=2))
+        print(json.dumps({"months": months, "suggestions": suggestions}, indent=2))
         return
     if not suggestions:
         print(f"no spending in the last {months} month(s) to base budgets on")
@@ -1660,7 +1665,60 @@ def cmd_suggest(args):
         print(f"{s['category']:<16} avg {money(s['average']):>11}   "
               f"suggest {money(s['suggested']):>11}{cur}")
     print("-" * 60)
-    print("set one with:  budget --category CAT --amount N")
+    print("set one with:  budget --category CAT --amount N  "
+          "(or apply all with `autobudget`)")
+
+
+def cmd_autobudget(args):
+    months = args.months
+    if months < 1:
+        sys.exit("error: --months must be at least 1")
+    data = load()
+    averages = _recent_category_averages(data, months)
+
+    planned = []  # (category, current, suggested)
+    for cat in sorted(averages):
+        suggested = _nice_budget(averages[cat])
+        if suggested <= 0:
+            continue
+        current = data["budgets"].get(cat)
+        if current is not None and not args.replace:
+            continue  # keep an existing budget unless --replace
+        if current == suggested:
+            continue
+        planned.append((cat, current, suggested))
+
+    dry = getattr(args, "dry_run", False)
+    if getattr(args, "json", False):
+        print(json.dumps({
+            "months": months, "replace": args.replace, "dry_run": dry,
+            "set": [{"category": c, "from": cur, "to": s}
+                    for c, cur, s in planned],
+        }, indent=2))
+        if planned and not dry:
+            for c, _, s in planned:
+                data["budgets"][c] = s
+            save(data)
+        return
+
+    if not planned:
+        print(f"no budgets to set from the last {months} month(s)"
+              + ("" if args.replace else " (existing budgets kept; "
+                 "use --replace to overwrite)"))
+        return
+
+    verb = "Would set" if dry else "Set"
+    print(f"{verb} {len(planned)} budget(s) from the last {months} month(s):")
+    for cat, cur, s in planned:
+        note = "" if cur is None else f"  (was {money(cur)})"
+        print(f"  {cat:<16} {money(s):>11}{note}")
+    if dry:
+        print("(dry run - nothing changed; rerun without --dry-run to apply)")
+    else:
+        for c, _, s in planned:
+            data["budgets"][c] = s
+        save(data)
+        print("undo with `undo`.")
 
 
 def cmd_categories(args):
@@ -2920,6 +2978,17 @@ def build_parser():
                     help="how many recent months to average (default 3)")
     sg.add_argument("--json", action="store_true", help="output JSON instead of text")
     sg.set_defaults(func=cmd_suggest)
+
+    ab = sub.add_parser("autobudget",
+                        help="set budgets from recent spending (applies `suggest`)")
+    ab.add_argument("--months", type=int, default=3,
+                    help="how many recent months to average (default 3)")
+    ab.add_argument("--replace", action="store_true",
+                    help="also overwrite categories that already have a budget")
+    ab.add_argument("--dry-run", action="store_true",
+                    help="preview the budgets without changing anything")
+    ab.add_argument("--json", action="store_true", help="output JSON instead of text")
+    ab.set_defaults(func=cmd_autobudget)
 
     ct = sub.add_parser("categories", help="list categories with counts and totals")
     ct.add_argument("--month", help="restrict to a month, YYYY-MM")

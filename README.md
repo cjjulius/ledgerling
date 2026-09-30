@@ -98,6 +98,11 @@ ledgerling budget
 ledgerling suggest
 ledgerling suggest --months 6
 
+# Apply those suggestions as actual budgets in one step (undoable)
+ledgerling autobudget --dry-run       # preview
+ledgerling autobudget                 # set budgets for categories without one
+ledgerling autobudget --replace       # also overwrite existing budgets
+
 # Budget pace: are you ahead or behind, and projected end-of-month?
 ledgerling pace
 
