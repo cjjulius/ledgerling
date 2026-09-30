@@ -376,7 +376,7 @@ const GROUP_DEFS = [
   ['Recurring', ['recur add', 'recur list', 'recur edit', 'recur remove', 'recur run']],
   ['Data', ['export', 'import', 'backup', 'restore', 'dedupe', 'duplicates',
     'retag', 'tag', 'untag', 'recategorize', 'undo']],
-  ['Settings', ['config', 'version', 'completion', 'web']],
+  ['Settings', ['config', 'where', 'version', 'completion', 'web']],
 ];
 function groupOf(name) {
   for (const [g, names] of GROUP_DEFS) if (names.includes(name)) return g;

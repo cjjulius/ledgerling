@@ -4,6 +4,15 @@ All notable changes to Ledgerling are documented here. The format is based on
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and this project
 adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.54.0] - 2026-09-29
+
+### Added
+
+- `where` command — prints the data folder Ledgerling owns and the paths to its
+  data file, config, `exports/`, and `backups/`, each with a size (or file
+  count) or "not created yet". A quick way to find your data, exports, and
+  backups. Supports `--json`.
+
 ## [1.53.0] - 2026-09-29
 
 ### Added
@@ -555,6 +564,7 @@ file, standard library only, strictly confined to its own folder.
   guard (`_within_app`) that refuses any path escaping the app folder; imports
   and restores are reduced to a basename and looked up only within the folder.
 
+[1.54.0]: #1540---2026-09-29
 [1.53.0]: #1530---2026-09-29
 [1.52.0]: #1520---2026-09-29
 [1.51.0]: #1510---2026-09-29

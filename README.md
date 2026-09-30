@@ -260,6 +260,9 @@ ledgerling stats --json
 ledgerling version
 ledgerling --version
 
+# Where does my data live? (folder + files with sizes)
+ledgerling where
+
 # Settings (currency symbol, default list size)
 ledgerling config
 ledgerling config --currency "€" --list-limit 50

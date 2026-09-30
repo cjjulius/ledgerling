@@ -1011,6 +1011,16 @@ class CLI(TempAppCase):
         with self.assertRaises(SystemExit):
             self._main(["refund", "1"])
 
+    def test_where_json(self):
+        self._main(["add", "10", "food", "a"])   # creates the data file
+        d = json.loads(self._main(["where", "--json"]))
+        self.assertEqual(d["home"], L.HOME_DIR)
+        self.assertTrue(d["items"]["data file"]["exists"])
+        self.assertGreater(d["items"]["data file"]["bytes"], 0)
+        self.assertEqual(d["items"]["backups"]["path"], L.BACKUP_DIR)
+        # backups dir not created yet -> reported as not existing, not an error
+        self.assertFalse(d["items"]["backups"]["exists"])
+
     def test_year_json(self):
         self._main(["add", "100", "food", "a", "--date", "2026-01-15"])
         self._main(["add", "200", "food", "b", "--date", "2026-03-10"])

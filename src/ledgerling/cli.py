@@ -76,6 +76,7 @@ Commands:
     restore   Restore data from a backup (with a pre-restore safety copy)
     config    View or change settings (currency symbol, default list limit)
     version   Show the version (also `--version`)
+    where     Show the data folder and its files
     completion  Print a bash/zsh tab-completion script
     web       Launch a local web UI covering every command
 
@@ -93,7 +94,7 @@ import sys
 import tempfile
 from datetime import datetime, date, timedelta
 
-__version__ = "1.53.0"
+__version__ = "1.54.0"
 
 # --------------------------------------------------------------------------- #
 # Sandbox + storage
@@ -2832,6 +2833,61 @@ def cmd_version(args):
     print(f"ledgerling {__version__}")
 
 
+def _file_size(path):
+    try:
+        return os.path.getsize(path)
+    except OSError:
+        return None
+
+
+def _dir_summary(path):
+    try:
+        files = [f for f in os.listdir(path)
+                 if os.path.isfile(os.path.join(path, f))]
+        size = sum(_file_size(os.path.join(path, f)) or 0 for f in files)
+        return len(files), size
+    except OSError:
+        return None, None
+
+
+def cmd_where(args):
+    entries = [
+        ("data file", DATA_FILE, "file"),
+        ("config file", CONFIG_FILE, "file"),
+        ("exports", EXPORT_DIR, "dir"),
+        ("backups", BACKUP_DIR, "dir"),
+    ]
+    if getattr(args, "json", False):
+        out = {"home": HOME_DIR, "items": {}}
+        for label, path, kind in entries:
+            if kind == "file":
+                size = _file_size(path)
+                out["items"][label] = {"path": path, "exists": size is not None,
+                                       "bytes": size}
+            else:
+                n, size = _dir_summary(path)
+                out["items"][label] = {"path": path, "exists": n is not None,
+                                       "files": n, "bytes": size}
+        print(json.dumps(out, indent=2))
+        return
+
+    print("Ledgerling data folder")
+    print("=" * 56)
+    print(HOME_DIR)
+    print("-" * 56)
+    for label, path, kind in entries:
+        if kind == "file":
+            size = _file_size(path)
+            info = f"{size:,} bytes" if size is not None else "not created yet"
+        else:
+            n, size = _dir_summary(path)
+            info = (f"{n} file(s), {size:,} bytes" if n is not None
+                    else "not created yet")
+        print(f"{label:<12} {os.path.basename(path) or path:<26} {info}")
+    print("-" * 56)
+    print("Everything stays in this folder - nothing is posted or pushed.")
+
+
 def cmd_config(args):
     cfg = load_config()
 
@@ -3337,6 +3393,10 @@ def build_parser():
 
     vs = sub.add_parser("version", help="show the version")
     vs.set_defaults(func=cmd_version)
+
+    wh = sub.add_parser("where", help="show the data folder and its files")
+    wh.add_argument("--json", action="store_true", help="output JSON instead of text")
+    wh.set_defaults(func=cmd_where)
 
     wb = sub.add_parser("web", help="launch a local web UI (auto-covers every command)")
     wb.add_argument("--port", type=int, default=8730, help="port (default 8730)")
