@@ -244,6 +244,19 @@ class PureLogic(unittest.TestCase):
         with self.assertRaises(SystemExit):
             L.parse_date("2026-99-99")
 
+    def test_period_totals(self):
+        # shared by compare / today / statement: income, spending, net for a month
+        rows = [
+            {"amount": 100.0, "date": "2026-01-05", "kind": "income"},
+            {"amount": 30.0, "date": "2026-01-10"},            # expense (default)
+            {"amount": 12.5, "date": "2026-01-20", "kind": "expense"},
+            {"amount": 999.0, "date": "2026-02-01"},           # other month
+        ]
+        self.assertEqual(L._period_totals(rows, "2026-01"),
+                         {"income": 100.0, "spending": 42.5, "net": 57.5})
+        self.assertEqual(L._period_totals(rows, "2099-01"),
+                         {"income": 0.0, "spending": 0.0, "net": 0.0})
+
     def test_group_totals(self):
         rows = [
             {"amount": 10.0, "date": "2026-01-05"},                 # expense
