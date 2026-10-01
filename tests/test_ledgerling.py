@@ -869,6 +869,30 @@ class CLI(TempAppCase):
         self.assertEqual(d["status"], "on_track")
         self.assertGreater(d["monthly"], 0)
 
+    def test_read_commands_survive_empty_data(self):
+        # Every no-argument command must run on an empty store without an
+        # unhandled exception (division by zero, max() of empty, etc.).
+        # Commands needing positionals exit via argparse (SystemExit) -> fine.
+        import argparse
+        import contextlib
+        parser = L.build_parser()
+        names = []
+        for a in parser._actions:
+            if isinstance(a, argparse._SubParsersAction):
+                names = list(a.choices.keys())
+        self.assertIn("summary", names)   # sanity: we actually found commands
+        for name in names:
+            if name == "web":             # starts a server; skip
+                continue
+            try:
+                with contextlib.redirect_stdout(io.StringIO()), \
+                        contextlib.redirect_stderr(io.StringIO()):
+                    L.main([name])
+            except SystemExit:
+                pass
+            except Exception as exc:       # noqa: BLE001 - we want any crash
+                self.fail(f"'{name}' crashed on empty data: {exc!r}")
+
     def test_list_sort_amount(self):
         self._main(["add", "30", "food", "a", "--date", "2026-01-01"])
         self._main(["add", "10", "food", "b", "--date", "2026-01-02"])
