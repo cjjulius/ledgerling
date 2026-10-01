@@ -1417,6 +1417,26 @@ class CLI(TempAppCase):
         self._main(["fx", "rm", "gbp"])
         self.assertEqual(L.load_config().get("fx"), {})
 
+    def test_net_all_time_and_month(self):
+        self._main(["add", "40", "food", "a", "--date", "2026-01-10"])
+        self._main(["income", "100", "salary", "b", "--date", "2026-01-15"])
+        self._main(["add", "10", "food", "c", "--date", "2026-02-01"])
+        allt = json.loads(self._main(["net", "--json"]))
+        self.assertEqual(allt["scope"], "all time")
+        self.assertEqual(allt["income"], 100.0)
+        self.assertEqual(allt["expenses"], 50.0)
+        self.assertEqual(allt["net"], 50.0)
+        self.assertEqual(allt["savings_rate"], 50.0)
+        jan = json.loads(self._main(["net", "--month", "2026-01", "--json"]))
+        self.assertEqual(jan["net"], 60.0)      # 100 income - 40 expense
+        self.assertEqual(jan["savings_rate"], 60.0)
+
+    def test_net_no_income_rate_is_null(self):
+        self._main(["add", "10", "food", "a"])
+        d = json.loads(self._main(["net", "--json"]))
+        self.assertEqual(d["net"], -10.0)
+        self.assertIsNone(d["savings_rate"])
+
     def test_average_json(self):
         self._main(["add", "100", "food", "a", "--date", "2026-01-01"])
         self._main(["add", "100", "food", "b", "--date", "2026-01-11"])  # 11-day span

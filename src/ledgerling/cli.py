@@ -51,6 +51,7 @@ Commands:
     matrix    Category x month spending grid (pivot table)
     tagmatrix  #tag x month spending grid (pivot table)
     top       List your largest expenses (optionally by month/category)
+    net       Income, expenses, net and savings rate (all-time or a month)
     average   Average spending per day / week / month
     distribution  Histogram of expense sizes
     anomalies  Flag unusually large expenses within each category
@@ -111,7 +112,7 @@ import tempfile
 import time
 from datetime import datetime, date, timedelta
 
-__version__ = "1.119.0"
+__version__ = "1.120.0"
 
 # --------------------------------------------------------------------------- #
 # Sandbox + storage
@@ -2087,6 +2088,38 @@ def cmd_runway(args):
     else:
         label = "month" if months == 1 else "months"
         print(f"about {months:g} {label} of runway -> ~{depletion}")
+
+
+def cmd_net(args):
+    """Income, expenses, net, and savings rate for all time or one month."""
+    check_month(args.month)
+    data = load()
+    if args.month:
+        rows = [e for e in data["expenses"] if month_of(e["date"]) == args.month]
+        scope = args.month
+    else:
+        rows = data["expenses"]
+        scope = "all time"
+    income = round(sum(e["amount"] for e in rows if kind_of(e) == "income"), 2)
+    expenses = round(sum(e["amount"] for e in rows
+                         if kind_of(e) == "expense"), 2)
+    net = round(income - expenses, 2)
+    rate = round(net / income * 100, 1) if income > 0 else None
+
+    if getattr(args, "json", False):
+        print(json.dumps({"scope": scope, "income": income,
+                          "expenses": expenses, "net": net,
+                          "savings_rate": rate}, indent=2))
+        return
+
+    print(f"Net ({scope})")
+    print("=" * 36)
+    print(f"{'income':<12} {money(income):>16}")
+    print(f"{'expenses':<12} {money(expenses):>16}")
+    print(f"{'net':<12} {money(net):>16}")
+    if rate is not None:
+        verb = "saved" if net >= 0 else "overspent by"
+        print(f"{verb} {abs(rate):g}% of income")
 
 
 def cmd_average(args):
@@ -4811,6 +4844,12 @@ def build_parser():
     rw.add_argument("--json", action="store_true", help="output JSON instead of text")
     rw.set_defaults(func=cmd_runway)
 
+    nt = sub.add_parser("net",
+                        help="income, expenses, net and savings rate (all-time or a month)")
+    nt.add_argument("--month", help="restrict to a month, YYYY-MM")
+    nt.add_argument("--json", action="store_true", help="output JSON instead of text")
+    nt.set_defaults(func=cmd_net)
+
     av = sub.add_parser("average", help="average spending per day/week/month")
     av.add_argument("--json", action="store_true", help="output JSON instead of text")
     av.set_defaults(func=cmd_average)
@@ -5064,6 +5103,7 @@ CATCHUP_COMMANDS = frozenset({
     "balance", "commitments", "savings", "heatmap", "suggest", "insights",
     "tagtrend", "range", "matrix", "cumulative", "allowance", "tagmatrix",
     "weekly", "years", "anomalies", "roundup", "cashflow", "target", "runway",
+    "net",
 })
 MUTATING_COMMANDS = frozenset({
     "add", "income", "edit", "delete", "clone", "refund", "note", "tag",
