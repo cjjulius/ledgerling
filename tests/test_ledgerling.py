@@ -2694,6 +2694,39 @@ class CLI(TempAppCase):
         d = json.loads(self._main(["stats", "--json"]))
         self.assertIsNone(d["goal"])
 
+    def test_statement_json_and_save(self):
+        m = "2026-05"
+        self._main(["income", "2000", "salary", "pay", "--date", f"{m}-01"])
+        self._main(["add", "300", "food", "groceries", "--date", f"{m}-03"])
+        self._main(["add", "120", "food", "dinner", "--date", f"{m}-10"])
+        self._main(["add", "80", "transit", "bus", "--date", f"{m}-12"])
+        self._main(["budget", "--category", "food", "--amount", "350"])
+        d = json.loads(self._main(["statement", "--month", m, "--json"]))
+        self.assertEqual(d["income"], 2000.0)
+        self.assertEqual(d["spending"], 500.0)
+        self.assertEqual(d["net"], 1500.0)
+        self.assertEqual(d["savings_rate"], 75.0)
+        # by_category sorted descending; food (420) before transit (80)
+        self.assertEqual([c["category"] for c in d["by_category"]],
+                         ["food", "transit"])
+        food = next(b for b in d["budgets"] if b["category"] == "food")
+        self.assertEqual(food["spent"], 420.0)
+        self.assertEqual(food["over"], 70.0)          # 420 - 350
+        self.assertEqual(d["top"][0]["amount"], 300.0)  # largest expense first
+        # --save writes a Markdown file into exports/
+        out = self._main(["statement", "--month", m, "--save"])
+        self.assertIn("wrote statement", out)
+        path = os.path.join(L.EXPORT_DIR, f"statement_{m}.md")
+        self.assertTrue(os.path.exists(path))
+        with open(path, encoding="utf-8") as fh:
+            md = fh.read()
+        self.assertIn(f"# Ledgerling statement — {m}", md)
+        self.assertIn("## Spending by category", md)
+
+    def test_statement_empty_month(self):
+        out = self._main(["statement", "--month", "2099-01"])
+        self.assertIn("nothing recorded", out)
+
     def test_networth_totals_pure(self):
         acc = {"checking": {"amount": 2500.0, "debt": False},
                "card": {"amount": 800.0, "debt": True},

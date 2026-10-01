@@ -28,6 +28,7 @@ Commands:
     search    Find expenses by keyword, #tag, category, month, or amount range
     summary   Totals by category with an ASCII bar chart
     report    Month-over-month trend and budget adherence
+    statement  A consolidated monthly statement (print / JSON / save as Markdown)
     stats     Analytics: extremes, averages, per-tag totals, projection
     day       Entries for a single day (today by default)
     week      This week's spending by day (Mon-Sun), income and net
@@ -123,7 +124,7 @@ import tempfile
 import time
 from datetime import datetime, date, timedelta
 
-__version__ = "1.135.0"
+__version__ = "1.136.0"
 
 # --------------------------------------------------------------------------- #
 # Sandbox + storage
@@ -4094,6 +4095,83 @@ def month_net(rows, period):
     return inc - exp
 
 
+def month_statement(data, period, top_n=5):
+    """A consolidated monthly statement as a plain dict: income / spending / net
+    / savings rate, spending by category, budget adherence, and the largest
+    expenses. Pure, so the text / JSON / Markdown renderers all share it."""
+    rows = filter_month(data["expenses"], period)
+    income = round(sum(e["amount"] for e in rows
+                       if kind_of(e) == "income"), 2)
+    spending = round(sum(e["amount"] for e in rows
+                         if kind_of(e) == "expense"), 2)
+    net = round(income - spending, 2)
+    rate = round(net / income * 100, 1) if income > 0 else None
+
+    cats = {}
+    for e in rows:
+        if kind_of(e) == "expense":
+            cats[e["category"]] = round(cats.get(e["category"], 0.0)
+                                        + e["amount"], 2)
+    by_category = [{"category": c, "total": t}
+                   for c, t in sorted(cats.items(), key=lambda kv: -kv[1])]
+
+    budgets = []
+    for cat, lim in sorted(data["budgets"].items()):
+        if isinstance(lim, bool) or not isinstance(lim, (int, float)):
+            continue
+        spent = cats.get(cat, 0.0)
+        budgets.append({"category": cat, "budget": round(lim, 2),
+                        "spent": round(spent, 2),
+                        "over": round(max(0.0, spent - lim), 2)})
+
+    top = sorted((e for e in rows if kind_of(e) == "expense"),
+                 key=lambda e: e["amount"], reverse=True)[:max(0, top_n)]
+    top_rows = [{"amount": e["amount"], "category": e["category"],
+                 "note": e.get("note", ""), "date": e["date"]} for e in top]
+
+    return {"month": period, "income": income, "spending": spending, "net": net,
+            "savings_rate": rate, "entry_count": len(rows),
+            "by_category": by_category, "budgets": budgets, "top": top_rows}
+
+
+def _statement_markdown(st, currency="$"):
+    """Render a month_statement() dict as a shareable Markdown document."""
+    def m(v):
+        cfg_before = _CONFIG.get("symbol_position") != "after"
+        s = f"{abs(v):,.2f}"
+        body = (f"{currency}{s}" if cfg_before else f"{s} {currency}")
+        return ("-" + body) if v < 0 else body
+
+    out = [f"# Ledgerling statement — {st['month']}", ""]
+    out.append(f"- **Income:** {m(st['income'])}")
+    out.append(f"- **Spending:** {m(st['spending'])}")
+    out.append(f"- **Net:** {m(st['net'])}")
+    if st["savings_rate"] is not None:
+        out.append(f"- **Savings rate:** {st['savings_rate']}%")
+    out.append(f"- **Entries:** {st['entry_count']}")
+    out.append("")
+    if st["by_category"]:
+        out += ["## Spending by category", "", "| Category | Total |",
+                "| --- | ---: |"]
+        out += [f"| {r['category']} | {m(r['total'])} |"
+                for r in st["by_category"]]
+        out.append("")
+    if st["budgets"]:
+        out += ["## Budget adherence", "",
+                "| Category | Spent | Budget | Over |",
+                "| --- | ---: | ---: | ---: |"]
+        out += [f"| {b['category']} | {m(b['spent'])} | {m(b['budget'])} | "
+                f"{m(b['over']) if b['over'] else '-'} |" for b in st["budgets"]]
+        out.append("")
+    if st["top"]:
+        out += ["## Largest expenses", "", "| Date | Amount | Category | Note |",
+                "| --- | ---: | --- | --- |"]
+        out += [f"| {t['date']} | {m(t['amount'])} | {t['category']} | "
+                f"{t['note']} |" for t in st["top"]]
+        out.append("")
+    return "\n".join(out).rstrip() + "\n"
+
+
 def cmd_goal(args):
     data = load()
 
@@ -4126,6 +4204,66 @@ def cmd_goal(args):
         print(f"met - {money(net - goal)} over your goal")
     else:
         print(f"{money(goal - net)} to go")
+
+
+def cmd_statement(args):
+    """A consolidated monthly statement. Prints by default; --json emits the
+    structured form; --save writes a Markdown document to the exports folder."""
+    check_month(args.month)
+    data = load()
+    period = args.month or date.today().isoformat()[:7]
+    st = month_statement(data, period)
+
+    save_target = getattr(args, "save", None)
+    if save_target:
+        name = save_target if isinstance(save_target, str) else \
+            f"statement_{period}.md"
+        target = os.path.join(EXPORT_DIR, os.path.basename(name))
+        os.makedirs(EXPORT_DIR, exist_ok=True)
+        _within_home(target)
+        try:
+            with open(target, "w", encoding="utf-8") as fh:
+                fh.write(_statement_markdown(st, _CONFIG.get("currency", "$")))
+        except OSError as exc:
+            sys.exit(f"error: could not write {target}: {exc}")
+        if not getattr(args, "json", False):
+            print(f"wrote statement for {period} to {target}")
+            return
+
+    if getattr(args, "json", False):
+        print(json.dumps(st, indent=2))
+        return
+
+    print(f"Statement — {period}")
+    print("=" * 52)
+    print(f"  income {money(st['income'])}   spending {money(st['spending'])}"
+          f"   net {money(st['net'])}")
+    if st["savings_rate"] is not None:
+        print(f"  savings rate {st['savings_rate']}%   "
+              f"({st['entry_count']} entr{'y' if st['entry_count'] == 1 else 'ies'})")
+    if not st["by_category"] and not st["income"]:
+        print("-" * 52)
+        print(f"nothing recorded in {period}")
+        return
+    if st["by_category"]:
+        print("-" * 52)
+        print("  Spending by category")
+        for r in st["by_category"]:
+            print(f"    {r['category']:<16} {money(r['total']):>12}")
+    if st["budgets"]:
+        print("-" * 52)
+        print("  Budget adherence")
+        for b in st["budgets"]:
+            flag = f"  OVER by {money(b['over'])}" if b["over"] else ""
+            print(f"    {b['category']:<16} {money(b['spent']):>10}"
+                  f" / {money(b['budget']):<10}{flag}")
+    if st["top"]:
+        print("-" * 52)
+        print("  Largest expenses")
+        for t in st["top"]:
+            note = f" - {t['note']}" if t["note"] else ""
+            print(f"    {t['date']}  {money(t['amount']):>10}  "
+                  f"[{t['category']}]{note}")
 
 
 def cmd_networth(args):
@@ -5436,6 +5574,16 @@ def build_parser():
     rp.add_argument("--json", action="store_true", help="output JSON instead of text")
     rp.set_defaults(func=cmd_report)
 
+    stm = sub.add_parser("statement",
+                         help="a consolidated monthly statement (print / JSON / "
+                              "save as Markdown)")
+    stm.add_argument("--month", help="which month, YYYY-MM (default: current)")
+    stm.add_argument("--save", nargs="?", const=True, default=None, metavar="FILE",
+                     help="write a Markdown statement to the exports folder "
+                          "(default name: statement_<month>.md)")
+    stm.add_argument("--json", action="store_true", help="output JSON instead of text")
+    stm.set_defaults(func=cmd_statement)
+
     sr = sub.add_parser("search", help="find expenses by keyword and filters")
     sr.add_argument("keyword", nargs="?", default="",
                     help="substring to match in note or category")
@@ -6063,6 +6211,7 @@ CATCHUP_COMMANDS = frozenset({
     "tagtrend", "range", "matrix", "cumulative", "allowance", "tagmatrix",
     "weekly", "years", "anomalies", "roundup", "cashflow", "target", "runway",
     "net", "subscriptions", "payees", "overbudget", "today", "worthtrend",
+    "statement",
 })
 MUTATING_COMMANDS = frozenset({
     "add", "income", "edit", "delete", "clone", "refund", "note", "tag",
