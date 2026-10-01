@@ -4,6 +4,16 @@ All notable changes to Ledgerling are documented here. The format is based on
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and this project
 adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.111.0] - 2026-10-01
+
+### Added
+
+- `loan` — a loan/amortization calculator (the borrowing complement to
+  `interest`). Given a principal, annual `--rate`, and `--years`, it reports the
+  level monthly payment, total paid, and total interest over the term. Pure
+  arithmetic that touches no stored data; supports `--json`. A calculator, not
+  a loan offer.
+
 ## [1.110.0] - 2026-10-01
 
 ### Added
@@ -1134,6 +1144,7 @@ file, standard library only, strictly confined to its own folder.
   guard (`_within_app`) that refuses any path escaping the app folder; imports
   and restores are reduced to a basename and looked up only within the folder.
 
+[1.111.0]: #11110---2026-10-01
 [1.110.0]: #11100---2026-10-01
 [1.109.0]: #11090---2026-10-01
 [1.108.0]: #11080---2026-10-01

@@ -752,6 +752,26 @@ class CLI(TempAppCase):
         self.assertIsNone(d["negative_on"])
         self.assertEqual(d["end_balance"], 50.0)
 
+    def test_loan_amortization(self):
+        # 10000 at 6%/yr over 5 years -> ~193.33/mo
+        d = json.loads(self._main(["loan", "10000", "--rate", "6",
+                                   "--years", "5", "--json"]))
+        self.assertEqual(d["periods"], 60)
+        self.assertEqual(d["monthly_payment"], 193.33)
+        self.assertEqual(d["total_paid"], round(193.33 * 60, 2))
+        self.assertEqual(d["total_interest"],
+                         round(d["total_paid"] - 10000, 2))
+
+    def test_loan_zero_rate_is_principal_over_term(self):
+        d = json.loads(self._main(["loan", "1200", "--rate", "0",
+                                   "--years", "1", "--json"]))
+        self.assertEqual(d["monthly_payment"], 100.0)   # 1200 / 12
+        self.assertEqual(d["total_interest"], 0.0)
+
+    def test_loan_rejects_zero_principal(self):
+        with self.assertRaises(SystemExit):
+            self._main(["loan", "0"])
+
     def test_interest_no_rate_is_linear(self):
         d = json.loads(self._main(["interest", "1000", "--rate", "0",
                                    "--monthly", "100", "--years", "1", "--json"]))
