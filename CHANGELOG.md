@@ -4,6 +4,17 @@ All notable changes to Ledgerling are documented here. The format is based on
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and this project
 adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.89.0] - 2026-09-30
+
+### Fixed
+
+- Web UI: variadic positionals (`nargs="+"`/`"*"`) such as `split`'s
+  category/amount pairs were sent as a single argv token, so running `split`
+  from the UI failed. `describe()` now flags such arguments as `variadic`, and
+  the form tokenizes the field on whitespace into separate argv values. The
+  field also shows a "space-separated values" hint. Any future variadic command
+  benefits automatically.
+
 ## [1.88.0] - 2026-09-30
 
 ### Added
@@ -888,6 +899,7 @@ file, standard library only, strictly confined to its own folder.
   guard (`_within_app`) that refuses any path escaping the app folder; imports
   and restores are reduced to a basename and looked up only within the folder.
 
+[1.89.0]: #1890---2026-09-30
 [1.88.0]: #1880---2026-09-30
 [1.87.0]: #1870---2026-09-30
 [1.86.0]: #1860---2026-09-30

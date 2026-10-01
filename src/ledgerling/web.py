@@ -38,7 +38,8 @@ def _describe_action(a):
         d.update(kind="option", flag=flag)
     else:
         d.update(kind="positional",
-                 optional=a.nargs in ("?", "*"))
+                 optional=a.nargs in ("?", "*"),
+                 variadic=a.nargs in ("+", "*"))
     if a.choices:
         d.update(type="choice", choices=list(a.choices))
     elif a.type is int:
@@ -864,6 +865,7 @@ function fieldFor(a) {
   wrap.dataset.kind = a.kind;
   wrap.dataset.flag = a.flag || '';
   wrap.dataset.type = a.type;
+  if (a.variadic) wrap.dataset.variadic = '1';
   const req = (a.kind === 'positional' && !a.optional);
   const fid = 'fld' + (++FIELD_SEQ);
   const helpId = a.help ? fid + '-help' : '';
@@ -923,6 +925,9 @@ function fieldFor(a) {
     if (a.type === 'float') inp.step = 'any';
   }
   inp.className = 'inp';
+  if (a.variadic && inp.tagName === 'INPUT' && !inp.placeholder) {
+    inp.placeholder = 'space-separated values';
+  }
   wire(inp);
   wrap.appendChild(inp);
   return wrap;
@@ -935,8 +940,13 @@ function buildArgv(c, form) {
     const inp = f.querySelector('.inp');
     if (t === 'bool') { if (inp.checked) options.push(flag); return; }
     const v = inp.value.trim();
-    if (kind === 'positional') { if (v !== '') positionals.push(v); }
-    else if (v !== '') { options.push(flag, v); }
+    if (kind === 'positional') {
+      if (v === '') return;
+      // A variadic positional (nargs + / *) is several argv tokens, so split
+      // the field on whitespace instead of passing one quoted blob.
+      if (f.dataset.variadic === '1') positionals.push(...v.split(/\s+/));
+      else positionals.push(v);
+    } else if (v !== '') { options.push(flag, v); }
   });
   return c.argv.concat(positionals, options);
 }
