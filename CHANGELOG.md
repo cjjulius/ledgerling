@@ -4,6 +4,25 @@ All notable changes to Ledgerling are documented here. The format is based on
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and this project
 adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.127.0] - 2026-10-01
+
+### Added
+
+- `overbudget` command: a longitudinal budget-breach audit. It applies your
+  current budgets to every month that has spending and lists each
+  category/month where actual spend exceeded the budget, with the overage and
+  percent-of-budget, plus a total overspend. Fills the gap between `report`
+  (budget adherence for the latest month only) and `pace` (current month only).
+  `--month YYYY-MM` and `--category` scope the check; `--json` supported.
+  Grouped under Budgets & goals in the web UI.
+
+### Fixed
+
+- Removed a duplicate `_median()` definition in the CLI module (a second,
+  identical copy added alongside `subscriptions` was silently shadowing the
+  original); the single surviving definition serves both `stats` and
+  `subscriptions`.
+
 ## [1.126.1] - 2026-10-01
 
 ### Changed
@@ -1399,6 +1418,7 @@ file, standard library only, strictly confined to its own folder.
   guard (`_within_app`) that refuses any path escaping the app folder; imports
   and restores are reduced to a basename and looked up only within the folder.
 
+[1.127.0]: #11270---2026-10-01
 [1.126.1]: #11261---2026-10-01
 [1.126.0]: #11260---2026-10-01
 [1.125.0]: #11250---2026-10-01

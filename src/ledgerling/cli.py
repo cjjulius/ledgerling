@@ -84,6 +84,7 @@ Commands:
     unbudget  Remove a category's budget (or --all)
     pace      Budget pace: spent vs day-adjusted expected, projected EOM
     allowance  How much you can still spend per day to stay on budget
+    overbudget  Budget breaches across every month of history
     goal      Set / view a monthly savings goal
     recur     Recurring rules (add/from/edit/list/remove/run/skip/unskip/pause/resume)
     export    Write entries to CSV/JSON (filter by month/range/category/kind)
@@ -114,7 +115,7 @@ import tempfile
 import time
 from datetime import datetime, date, timedelta
 
-__version__ = "1.126.1"
+__version__ = "1.127.0"
 
 # --------------------------------------------------------------------------- #
 # Sandbox + storage
@@ -1193,6 +1194,64 @@ def cmd_report(args):
         print("-" * 56)
         verdict = "all within budget" if over == 0 else f"{over} category(ies) over"
         print(f"result: {verdict}")
+
+
+def cmd_overbudget(args):
+    """List budget breaches across history: for every month with spending, which
+    budgeted categories exceeded their budget and by how much. Your current
+    budgets are applied retroactively to each month -- the longitudinal view
+    that `report` (latest month only) and `pace` (current month) don't give."""
+    check_month(getattr(args, "month", None))
+    data = load()
+    if not data["budgets"]:
+        print("no budgets set. Try: budget --category food --amount 400")
+        return
+
+    exp_months = sorted({month_of(e["date"])
+                         for e in expenses_only(data["expenses"])})
+    months = ([args.month] if args.month in exp_months else []) \
+        if args.month else exp_months
+
+    only = clean_category(args.category) if getattr(args, "category", None) else None
+    budgets = {c: lim for c, lim in data["budgets"].items()
+               if only is None or c == only}
+
+    breaches = []
+    for m in months:
+        for cat, limit in sorted(budgets.items()):
+            spent = round(category_spent(data, cat, m), 2)
+            if limit > 0 and spent > limit:
+                breaches.append({
+                    "month": m, "category": cat, "budget": round(limit, 2),
+                    "spent": spent, "over": round(spent - limit, 2),
+                    "pct": round(spent / limit * 100, 1),
+                })
+    breaches.sort(key=lambda b: (b["month"], -b["over"]))
+    total_over = round(sum(b["over"] for b in breaches), 2)
+
+    if getattr(args, "json", False):
+        print(json.dumps({
+            "breaches": breaches,
+            "count": len(breaches),
+            "months_checked": len(months),
+            "total_over": total_over,
+        }, indent=2))
+        return
+
+    if not breaches:
+        scope = f" in {args.month}" if args.month else ""
+        print(f"no budget breaches{scope} - all within budget")
+        return
+
+    print("Budget breaches (current budgets applied to each month)")
+    print("=" * 64)
+    for b in breaches:
+        print(f"{b['month']}  {b['category']:<14} "
+              f"{money(b['spent']):>10} / {money(b['budget']):<10} "
+              f"over {money(b['over']):>9}  {b['pct']:4.0f}%")
+    print("-" * 64)
+    print(f"{len(breaches)} breach(es) across {len(months)} month(s); "
+          f"total overspend {money(total_over)}")
 
 
 def cmd_search(args):
@@ -3181,15 +3240,6 @@ def _normalize_payee(entry):
     return key if key else "(" + entry["category"] + ")"
 
 
-def _median(values):
-    s = sorted(values)
-    n = len(s)
-    if not n:
-        return 0.0
-    mid = n // 2
-    return s[mid] if n % 2 else (s[mid - 1] + s[mid]) / 2
-
-
 def detect_subscriptions(data, min_count=3, tolerance=0.25):
     """Find subscription-like spending in the expense history: a payee charged
     on a regular cadence (weekly..yearly) with a stable amount. Returns a list
@@ -5046,6 +5096,13 @@ def build_parser():
     al.add_argument("--json", action="store_true", help="output JSON instead of text")
     al.set_defaults(func=cmd_allowance)
 
+    ob = sub.add_parser("overbudget",
+                        help="list budget breaches across every month of history")
+    ob.add_argument("--month", help="only check this month, YYYY-MM")
+    ob.add_argument("--category", help="only check this category")
+    ob.add_argument("--json", action="store_true", help="output JSON instead of text")
+    ob.set_defaults(func=cmd_overbudget)
+
     di = sub.add_parser("distribution", help="histogram of expense sizes")
     di.add_argument("--month", help="restrict to a month, YYYY-MM")
     di.add_argument("--json", action="store_true", help="output JSON instead of text")
@@ -5399,7 +5456,7 @@ CATCHUP_COMMANDS = frozenset({
     "balance", "commitments", "savings", "heatmap", "suggest", "insights",
     "tagtrend", "range", "matrix", "cumulative", "allowance", "tagmatrix",
     "weekly", "years", "anomalies", "roundup", "cashflow", "target", "runway",
-    "net", "subscriptions", "payees",
+    "net", "subscriptions", "payees", "overbudget",
 })
 MUTATING_COMMANDS = frozenset({
     "add", "income", "edit", "delete", "clone", "refund", "note", "tag",

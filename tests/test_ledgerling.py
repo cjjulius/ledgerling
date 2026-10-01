@@ -984,6 +984,43 @@ class CLI(TempAppCase):
         out = self._main(["pace"])
         self.assertIn("no budgets set", out)
 
+    def test_overbudget_json(self):
+        self._main(["budget", "--category", "food", "--amount", "100"])
+        self._main(["budget", "--category", "rent", "--amount", "1000"])
+        self._main(["add", "150", "food", "a", "--date", "2026-01-10"])  # over
+        self._main(["add", "80", "food", "b", "--date", "2026-02-10"])   # under
+        self._main(["add", "120", "food", "c", "--date", "2026-02-20"])  # Feb total 200 over
+        self._main(["add", "900", "rent", "d", "--date", "2026-01-05"])  # under
+        d = json.loads(self._main(["overbudget", "--json"]))
+        self.assertEqual(d["count"], 2)                         # Jan food, Feb food
+        self.assertEqual(d["months_checked"], 2)                # Jan, Feb
+        self.assertEqual(d["total_over"], 150.0)                # 50 + 100
+        first = d["breaches"][0]
+        self.assertEqual((first["month"], first["category"]), ("2026-01", "food"))
+        self.assertEqual(first["over"], 50.0)
+        self.assertEqual(first["pct"], 150.0)
+        # rent never breached
+        self.assertTrue(all(b["category"] != "rent" for b in d["breaches"]))
+
+    def test_overbudget_filters_and_empty(self):
+        self._main(["budget", "--category", "food", "--amount", "100"])
+        self._main(["add", "150", "food", "a", "--date", "2026-01-10"])
+        self._main(["add", "150", "food", "b", "--date", "2026-02-10"])
+        # scope to one month
+        d = json.loads(self._main(["overbudget", "--month", "2026-02", "--json"]))
+        self.assertEqual([b["month"] for b in d["breaches"]], ["2026-02"])
+        self.assertEqual(d["months_checked"], 1)
+        # scope to a category with no breaches -> empty
+        self._main(["budget", "--category", "rent", "--amount", "1000"])
+        d2 = json.loads(self._main(["overbudget", "--category", "rent", "--json"]))
+        self.assertEqual(d2["count"], 0)
+        # text path for the no-breach case
+        self.assertIn("all within budget",
+                      self._main(["overbudget", "--category", "rent"]))
+
+    def test_overbudget_no_budgets(self):
+        self.assertIn("no budgets set", self._main(["overbudget"]))
+
     def test_distribution_json(self):
         for amt in (5, 8, 30, 120, 500):
             self._main(["add", str(amt), "food", "x"])

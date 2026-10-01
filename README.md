@@ -151,6 +151,13 @@ ledgerling pace
 # Budget allowance: how much you can still spend per day to stay on budget
 ledgerling allowance
 
+# Budget breaches across your whole history: applying your current budgets to
+# every month, which categories went over and by how much. (report shows only
+# the latest month; pace shows only the current one.)
+ledgerling overbudget
+ledgerling overbudget --month 2026-09        # just one month
+ledgerling overbudget --category food        # just one category
+
 # Monthly savings goal (net vs goal shows up in goal/stats/report)
 ledgerling goal --amount 500
 ledgerling goal
