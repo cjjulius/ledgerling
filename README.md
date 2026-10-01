@@ -294,6 +294,13 @@ ledgerling tagmatrix --months 6
 ledgerling upcoming
 ledgerling upcoming --days 60
 
+# Export those upcoming charges as an iCalendar (.ics) file you can import
+# into any calendar app (Google / Apple / Outlook). Each charge becomes an
+# all-day event with a stable id, so re-importing updates rather than
+# duplicates. The file is written inside the data folder's exports/ dir.
+ledgerling upcoming --days 60 --ics            # -> exports/upcoming.ics
+ledgerling upcoming --days 90 --ics bills.ics  # custom filename
+
 # Project a running balance forward from your recurring rules (register view);
 # flags if/when the balance dips below zero. Starts from your all-time net.
 ledgerling cashflow --days 45

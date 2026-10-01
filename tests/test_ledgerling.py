@@ -13,7 +13,7 @@ import sys
 import tempfile
 import unittest
 from argparse import Namespace
-from datetime import date, timedelta
+from datetime import date, datetime, timedelta
 
 _ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 sys.path.insert(0, os.path.join(_ROOT, "src"))
@@ -245,6 +245,32 @@ class PureLogic(unittest.TestCase):
         self.assertEqual(agg["2026-02"], {"income": 0.0, "spending": 7.0})
         # a None key drops the entry
         self.assertEqual(L.group_totals(rows, lambda e: None), {})
+
+    def test_build_ics(self):
+        items = [
+            {"date": "2026-02-01", "amount": 1200.0, "category": "rent",
+             "kind": "expense", "note": "flat; cozy", "recur_id": 3},
+            {"date": "2026-02-05", "amount": 3000.0, "category": "salary",
+             "kind": "income", "note": "", "recur_id": 7},
+        ]
+        ics = L.build_ics(items, now=datetime(2026, 1, 1, 12, 0, 0))
+        self.assertTrue(ics.startswith("BEGIN:VCALENDAR\r\n"))
+        self.assertTrue(ics.endswith("END:VCALENDAR\r\n"))
+        self.assertEqual(ics.count("BEGIN:VEVENT"), 2)
+        self.assertIn("DTSTART;VALUE=DATE:20260201", ics)
+        self.assertIn("UID:3-2026-02-01@ledgerling", ics)
+        self.assertIn("DTSTAMP:20260101T120000Z", ics)
+        # expense is negative and ';' is iCalendar-escaped
+        self.assertIn("SUMMARY:flat\\; cozy (-1200.00)", ics)
+        # income is positive and falls back to the category when the note is empty
+        self.assertIn("SUMMARY:salary (+3000.00)", ics)
+        # every line is CRLF-terminated (no stray bare newline)
+        self.assertNotIn("\n", ics.replace("\r\n", ""))
+
+    def test_build_ics_empty(self):
+        ics = L.build_ics([], now=datetime(2026, 1, 1))
+        self.assertIn("BEGIN:VCALENDAR", ics)
+        self.assertEqual(ics.count("BEGIN:VEVENT"), 0)
 
     def test_normalize_payee(self):
         # note wins, #tags stripped, whitespace collapsed and lowercased
@@ -1693,6 +1719,31 @@ class CLI(TempAppCase):
     def test_upcoming_empty(self):
         out = self._main(["upcoming"])
         self.assertIn("nothing scheduled", out)
+
+    def test_upcoming_ics_writes_file(self):
+        self._main(["recur", "add", "10", "coffee", "latte", "--every", "day",
+                    "--start", date.today().isoformat()])
+        out = self._main(["upcoming", "--days", "3", "--ics", "bills.ics"])
+        self.assertIn("wrote", out)
+        path = os.path.join(L.EXPORT_DIR, "bills.ics")
+        self.assertTrue(os.path.exists(path))
+        with open(path, encoding="utf-8") as fh:
+            text = fh.read()
+        self.assertIn("BEGIN:VCALENDAR", text)
+        self.assertIn("BEGIN:VEVENT", text)
+        self.assertIn("latte", text)
+
+    def test_upcoming_ics_default_name_and_sandbox(self):
+        self._main(["recur", "add", "5", "snack", "--every", "day",
+                    "--start", date.today().isoformat()])
+        # bare --ics uses the default filename
+        self._main(["upcoming", "--days", "2", "--ics"])
+        self.assertTrue(os.path.exists(os.path.join(L.EXPORT_DIR, "upcoming.ics")))
+        # a path-traversal filename is reduced to its basename inside the folder
+        self._main(["upcoming", "--days", "2", "--ics", "../escape.ics"])
+        parent = os.path.dirname(L.EXPORT_DIR)
+        self.assertFalse(os.path.exists(os.path.join(parent, "escape.ics")))
+        self.assertTrue(os.path.exists(os.path.join(L.EXPORT_DIR, "escape.ics")))
 
     def test_completion_bash(self):
         out = self._main(["completion", "bash"])
