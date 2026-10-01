@@ -4,6 +4,16 @@ All notable changes to Ledgerling are documented here. The format is based on
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and this project
 adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.94.0] - 2026-10-01
+
+### Added
+
+- `recur list --json` emits structured rows (id, amount, category, every, kind,
+  note, start, until, next charge, status, upcoming skips), with `status` one of
+  `active`/`ended`/`paused`. Because of this, the self-generating web UI now
+  renders recurring rules as a sortable table (with the `until` and status
+  columns) instead of a plain text block. The text output is unchanged.
+
 ## [1.93.0] - 2026-10-01
 
 ### Added
@@ -942,6 +952,7 @@ file, standard library only, strictly confined to its own folder.
   guard (`_within_app`) that refuses any path escaping the app folder; imports
   and restores are reduced to a basename and looked up only within the folder.
 
+[1.94.0]: #1940---2026-10-01
 [1.93.0]: #1930---2026-10-01
 [1.92.0]: #1920---2026-09-30
 [1.91.0]: #1910---2026-09-30

@@ -333,6 +333,7 @@ ledgerling recur add 3000 salary "paycheck" --every month --income
 ledgerling recur add 450 loan "car" --every month --until 2027-06-30  # fixed term
 ledgerling recur from 5 --every month   # turn entry #5 into a recurring rule
 ledgerling recur list
+ledgerling recur list --json          # structured rows (id, next, until, status)
 ledgerling recur edit 1 --amount 1350 --note "rent increase"
 ledgerling recur edit 1 --until 2027-01-31   # add/change an end date
 ledgerling recur edit 1 --no-until           # make it open-ended again
