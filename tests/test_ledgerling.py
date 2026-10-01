@@ -42,6 +42,35 @@ class PureLogic(unittest.TestCase):
             L.CATCHUP_COMMANDS & L.MUTATING_COMMANDS, frozenset(),
             "a command is in both buckets")
 
+    def test_first_index_bounds(self):
+        start = date(2020, 1, 1)
+        self.assertEqual(L._first_index(start, "day", date(2019, 6, 1)), 0)
+        self.assertEqual(L._first_index(start, "day", start), 0)
+        self.assertEqual(L._first_index(start, "day", date(2020, 1, 11)), 10)
+        self.assertEqual(L._first_index(start, "week", date(2020, 1, 15)), 2)
+        self.assertEqual(L._first_index(start, "week", date(2020, 1, 14)), 2)
+        self.assertEqual(L._first_index(start, "month", date(2020, 3, 1)), 2)
+
+    def test_occurrences_since_matches_bruteforce(self):
+        # The `since` fast-forward must return exactly the occurrences a full
+        # scan would, filtered to >= since -- including month-end day clamping.
+        through = date(2027, 6, 15)
+        rules = [
+            {"start": "2020-01-01", "every": "day"},
+            {"start": "2020-01-01", "every": "week"},
+            {"start": "2020-01-31", "every": "month"},   # clamps to 28/29/30
+            {"start": "2026-09-30", "every": "month"},
+        ]
+        sinces = [date(2019, 1, 1), date(2020, 1, 1), date(2026, 1, 1),
+                  date(2026, 9, 30), date(2027, 1, 1), date(2027, 6, 15)]
+        for rule in rules:
+            full = L._occurrences(rule, through)
+            for since in sinces:
+                got = L._occurrences(rule, through, since)
+                expected = [d for d in full if d >= since]
+                self.assertEqual(got, expected,
+                                 "rule %s since %s" % (rule, since))
+
     def test_parse_tags(self):
         self.assertEqual(L.parse_tags("dinner #Work #work #reimbursable"),
                          ["reimbursable", "work"])  # deduped + lowercased

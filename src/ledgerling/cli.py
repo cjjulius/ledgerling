@@ -101,7 +101,7 @@ import sys
 import tempfile
 from datetime import datetime, date, timedelta
 
-__version__ = "1.86.0"
+__version__ = "1.87.0"
 
 # --------------------------------------------------------------------------- #
 # Sandbox + storage
@@ -319,12 +319,36 @@ def budget_status_line(data, category, ref_iso):
 # Recurring engine
 # --------------------------------------------------------------------------- #
 
-def _occurrences(rule, today):
-    """All dates this rule should have fired on, from start through today."""
+def _first_index(start, every, since):
+    """Smallest k >= 0 such that the k-th occurrence of the rule is >= since."""
+    if since <= start:
+        return 0
+    diff = (since - start).days
+    if every == "day":
+        return diff
+    if every == "week":
+        return -(-diff // 7)  # ceil division
+    # month: add_months is nonlinear (day clamping) but monotonic in k, so
+    # estimate a safe lower bound then step forward to the exact first index.
+    k = max(0, (since.year - start.year) * 12 + (since.month - start.month) - 1)
+    while add_months(start, k) < since:
+        k += 1
+    return k
+
+
+def _occurrences(rule, through, since=None):
+    """All dates this rule should have fired on, from its start through
+    `through` (inclusive).
+
+    `since` is an optional lower bound: when given, occurrences strictly before
+    it are skipped without iterating from the rule's start. Every caller already
+    discards those earlier dates, so the result is identical -- this just keeps
+    long-running daily/weekly rules from looping over years of history.
+    """
     start = date.fromisoformat(rule["start"])
     every = rule["every"]
     out = []
-    k = 0
+    k = _first_index(start, every, since) if since is not None else 0
     while True:
         if every == "day":
             d = start + timedelta(days=k)
@@ -332,7 +356,7 @@ def _occurrences(rule, today):
             d = start + timedelta(weeks=k)
         else:  # month
             d = add_months(start, k)
-        if d > today:
+        if d > through:
             break
         out.append(d)
         k += 1
@@ -353,7 +377,9 @@ def apply_recurring(data):
         last = date.fromisoformat(rule["last"]) if rule.get("last") else None
         latest = last
         skips = set(rule.get("skips", []))
-        for d in _occurrences(rule, today):
+        # Only occurrences after `last` matter; fast-forward past the history.
+        since = (last + timedelta(days=1)) if last is not None else None
+        for d in _occurrences(rule, today, since):
             if last is not None and d <= last:
                 continue
             if d.isoformat() in skips:
@@ -1951,8 +1977,9 @@ def cmd_upcoming(args):
     horizon = today + timedelta(days=days)
 
     items = []
+    tomorrow = today + timedelta(days=1)
     for rule in data["recurring"]:
-        for d in _occurrences(rule, horizon):
+        for d in _occurrences(rule, horizon, tomorrow):
             if d > today:
                 items.append({
                     "date": d.isoformat(),
@@ -2017,11 +2044,12 @@ def cmd_cashflow(args):
     start_balance = balance
 
     events = []
+    tomorrow = today + timedelta(days=1)
     for rule in data["recurring"]:
         if rule.get("paused"):
             continue
         skips = set(rule.get("skips", []))
-        for d in _occurrences(rule, horizon):
+        for d in _occurrences(rule, horizon, tomorrow):
             if d > today and d.isoformat() not in skips:
                 events.append({
                     "date": d.isoformat(),
@@ -3443,7 +3471,7 @@ def cmd_recur_list(args):
     print("=" * 60)
     for r in sorted(data["recurring"], key=lambda x: x["id"]):
         skips = set(r.get("skips", []))
-        occ = _occurrences(r, add_months(today, 2))
+        occ = _occurrences(r, add_months(today, 2), today + timedelta(days=1))
         # the next charge is the first upcoming date that isn't skipped
         upcoming = [d for d in occ if d > today and d.isoformat() not in skips]
         nxt = upcoming[0].isoformat() if upcoming else "-"
@@ -3481,7 +3509,8 @@ def cmd_recur_skip(args):
         if rule.get("last"):
             after = max(after, date.fromisoformat(rule["last"]))
         horizon = today + timedelta(days=400)
-        nxt = next((d for d in _occurrences(rule, horizon) if d > after), None)
+        nxt = next((d for d in _occurrences(rule, horizon, after + timedelta(days=1))
+                    if d > after), None)
         if nxt is None:
             sys.exit("error: no upcoming occurrence to skip in the next ~year")
         target = nxt.isoformat()

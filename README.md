@@ -352,6 +352,11 @@ test asserts the two sets together cover exactly the parser's commands — so
 adding a new command without classifying it fails the suite rather than quietly
 changing the recurring catch-up behaviour.
 
+The recurring-occurrence generator takes an optional `since` lower bound so
+projections and catch-up don't iterate over years of history for long-running
+daily rules; a brute-force equivalence test guards that the fast path returns
+exactly the same dates as a full scan.
+
 ## How things behave
 
 - **Recurring rules** auto-catch-up: whenever you `add`, `list`, `summary`,
