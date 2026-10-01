@@ -131,6 +131,12 @@ class RecurringEngine(unittest.TestCase):
         self.assertEqual(got, [date(2026, 1, 31), date(2026, 2, 28),
                                date(2026, 3, 31)])
 
+    def test_occurrences_respects_until(self):
+        rule = {"start": "2026-01-01", "every": "month", "until": "2026-03-15"}
+        got = L._occurrences(rule, date(2026, 12, 31))
+        self.assertEqual(got, [date(2026, 1, 1), date(2026, 2, 1),
+                               date(2026, 3, 1)])  # Apr 1 is after until
+
     def test_apply_recurring_is_idempotent(self):
         data = {"expenses": [], "budgets": {}, "recurring": [{
             "id": 1, "amount": 1200.0, "category": "rent", "note": "flat #home",
@@ -714,6 +720,25 @@ class CLI(TempAppCase):
     def test_tip_rejects_bad_split(self):
         with self.assertRaises(SystemExit):
             self._main(["tip", "20", "--split", "0"])
+
+    def test_recur_until_stops_generation(self):
+        self._main(["recur", "add", "100", "rent", "x", "--every", "month",
+                    "--start", "2026-01-01", "--until", "2026-03-10"])
+        dates = sorted(e["date"] for e in L.load()["expenses"])
+        self.assertEqual(dates, ["2026-01-01", "2026-02-01", "2026-03-01"])
+
+    def test_recur_until_before_start_errors(self):
+        with self.assertRaises(SystemExit):
+            self._main(["recur", "add", "100", "rent", "x", "--every", "month",
+                        "--start", "2026-05-01", "--until", "2026-01-01"])
+
+    def test_recur_edit_until_and_clear(self):
+        self._main(["recur", "add", "10", "gym", "x", "--every", "month",
+                    "--start", "2026-01-01"])
+        self._main(["recur", "edit", "1", "--until", "2026-02-10"])
+        self.assertEqual(L.load()["recurring"][0]["until"], "2026-02-10")
+        self._main(["recur", "edit", "1", "--no-until"])
+        self.assertNotIn("until", L.load()["recurring"][0])
 
     def test_fx_set_list_convert(self):
         self._main(["fx", "set", "usd", "1"])
