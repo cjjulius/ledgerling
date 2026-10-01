@@ -4,6 +4,16 @@ All notable changes to Ledgerling are documented here. The format is based on
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and this project
 adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.116.0] - 2026-10-01
+
+### Added
+
+- Web UI: URL-hash routing. The selected command is written to the address
+  bar's hash (e.g. `#summary`, `#fx%20convert`), so reloading, bookmarking, or
+  using the browser's back/forward buttons returns to that command instead of
+  always resetting to the Dashboard. Clearing the hash (or opening the
+  Dashboard) returns home.
+
 ## [1.115.0] - 2026-10-01
 
 ### Added
@@ -1200,6 +1210,7 @@ file, standard library only, strictly confined to its own folder.
   guard (`_within_app`) that refuses any path escaping the app folder; imports
   and restores are reduced to a basename and looked up only within the folder.
 
+[1.116.0]: #11160---2026-10-01
 [1.115.0]: #11150---2026-10-01
 [1.114.1]: #11141---2026-10-01
 [1.114.0]: #11140---2026-10-01

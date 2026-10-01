@@ -37,7 +37,9 @@ Recurring / Data / Settings); it still **generates itself from the CLI**, so eve
 and every command added in the future — appears automatically as a form with its
 options, and running it shows the output as text, a table, a chart, or (for
 `heatmap`) a calendar. Multi-value arguments (like `split`'s category/amount
-pairs) are entered space-separated in one field and tokenized for you. No data
+pairs) are entered space-separated in one field and tokenized for you. The
+selected command is reflected in the URL hash, so you can reload, bookmark, or
+use the browser's back/forward buttons to return to a specific command. No data
 leaves your machine.
 
 Some commands get bespoke visualizations: `heatmap` renders a real calendar,

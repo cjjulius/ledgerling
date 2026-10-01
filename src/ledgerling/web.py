@@ -500,6 +500,23 @@ function groupOf(name) {
 
 function esc(s){ return String(s).replace(/[&<>]/g, m => ({'&':'&amp;','<':'&lt;','>':'&gt;'}[m])); }
 function findCmd(name) { return COMMANDS.find(c => c.name === name); }
+// --- URL-hash routing: deep-link / reload / back-forward to a command -------
+function currentRoute() {
+  try { return decodeURIComponent((location.hash || '').replace(/^#/, '')); }
+  catch (e) { return ''; }
+}
+function setHash(name) {
+  const h = name ? '#' + encodeURIComponent(name) : '';
+  if ((location.hash || '') !== h) location.hash = h;
+}
+function routeFromHash() {
+  // Called on hashchange; only act when the target differs from the view.
+  const name = currentRoute();
+  const c = name ? findCmd(name) : null;
+  const target = c ? name : 'home';
+  if (target === ACTIVE) return;
+  if (c) selectCmd(c); else showDashboard();
+}
 // Friendly Title-Case label for a command name (search still uses the raw name).
 function prettyName(name) {
   return name.split(' ')
@@ -580,7 +597,11 @@ async function boot() {
   });
   await refreshCategories();
   renderList('');
-  showDashboard();
+  // Deep-link support: open the command named in the URL hash, else dashboard.
+  window.addEventListener('hashchange', routeFromHash);
+  const initial = currentRoute();
+  const c0 = initial ? findCmd(initial) : null;
+  if (c0) selectCmd(c0); else showDashboard();
 }
 
 function navItem(name, help, active, onclick) {
@@ -635,6 +656,7 @@ function renderList(q) {
 
 function selectCmd(c) {
   ACTIVE = c.name; CURRENT = c;
+  setHash(c.name);
   renderList(document.getElementById('filter').value);
   const m = document.getElementById('main'); m.innerHTML = '';
   const ph = document.createElement('div'); ph.className = 'page-h';
@@ -766,6 +788,7 @@ function goalCard(goal, net) {
 
 async function showDashboard(month) {
   ACTIVE = 'home'; CURRENT = null;
+  setHash('');
   renderList(document.getElementById('filter').value);
   month = month || curMonth();
   const m = document.getElementById('main'); m.innerHTML = '';
