@@ -508,6 +508,18 @@ class CLI(TempAppCase):
         self.assertEqual(len(rows), 1)
         self.assertEqual(rows[0]["category"], "food")
 
+    def test_search_date_range(self):
+        for d in ("2026-01-05", "2026-02-10", "2026-03-20"):
+            self._main(["add", "10", "food", "x", "--date", d])
+        mid = json.loads(self._main(["search", "--since", "2026-02-01",
+                                     "--until", "2026-02-28", "--json"]))
+        self.assertEqual([e["date"] for e in mid], ["2026-02-10"])
+        # open-ended --since
+        after = json.loads(self._main(["search", "--since", "2026-02-01",
+                                       "--json"]))
+        self.assertEqual(sorted(e["date"] for e in after),
+                         ["2026-02-10", "2026-03-20"])
+
     def test_bad_month_exits(self):
         with self.assertRaises(SystemExit):
             self._main(["list", "--month", "2026-13"])
