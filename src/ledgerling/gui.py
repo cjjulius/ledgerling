@@ -295,6 +295,13 @@ def _tabular(data):
     return None
 
 
+def _has_required_args(cmd):
+    """True if the command has a required (non-optional) positional, so it can't
+    be run with an empty form (used to decide whether to auto-run on open)."""
+    return any(a["kind"] == "positional" and not a.get("optional")
+               for a in cmd.get("args", []))
+
+
 class LedgerlingGUI:
     def __init__(self, root, theme="dark"):
         import tkinter as tk  # local imports so importing this module is cheap
@@ -324,6 +331,7 @@ class LedgerlingGUI:
         self.pinned = [n for n in (state.get("pinned") or [])
                        if n in self.commands]
         self.onboarded = bool(state.get("onboarded"))
+        self._initial = state.get("last_command")   # reopen where you left off
 
         root.title("Ledgerling")
         root.minsize(940, 580)
@@ -346,8 +354,16 @@ class LedgerlingGUI:
         self._animate_pulse()
         root.protocol("WM_DELETE_WINDOW", self._on_close)
 
-        self.open_command("summary" if "summary" in self.commands else
-                          next(iter(self.commands)))
+        # Reopen the last-viewed command, else land on today's briefing.
+        start = (self._initial if self._initial in self.commands
+                 else ("today" if "today" in self.commands
+                       else "summary" if "summary" in self.commands
+                       else next(iter(self.commands))))
+        self.open_command(start)
+        # Auto-run read-friendly commands (no required fields) so the landing
+        # view shows real numbers immediately rather than an empty form.
+        if not _has_required_args(self.commands[start]):
+            self._after(150, self.run_current)
         if not self.onboarded:
             self._after(350, self.show_assistant)
 
@@ -751,6 +767,10 @@ class LedgerlingGUI:
         cmd = self.commands[name]
         self.cmd_title.config(text=f"{_icon_for(name)}  {name}")
         self.cmd_help.config(text=cmd.get("help", ""))
+        try:
+            self.root.title(f"Ledgerling — {name}")
+        except Exception:
+            pass
         self._highlight_nav(name)
 
         for child in self.form.winfo_children():
@@ -1049,7 +1069,8 @@ class LedgerlingGUI:
     def _persist(self):
         _save_state({"theme": self.theme_name,
                      "geometry": self._current_geometry(),
-                     "pinned": self.pinned, "onboarded": self.onboarded})
+                     "pinned": self.pinned, "onboarded": self.onboarded,
+                     "last_command": self.current})
 
     def _on_close(self):
         self._alive = False

@@ -54,6 +54,9 @@ standard library only — no extra dependencies). It opens a real OS window with
 - a **getting-started assistant** — a short guided tour that greets new users on
   first launch and is reopenable any time from Help → Getting started (or the
   toolbar's **? guide**);
+- it **opens where you left off** — the app reopens your last-viewed command
+  (new users land on today's briefing, auto-run so real numbers show right
+  away), and the window title reflects the current command;
 - a **schema-driven form** for the selected command (it generates itself from
   the CLI, so every current and future command appears automatically), a
   results area with an **Output** tab (text, with a Copy button) and a

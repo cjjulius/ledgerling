@@ -627,6 +627,16 @@ class WebUI(TempAppCase):
         self.assertEqual((mode, cols), ("scalars", ["value"]))
         self.assertIsNone(gui._tabular(None))
 
+    def test_gui_has_required_args(self):
+        from ledgerling import gui, web
+        cmds = {c["name"]: c for c in web.describe()["commands"]}
+        # today/summary have no required positional -> safe to auto-run on open
+        self.assertFalse(gui._has_required_args(cmds["today"]))
+        self.assertFalse(gui._has_required_args(cmds["summary"]))
+        # add needs amount/category; trend needs a category -> not auto-runnable
+        self.assertTrue(gui._has_required_args(cmds["add"]))
+        self.assertTrue(gui._has_required_args(cmds["trend"]))
+
     def test_gui_ordered_commands(self):
         from ledgerling import gui, web
         commands = {c["name"]: c for c in web.describe()["commands"]}

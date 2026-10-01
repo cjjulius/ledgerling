@@ -4,6 +4,16 @@ All notable changes to Ledgerling are documented here. The format is based on
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and this project
 adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.138.0] - 2026-10-01
+
+### Added
+
+- Desktop app: a friendlier landing. The app now **reopens the last command you
+  were viewing** between launches; new users land on **today's briefing**, which
+  **auto-runs** (any command with no required fields does) so you see real
+  numbers immediately instead of an empty form. The **window title** now
+  reflects the current command (e.g. "Ledgerling — reconcile").
+
 ## [1.137.0] - 2026-10-01
 
 ### Added
@@ -1625,6 +1635,7 @@ file, standard library only, strictly confined to its own folder.
   guard (`_within_app`) that refuses any path escaping the app folder; imports
   and restores are reduced to a basename and looked up only within the folder.
 
+[1.138.0]: #11380---2026-10-01
 [1.137.0]: #11370---2026-10-01
 [1.136.1]: #11361---2026-10-01
 [1.136.0]: #11360---2026-10-01
