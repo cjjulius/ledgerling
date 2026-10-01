@@ -4,6 +4,19 @@ All notable changes to Ledgerling are documented here. The format is based on
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and this project
 adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.133.0] - 2026-10-01
+
+### Added
+
+- `networth` command: track manual account balances and your net worth
+  alongside the cash ledger. `--set LABEL --amount N` adds or updates an
+  account (`--debt` marks it a liability); `--remove LABEL` deletes one; with
+  neither it shows the summary — each account, total assets, total debts, net
+  worth, and the ledger's all-time cash position for context. `--json`
+  supported; edits are undoable (`undo`) like any other change. Accounts live
+  in a new `accounts` section of the data file (older files migrate in on load).
+  Grouped under Budgets & goals in both UIs.
+
 ## [1.132.1] - 2026-10-01
 
 ### Changed
@@ -1541,6 +1554,7 @@ file, standard library only, strictly confined to its own folder.
   guard (`_within_app`) that refuses any path escaping the app folder; imports
   and restores are reduced to a basename and looked up only within the folder.
 
+[1.133.0]: #11330---2026-10-01
 [1.132.1]: #11321---2026-10-01
 [1.132.0]: #11320---2026-10-01
 [1.131.0]: #11310---2026-10-01

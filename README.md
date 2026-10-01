@@ -242,6 +242,14 @@ ledgerling goal --amount 500
 ledgerling goal
 ledgerling goal --clear
 
+# Net worth: track manual account balances (assets and debts) and see your
+# net worth, with the ledger's all-time cash position shown for context.
+ledgerling networth --set checking --amount 2500
+ledgerling networth --set "car loan" --amount 12000 --debt   # a liability
+ledgerling networth                                          # the summary
+ledgerling networth --remove "car loan"
+ledgerling networth --json
+
 # Export to CSV or JSON (saved in exports/; a path is reduced to its file name)
 ledgerling export
 ledgerling export --file august.csv --month 2026-08
