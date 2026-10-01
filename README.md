@@ -432,10 +432,11 @@ exactly the same dates as a full scan. Bulk inserts (recurring catch-up, CSV
 import) assign ids from a running counter instead of re-scanning the list per
 row, so materializing thousands of entries stays linear.
 
-Shared derived values (e.g. the all-time net that `cashflow`, `target`, and
-`runway` use as a default balance, or a category's spend in a month used by
-`budget`/`pace`/`allowance`/`report`) live in single helpers rather than being
-re-implemented per command.
+Shared derived values and small routines live in single helpers rather than
+being re-implemented per command — e.g. the all-time net that `cashflow`,
+`target`, and `runway` use as a default balance, a category's spend in a month
+(`budget`/`pace`/`allowance`/`report`), the date-range bounds for
+`export`/`search`, and the `--in` currency conversion for `add`/`income`.
 
 Config loading is defensive: a stored setting is only accepted when its type
 matches the default (a corrupt or hand-edited value falls back to that default

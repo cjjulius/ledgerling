@@ -112,7 +112,7 @@ import tempfile
 import time
 from datetime import datetime, date, timedelta
 
-__version__ = "1.122.0"
+__version__ = "1.122.1"
 
 # --------------------------------------------------------------------------- #
 # Sandbox + storage
@@ -261,6 +261,14 @@ def parse_date(text):
         return datetime.strptime(text, "%Y-%m-%d").date().isoformat()
     except ValueError:
         sys.exit(f"error: '{text}' is not a valid date (use YYYY-MM-DD)")
+
+
+def _date_bounds(since, until):
+    """Return (start_iso, end_iso) for an optional date range. Missing ends are
+    open; a reversed range is swapped. Used by export and search."""
+    start = parse_date(since) if since else "0000-01-01"
+    end = parse_date(until) if until else "9999-12-31"
+    return (end, start) if end < start else (start, end)
 
 
 def month_of(iso_date):
@@ -489,16 +497,22 @@ def apply_recurring(data):
 # Commands
 # --------------------------------------------------------------------------- #
 
+def _entry_amount(args):
+    """Resolve an add/income entry's stored amount, applying `--in CODE` fx
+    conversion to the home currency. Returns (amount, note_suffix)."""
+    src = getattr(args, "in_", None)
+    if src:
+        return (_amount_in_home(args.amount, src),
+                f" (from {args.amount:g} {_fx_code(src)})")
+    return round(args.amount, 2), ""
+
+
 def cmd_add(args):
     data = load()
     if args.amount <= 0:
         sys.exit("error: amount must be greater than zero")
     note = args.note.strip()
-    amount, conv = round(args.amount, 2), ""
-    src = getattr(args, "in_", None)
-    if src:
-        amount = _amount_in_home(args.amount, src)
-        conv = f" (from {args.amount:g} {_fx_code(src)})"
+    amount, conv = _entry_amount(args)
     entry = {
         "id": next_id(data["expenses"]),
         "amount": amount,
@@ -522,11 +536,7 @@ def cmd_income(args):
     if args.amount <= 0:
         sys.exit("error: amount must be greater than zero")
     note = args.note.strip()
-    amount, conv = round(args.amount, 2), ""
-    src = getattr(args, "in_", None)
-    if src:
-        amount = _amount_in_home(args.amount, src)
-        conv = f" (from {args.amount:g} {_fx_code(src)})"
+    amount, conv = _entry_amount(args)
     entry = {
         "id": next_id(data["expenses"]),
         "amount": amount,
@@ -881,10 +891,7 @@ def cmd_export(args):
     if args.month:
         rows = [e for e in rows if month_of(e["date"]) == args.month]
     elif arg_start or arg_end:
-        start = parse_date(arg_start) if arg_start else "0000-01-01"
-        end = parse_date(arg_end) if arg_end else "9999-12-31"
-        if end < start:
-            start, end = end, start
+        start, end = _date_bounds(arg_start, arg_end)
         rows = [e for e in rows if start <= e["date"] <= end]
 
     if getattr(args, "income", False) and getattr(args, "expenses", False):
@@ -1136,10 +1143,7 @@ def cmd_search(args):
     if args.month:
         rows = [e for e in rows if month_of(e["date"]) == args.month]
     if getattr(args, "since", None) or getattr(args, "until", None):
-        start = parse_date(args.since) if args.since else "0000-01-01"
-        end = parse_date(args.until) if args.until else "9999-12-31"
-        if end < start:
-            start, end = end, start
+        start, end = _date_bounds(args.since, args.until)
         rows = [e for e in rows if start <= e["date"] <= end]
     if args.min is not None:
         rows = [e for e in rows if e["amount"] >= args.min]

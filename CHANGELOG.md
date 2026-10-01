@@ -4,6 +4,15 @@ All notable changes to Ledgerling are documented here. The format is based on
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and this project
 adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.122.1] - 2026-10-01
+
+### Changed
+
+- Internal: factored two recently-duplicated patterns into helpers —
+  `_entry_amount` (the `add`/`income` `--in` currency conversion) and
+  `_date_bounds` (the optional date-range used by `export` and `search`). No
+  behaviour change; `_date_bounds` covered by a unit test.
+
 ## [1.122.0] - 2026-10-01
 
 ### Added
@@ -1307,6 +1316,7 @@ file, standard library only, strictly confined to its own folder.
   guard (`_within_app`) that refuses any path escaping the app folder; imports
   and restores are reduced to a basename and looked up only within the folder.
 
+[1.122.1]: #11221---2026-10-01
 [1.122.0]: #11220---2026-10-01
 [1.121.1]: #11211---2026-10-01
 [1.121.0]: #11210---2026-10-01

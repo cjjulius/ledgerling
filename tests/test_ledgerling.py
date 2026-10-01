@@ -168,6 +168,16 @@ class PureLogic(unittest.TestCase):
         self.assertEqual(L.category_spent(data, "food", "2026-01"), 30.0)
         self.assertEqual(L.category_spent(data, "rent", "2026-01"), 0)
 
+    def test_date_bounds(self):
+        self.assertEqual(L._date_bounds("2026-02-01", "2026-02-28"),
+                         ("2026-02-01", "2026-02-28"))
+        self.assertEqual(L._date_bounds("2026-02-28", "2026-02-01"),
+                         ("2026-02-01", "2026-02-28"))      # reversed -> swapped
+        lo, hi = L._date_bounds(None, "2026-02-28")
+        self.assertEqual((lo, hi), ("0000-01-01", "2026-02-28"))  # open start
+        lo, hi = L._date_bounds("2026-02-01", None)
+        self.assertEqual((lo, hi), ("2026-02-01", "9999-12-31"))  # open end
+
     def test_all_time_net(self):
         data = {"expenses": [
             {"id": 1, "amount": 100.0, "category": "food", "kind": "expense",
