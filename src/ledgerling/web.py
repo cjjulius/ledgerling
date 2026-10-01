@@ -379,6 +379,10 @@ INDEX_HTML = r"""<!doctype html>
   .cfsvg { width:100%; height:auto; display:block; }
   .cfaxis { font:11px ui-monospace,Menlo,Consolas,monospace; fill:var(--muted); }
   .cfaxis.neg { fill:var(--neg); }
+  .health { display:flex; flex-direction:column; gap:12px; }
+  .health .hgroup { display:flex; flex-direction:column; gap:2px; }
+  .health .hkind { font-size:12px; font-weight:700; text-transform:capitalize;
+    color:var(--neg); letter-spacing:.3px; }
   .cal { display:flex; flex-direction:column; gap:8px; max-width:440px; }
   .cal .cgrid { display:grid; grid-template-columns:repeat(7,1fr); gap:5px; }
   .cal .cdow { font-size:11px; color:var(--muted); text-align:center; padding:2px 0; font-weight:600; }
@@ -1052,13 +1056,15 @@ function buildTabs(data) {
   const has = data !== null &&
     (Array.isArray(data) ? data.length : Object.keys(data).length);
   const ins = has ? insightsData(data) : null;
+  const chk = has ? checkData(data) : null;
   const cal = has ? calendarData(data) : null;
   const cf = has ? cashflowData(data) : null;
-  const cd = (has && !ins && !cf) ? chartData(data) : null;
+  const cd = (has && !ins && !cf && !chk) ? chartData(data) : null;
   let active = tText, prefer = 'text';
   if (has) {
     tableEl.innerHTML = '';
-    if (ins) { tableEl.appendChild(renderInsights(ins)); active = mk('Insights', 'table'); }
+    if (chk) { tableEl.appendChild(renderCheck(chk)); active = mk('Health', 'table'); }
+    else if (ins) { tableEl.appendChild(renderInsights(ins)); active = mk('Insights', 'table'); }
     else { tableEl.appendChild(renderData(data)); active = mk('Table', 'table'); }
     tabs.appendChild(active); prefer = 'table';
   }
@@ -1146,6 +1152,44 @@ function renderCalendar(data) {
   legend.appendChild(document.createTextNode('more'));
   if (max > 0) legend.appendChild(document.createTextNode('  (peak ' + max + ')'));
   wrap.appendChild(legend);
+  return wrap;
+}
+
+function checkData(data) {
+  // check: {ok: bool, count: number, issues: [{kind, id, detail}]}
+  if (!data || typeof data !== 'object' || Array.isArray(data)) return null;
+  if (typeof data.ok !== 'boolean' || !Array.isArray(data.issues)) return null;
+  return data;
+}
+
+function renderCheck(data) {
+  const wrap = document.createElement('div'); wrap.className = 'health';
+  if (data.ok) {
+    const ok = document.createElement('div'); ok.className = 'cfstat';
+    ok.innerHTML = '<div class="cfk">status</div>' +
+      '<div class="cfv pos">No problems found</div>';
+    wrap.appendChild(ok);
+    return wrap;
+  }
+  const warn = document.createElement('div'); warn.className = 'cfwarn';
+  warn.textContent = data.count + ' problem' + (data.count === 1 ? '' : 's') +
+    ' found';
+  wrap.appendChild(warn);
+  const groups = {};
+  data.issues.forEach(i => { (groups[i.kind] = groups[i.kind] || []).push(i); });
+  Object.keys(groups).sort().forEach(kind => {
+    const sec = document.createElement('div'); sec.className = 'hgroup';
+    const h = document.createElement('div'); h.className = 'hkind';
+    h.textContent = kind.replace(/_/g, ' ') + ' (' + groups[kind].length + ')';
+    sec.appendChild(h);
+    const list = document.createElement('div'); list.className = 'recent';
+    groups[kind].forEach(i => {
+      const row = document.createElement('div'); row.className = 'recrow';
+      const cell = document.createElement('div'); cell.className = 'rcat';
+      cell.textContent = i.detail; row.appendChild(cell); list.appendChild(row);
+    });
+    sec.appendChild(list); wrap.appendChild(sec);
+  });
   return wrap;
 }
 
