@@ -487,7 +487,8 @@ ledgerling --version
 # Where does my data live? (folder + files with sizes)
 ledgerling where
 
-# Scan your data for integrity problems (duplicate ids, bad dates, orphans, ...)
+# Scan your data for integrity problems (duplicate ids, bad dates, orphans,
+# invalid budgets, malformed accounts / net-worth snapshots, ...)
 ledgerling check          # in the web UI this renders as a grouped Health panel
 ledgerling check --fix    # repair the safe ones (undoable); leaves judgment calls
 

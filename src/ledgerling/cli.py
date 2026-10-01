@@ -123,7 +123,7 @@ import tempfile
 import time
 from datetime import datetime, date, timedelta
 
-__version__ = "1.134.0"
+__version__ = "1.134.1"
 
 # --------------------------------------------------------------------------- #
 # Sandbox + storage
@@ -188,6 +188,13 @@ def load():
     data.setdefault("goal", None)
     data.setdefault("accounts", {})
     data.setdefault("networth_history", [])
+    # Coerce the account sections to their container types so a corrupt or
+    # hand-edited file can't crash a later command; bad *contents* are left for
+    # `check` to report/repair.
+    if not isinstance(data["accounts"], dict):
+        data["accounts"] = {}
+    if not isinstance(data["networth_history"], list):
+        data["networth_history"] = []
     return data
 
 
@@ -337,12 +344,21 @@ def all_time_net(data):
 
 def networth_totals(accounts):
     """(assets, debts, net) from an accounts dict {label: {amount, debt}}.
-    Debts are summed as positive magnitudes; net = assets - debts. Pure."""
-    assets = round(sum(a["amount"] for a in accounts.values()
-                       if not a.get("debt")), 2)
-    debts = round(sum(a["amount"] for a in accounts.values()
-                      if a.get("debt")), 2)
-    return assets, debts, round(assets - debts, 2)
+    Debts are summed as positive magnitudes; net = assets - debts. Pure, and
+    tolerant of malformed entries (non-dicts or non-numeric amounts are skipped,
+    so a corrupt file can't crash the summary - `check` reports those)."""
+    assets = debts = 0.0
+    for a in accounts.values():
+        if not isinstance(a, dict):
+            continue
+        amt = a.get("amount")
+        if isinstance(amt, bool) or not isinstance(amt, (int, float)):
+            continue
+        if a.get("debt"):
+            debts += amt
+        else:
+            assets += amt
+    return round(assets, 2), round(debts, 2), round(assets - debts, 2)
 
 
 def group_totals(rows, key_fn):
@@ -4168,7 +4184,9 @@ def cmd_networth(args):
     cash = all_time_net(data)
     rows = [{"label": k, "amount": v["amount"], "debt": bool(v.get("debt")),
              "updated": v.get("updated")}
-            for k, v in sorted(accounts.items())]
+            for k, v in sorted(accounts.items())
+            if isinstance(v, dict) and isinstance(v.get("amount"), (int, float))
+            and not isinstance(v.get("amount"), bool)]
 
     if getattr(args, "json", False):
         print(json.dumps({"accounts": rows, "assets": assets, "debts": debts,
@@ -4605,6 +4623,7 @@ def _valid_iso(s):
 # Issue kinds that _autofix can safely repair on its own.
 _FIXABLE_KINDS = frozenset({
     "duplicate_id", "bad_id", "orphan_recur_id", "empty_category", "bad_budget",
+    "bad_account", "bad_snapshot",
 })
 
 
@@ -4668,6 +4687,20 @@ def _scan_issues(data):
             issues.append({"kind": "bad_budget", "id": None,
                            "detail": f"budget [{cat}] is {lim!r}"})
 
+    for label, acc in data.get("accounts", {}).items():
+        amt = acc.get("amount") if isinstance(acc, dict) else None
+        if (not isinstance(acc, dict) or isinstance(amt, bool)
+                or not isinstance(amt, (int, float)) or amt < 0):
+            issues.append({"kind": "bad_account", "id": None,
+                           "detail": f"account '{label}' is malformed ({acc!r})"})
+
+    for i, snap in enumerate(data.get("networth_history", [])):
+        net = snap.get("net") if isinstance(snap, dict) else None
+        if (not isinstance(snap, dict) or not _valid_iso(snap.get("date"))
+                or isinstance(net, bool) or not isinstance(net, (int, float))):
+            issues.append({"kind": "bad_snapshot", "id": None,
+                           "detail": f"net-worth snapshot #{i} is malformed"})
+
     return issues
 
 
@@ -4702,6 +4735,24 @@ def _autofix(data):
         del data["budgets"][cat]
         fixed.append(f"removed invalid budget [{cat}]")
 
+    accts = data.get("accounts", {})
+    for label in [k for k, acc in list(accts.items())
+                  if not isinstance(acc, dict)
+                  or isinstance(acc.get("amount"), bool)
+                  or not isinstance(acc.get("amount"), (int, float))
+                  or acc.get("amount") < 0]:
+        del accts[label]
+        fixed.append(f"removed malformed account '{label}'")
+
+    hist = data.get("networth_history", [])
+    kept = [s for s in hist if isinstance(s, dict) and _valid_iso(s.get("date"))
+            and not isinstance(s.get("net"), bool)
+            and isinstance(s.get("net"), (int, float))]
+    if len(kept) != len(hist):
+        data["networth_history"] = kept
+        fixed.append(f"dropped {len(hist) - len(kept)} malformed "
+                     "net-worth snapshot(s)")
+
     return fixed
 
 
@@ -4710,8 +4761,9 @@ def cmd_check(args):
 
     Read-only by default (no recurring catch-up runs first, so it inspects the
     data as stored). With --fix, repairs the safe, unambiguous problems
-    (orphan recurring links, empty categories, duplicate ids, invalid budgets)
-    and reports what remains for you to handle manually.
+    (orphan recurring links, empty categories, duplicate ids, invalid budgets,
+    malformed accounts and net-worth snapshots) and reports what remains for you
+    to handle manually.
     """
     data = load()
     repaired = []
