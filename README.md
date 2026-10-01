@@ -211,6 +211,11 @@ ledgerling average
 # Histogram of expense sizes ($0-10, $10-25, ... $250+)
 ledgerling distribution
 
+# Flag unusually large expenses within each category (statistical outliers)
+ledgerling anomalies                        # > 2 SD above the category mean
+ledgerling anomalies --z 1.5 --month 2026-09
+ledgerling anomalies --category groceries --min-count 6
+
 # Monthly spending trend for one category
 ledgerling trend food --months 6
 
