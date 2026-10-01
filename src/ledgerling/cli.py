@@ -106,7 +106,7 @@ import sys
 import tempfile
 from datetime import datetime, date, timedelta
 
-__version__ = "1.96.0"
+__version__ = "1.97.0"
 
 # --------------------------------------------------------------------------- #
 # Sandbox + storage
@@ -367,12 +367,15 @@ def _occurrences(rule, through, since=None):
     discards those earlier dates, so the result is identical -- this just keeps
     long-running daily/weekly rules from looping over years of history.
 
-    A rule may carry an optional `until` end date; occurrences after it are not
-    generated.
+    A rule may carry an optional `until` end date and/or an optional `count`
+    (a fixed number of occurrences from the start); occurrences past either
+    limit are not generated. `count` is an absolute index from the start, so it
+    holds regardless of the `since` fast-forward.
     """
     start = date.fromisoformat(rule["start"])
     every = rule["every"]
     until = rule.get("until")
+    count = rule.get("count")
     # The rule never fires past its end date, so cap the horizon there.
     if until:
         until_d = date.fromisoformat(until)
@@ -381,6 +384,8 @@ def _occurrences(rule, through, since=None):
     out = []
     k = _first_index(start, every, since) if since is not None else 0
     while True:
+        if count is not None and k >= count:
+            break  # a fixed-count rule stops after `count` occurrences
         if every == "day":
             d = start + timedelta(days=k)
         elif every == "week":
@@ -3646,11 +3651,17 @@ def cmd_recur_add(args):
     until = _parse_until(getattr(args, "until", None), start)
     if until:
         rule["until"] = until
+    count = getattr(args, "count", None)
+    if count is not None:
+        if count < 1:
+            sys.exit("error: --count must be at least 1")
+        rule["count"] = count
     data["recurring"].append(rule)
     created = apply_recurring(data)  # catch up immediately
     save(data)
     what = "income" if rule["kind"] == "income" else "expense"
-    ends = f" until {rule['until']}" if rule.get("until") else ""
+    ends = (f" until {rule['until']}" if rule.get("until")
+            else f" x{rule['count']}" if rule.get("count") else "")
     print(f"added recurring {what} rule #{rule['id']}: {money(rule['amount'])} "
           f"[{rule['category']}] every {rule['every']} from {rule['start']}{ends}")
     if created:
@@ -3677,6 +3688,11 @@ def cmd_recur_from(args):
     until = _parse_until(getattr(args, "until", None), start)
     if until:
         rule["until"] = until
+    count = getattr(args, "count", None)
+    if count is not None:
+        if count < 1:
+            sys.exit("error: --count must be at least 1")
+        rule["count"] = count
     data["recurring"].append(rule)
     created = apply_recurring(data)  # catch up immediately
     save(data)
@@ -3698,11 +3714,14 @@ def cmd_recur_edit(args):
         sys.exit("error: choose either --income or --expense, not both")
     if args.until is not None and args.no_until:
         sys.exit("error: choose either --until or --no-until, not both")
+    if args.count is not None and args.no_count:
+        sys.exit("error: choose either --count or --no-count, not both")
     if all(v is None for v in (args.amount, args.category, args.note, args.every,
-                               args.until)) \
-            and not args.income and not args.expense and not args.no_until:
+                               args.until, args.count)) \
+            and not args.income and not args.expense \
+            and not args.no_until and not args.no_count:
         sys.exit("error: nothing to change - pass --amount/--category/--note/"
-                 "--every/--income/--expense/--until/--no-until")
+                 "--every/--income/--expense/--until/--no-until/--count/--no-count")
 
     if args.amount is not None:
         if args.amount <= 0:
@@ -3722,10 +3741,17 @@ def cmd_recur_edit(args):
         r.pop("until", None)
     elif args.until is not None:
         r["until"] = _parse_until(args.until, r["start"])
+    if args.no_count:
+        r.pop("count", None)
+    elif args.count is not None:
+        if args.count < 1:
+            sys.exit("error: --count must be at least 1")
+        r["count"] = args.count
 
     save(data)
     what = "income" if r.get("kind") == "income" else "expense"
-    ends = f" until {r['until']}" if r.get("until") else ""
+    ends = (f" until {r['until']}" if r.get("until")
+            else f" x{r['count']}" if r.get("count") else "")
     print(f"updated recurring {what} rule #{r['id']}: {money(r['amount'])} "
           f"[{r['category']}] every {r['every']}{ends}")
     print("  (already-generated expenses are unchanged)")
@@ -3748,7 +3774,7 @@ def _recur_row(rule, today):
         "id": rule["id"], "amount": rule["amount"], "category": rule["category"],
         "every": rule["every"], "kind": rule.get("kind", "expense"),
         "note": rule.get("note", ""), "start": rule["start"],
-        "until": rule.get("until"),
+        "until": rule.get("until"), "count": rule.get("count"),
         "next": nxt if status == "active" else None,
         "status": status,
         "skips": sorted(s for s in skips if s >= today_iso),
@@ -3775,7 +3801,8 @@ def cmd_recur_list(args):
         note = f" - {row['note']}" if row["note"] else ""
         mark = " +income" if row["kind"] == "income" else ""
         skip_note = f"  skips: {', '.join(row['skips'])}" if row["skips"] else ""
-        until_note = f"  until {row['until']}" if row["until"] else ""
+        until_note = (f"  until {row['until']}" if row["until"]
+                      else f"  x{row['count']}" if row["count"] else "")
         state = ("  (PAUSED)" if row["status"] == "paused"
                  else "  (ENDED)" if row["status"] == "ended" else "")
         nxt_disp = {"paused": "paused", "ended": "ended"}.get(
@@ -4414,6 +4441,8 @@ def build_parser():
     ra.add_argument("--until",
                     help="stop generating after this date, YYYY-MM-DD "
                          "(e.g. a lease or loan end)")
+    ra.add_argument("--count", type=int,
+                    help="stop after this many occurrences (e.g. 12 payments)")
     ra.set_defaults(func=cmd_recur_add)
 
     rfr = rsub.add_parser("from", help="create a recurring rule from an existing entry")
@@ -4422,6 +4451,8 @@ def build_parser():
                      help="how often it recurs")
     rfr.add_argument("--start", help="first date, YYYY-MM-DD (default: the entry's date)")
     rfr.add_argument("--until", help="stop generating after this date, YYYY-MM-DD")
+    rfr.add_argument("--count", type=int,
+                     help="stop after this many occurrences")
     rfr.set_defaults(func=cmd_recur_from)
 
     re_ = rsub.add_parser("edit", help="change fields on a recurring rule")
@@ -4436,6 +4467,9 @@ def build_parser():
     re_.add_argument("--until", help="set an end date, YYYY-MM-DD")
     re_.add_argument("--no-until", action="store_true", dest="no_until",
                      help="remove the end date (recur forever again)")
+    re_.add_argument("--count", type=int, help="set a fixed occurrence count")
+    re_.add_argument("--no-count", action="store_true", dest="no_count",
+                     help="remove the occurrence count")
     re_.set_defaults(func=cmd_recur_edit)
 
     rl = rsub.add_parser("list", help="show recurring rules")

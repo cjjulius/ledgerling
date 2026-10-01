@@ -4,6 +4,18 @@ All notable changes to Ledgerling are documented here. The format is based on
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and this project
 adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.97.0] - 2026-10-01
+
+### Added
+
+- Recurring rules can be capped by a fixed number of occurrences. `recur
+  add`/`recur from` take `--count N` (e.g. 12 loan payments), and `recur edit`
+  takes `--count` to set it or `--no-count` to clear it. The occurrence engine
+  stops after N occurrences from the start (an absolute cap, independent of the
+  `since` fast-forward), so it composes with `--until` and flows through
+  catch-up, `upcoming`, `cashflow`, and `recur list` (which shows `xN` and marks
+  a finished rule `ENDED`). `recur list --json` includes a `count` field.
+
 ## [1.96.0] - 2026-10-01
 
 ### Added
@@ -975,6 +987,7 @@ file, standard library only, strictly confined to its own folder.
   guard (`_within_app`) that refuses any path escaping the app folder; imports
   and restores are reduced to a basename and looked up only within the folder.
 
+[1.97.0]: #1970---2026-10-01
 [1.96.0]: #1960---2026-10-01
 [1.95.0]: #1950---2026-10-01
 [1.94.0]: #1940---2026-10-01

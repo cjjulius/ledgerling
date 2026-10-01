@@ -131,6 +131,18 @@ class RecurringEngine(unittest.TestCase):
         self.assertEqual(got, [date(2026, 1, 31), date(2026, 2, 28),
                                date(2026, 3, 31)])
 
+    def test_occurrences_respects_count(self):
+        rule = {"start": "2026-01-01", "every": "month", "count": 3}
+        got = L._occurrences(rule, date(2026, 12, 31))
+        self.assertEqual(got, [date(2026, 1, 1), date(2026, 2, 1),
+                               date(2026, 3, 1)])  # exactly 3, then stops
+
+    def test_occurrences_count_holds_with_since(self):
+        # The since fast-forward must not change the absolute count cap.
+        rule = {"start": "2026-01-01", "every": "month", "count": 3}
+        got = L._occurrences(rule, date(2026, 12, 31), since=date(2026, 2, 1))
+        self.assertEqual(got, [date(2026, 2, 1), date(2026, 3, 1)])
+
     def test_occurrences_respects_until(self):
         rule = {"start": "2026-01-01", "every": "month", "until": "2026-03-15"}
         got = L._occurrences(rule, date(2026, 12, 31))
@@ -720,6 +732,28 @@ class CLI(TempAppCase):
     def test_tip_rejects_bad_split(self):
         with self.assertRaises(SystemExit):
             self._main(["tip", "20", "--split", "0"])
+
+    def test_recur_count_generates_fixed_number(self):
+        self._main(["recur", "add", "450", "loan", "car", "--every", "month",
+                    "--start", "2026-01-01", "--count", "3"])
+        dates = sorted(e["date"] for e in L.load()["expenses"])
+        self.assertEqual(dates, ["2026-01-01", "2026-02-01", "2026-03-01"])
+        row = json.loads(self._main(["recur", "list", "--json"]))[0]
+        self.assertEqual(row["count"], 3)
+        self.assertEqual(row["status"], "ended")   # all 3 already generated
+
+    def test_recur_edit_count_and_clear(self):
+        self._main(["recur", "add", "10", "gym", "x", "--every", "month",
+                    "--start", "2026-01-01"])
+        self._main(["recur", "edit", "1", "--count", "6"])
+        self.assertEqual(L.load()["recurring"][0]["count"], 6)
+        self._main(["recur", "edit", "1", "--no-count"])
+        self.assertNotIn("count", L.load()["recurring"][0])
+
+    def test_recur_count_rejects_zero(self):
+        with self.assertRaises(SystemExit):
+            self._main(["recur", "add", "10", "x", "y", "--every", "month",
+                        "--count", "0"])
 
     def test_recur_list_json_states(self):
         # active (open-ended), ended (past until), and paused rules.
