@@ -198,6 +198,20 @@ INDEX_HTML = r"""<!doctype html>
   * { box-sizing:border-box; }
   body { margin:0; font:15px/1.45 system-ui,-apple-system,Segoe UI,Roboto,sans-serif;
     background:var(--bg); color:var(--ink); }
+  /* Accessibility: visually-hidden text still read by screen readers. */
+  .sr-only { position:absolute; width:1px; height:1px; padding:0; margin:-1px;
+    overflow:hidden; clip:rect(0,0,0,0); white-space:nowrap; border:0; }
+  /* Skip link: off-screen until focused, then pinned top-left over the header. */
+  .skiplink { position:absolute; left:8px; top:-48px; z-index:20;
+    background:var(--accent); color:var(--accent-ink); padding:8px 14px;
+    border-radius:8px; text-decoration:none; font-weight:600;
+    transition:top .12s ease; }
+  .skiplink:focus { top:8px; }
+  /* Clear, consistent keyboard-focus ring on every interactive element. */
+  a:focus-visible, button:focus-visible, input:focus-visible, select:focus-visible,
+  [tabindex]:focus-visible {
+    outline:2px solid var(--accent); outline-offset:2px; border-radius:6px; }
+  main#main:focus { outline:none; }
   header { display:flex; align-items:center; gap:12px; padding:12px 20px;
     border-bottom:1px solid var(--line); background:var(--panel); position:sticky;
     top:0; z-index:5; }
@@ -382,20 +396,24 @@ INDEX_HTML = r"""<!doctype html>
 </style>
 </head>
 <body>
+<a class="skiplink" href="#main">Skip to main content</a>
 <header>
-  <div class="brand"><span class="logo"></span><h1>Ledgerling</h1>
+  <div class="brand"><span class="logo" aria-hidden="true"></span><h1>Ledgerling</h1>
     <span class="ver" id="ver"></span></div>
   <span class="tag"><span>local &amp; sandboxed &mdash; data stays in your Ledgerling folder</span></span>
-  <button class="themebtn" id="themebtn" title="Toggle light / dark">&#9789;</button>
+  <button class="themebtn" id="themebtn" aria-label="Toggle light or dark theme"
+    aria-pressed="false" title="Toggle light / dark">&#9789;</button>
 </header>
 <div class="wrap">
-  <nav class="side">
+  <nav class="side" aria-label="Commands">
     <button class="newbtn" id="newbtn">+ New expense</button>
     <button class="newbtn alt" id="incbtn">+ New income</button>
-    <input class="filter" id="filter" placeholder="Filter commands...  ( / )">
-    <div id="list"></div>
+    <label class="sr-only" for="filter">Filter commands</label>
+    <input class="filter" id="filter" placeholder="Filter commands...  ( / )"
+      aria-label="Filter commands" aria-controls="list">
+    <div id="list" aria-label="Available commands"></div>
   </nav>
-  <main id="main"><div class="empty">Loading&hellip;</div></main>
+  <main id="main" tabindex="-1"><div class="empty">Loading&hellip;</div></main>
 </div>
 <script>
 let COMMANDS = [], CURRENT = null, CURRENCY = '$', ACTIVE = 'home', CATEGORIES = [];
@@ -409,6 +427,13 @@ catch (e) {}
   try { const t = localStorage.getItem('ll_theme');
     if (t) document.documentElement.dataset.theme = t; } catch (e) {}
 })();
+function syncThemeButton() {
+  const btn = document.getElementById('themebtn');
+  if (!btn) return;
+  const osDark = matchMedia('(prefers-color-scheme: dark)').matches;
+  const dark = (document.documentElement.dataset.theme || (osDark ? 'dark' : 'light')) === 'dark';
+  btn.setAttribute('aria-pressed', dark ? 'true' : 'false');
+}
 function toggleTheme() {
   const root = document.documentElement;
   const osDark = matchMedia('(prefers-color-scheme: dark)').matches;
@@ -416,6 +441,7 @@ function toggleTheme() {
   const next = cur === 'dark' ? 'light' : 'dark';
   root.dataset.theme = next;
   try { localStorage.setItem('ll_theme', next); } catch (e) {}
+  syncThemeButton();
 }
 function toggleGroup(g) {
   if (COLLAPSED.has(g)) COLLAPSED.delete(g); else COLLAPSED.add(g);
@@ -512,6 +538,10 @@ async function boot() {
     const a = findCmd('income'); if (a) selectCmd(a);
   };
   document.getElementById('themebtn').onclick = toggleTheme;
+  syncThemeButton();
+  // Keep the toggle's pressed state correct if the OS theme flips while open.
+  try { matchMedia('(prefers-color-scheme: dark)').addEventListener('change', syncThemeButton); }
+  catch (e) {}
   // Press "/" anywhere (outside a field) to jump to the command filter.
   document.addEventListener('keydown', e => {
     if (e.key === '/' && !/^(INPUT|TEXTAREA|SELECT)$/.test(
@@ -530,7 +560,15 @@ function navItem(name, help, active, onclick) {
   el.className = 'navitem' + (active ? ' active' : '');
   el.innerHTML = '<div class="n">' + esc(name) + '</div>' +
     (help ? '<div class="h">' + esc(help) + '</div>' : '');
+  // Make the item operable by keyboard: focusable + Enter/Space activate it.
+  el.setAttribute('role', 'button');
+  el.tabIndex = 0;
+  if (active) el.setAttribute('aria-current', 'true');
+  el.setAttribute('aria-label', name + (help ? '. ' + help : ''));
   el.onclick = onclick;
+  el.onkeydown = (e) => {
+    if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); onclick(); }
+  };
   return el;
 }
 
@@ -552,7 +590,15 @@ function renderList(q) {
     const collapsed = !q && COLLAPSED.has(g);   // search always reveals items
     const hd = document.createElement('div'); hd.className = 'grouphd';
     hd.textContent = (collapsed ? '▸ ' : '▾ ') + g + '  (' + items.length + ')';
-    hd.onclick = () => toggleGroup(g); list.appendChild(hd);
+    hd.setAttribute('role', 'button');
+    hd.tabIndex = 0;
+    hd.setAttribute('aria-expanded', collapsed ? 'false' : 'true');
+    hd.setAttribute('aria-label', g + ' group, ' + items.length + ' commands');
+    hd.onclick = () => toggleGroup(g);
+    hd.onkeydown = (e) => {
+      if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); toggleGroup(g); }
+    };
+    list.appendChild(hd);
     if (collapsed) return;
     items.forEach(c => list.appendChild(
       navItem(prettyName(c.name), c.help || '', ACTIVE === c.name, () => selectCmd(c))));
@@ -588,6 +634,8 @@ function selectCmd(c) {
   const firstInput = form.querySelector('.inp');
   if (firstInput) firstInput.focus();   // ready to type immediately
   const out = document.createElement('div'); out.className = 'out card'; out.id = 'out';
+  out.setAttribute('role', 'region'); out.setAttribute('aria-label', 'Command output');
+  out.setAttribute('aria-live', 'polite'); out.setAttribute('aria-atomic', 'false');
   out.innerHTML = '<div class="tabs" id="tabs"></div>' +
     '<pre id="outpre">(run the command to see output)</pre>' +
     '<div id="outtable" style="display:none"></div>' +
@@ -791,6 +839,7 @@ async function postRun(argv) {
   }).then(r => r.json());
 }
 
+let FIELD_SEQ = 0;
 function fieldFor(a) {
   const wrap = document.createElement('div');
   wrap.className = 'field' + (a.type === 'bool' ? ' bool' : '');
@@ -799,9 +848,20 @@ function fieldFor(a) {
   wrap.dataset.flag = a.flag || '';
   wrap.dataset.type = a.type;
   const req = (a.kind === 'positional' && !a.optional);
+  const fid = 'fld' + (++FIELD_SEQ);
+  const helpId = a.help ? fid + '-help' : '';
+  // Associate help text and required state with an input for assistive tech.
+  const wire = (inp) => {
+    inp.id = fid;
+    if (helpId) inp.setAttribute('aria-describedby', helpId);
+    if (req) { inp.required = true; inp.setAttribute('aria-required', 'true'); }
+    return inp;
+  };
   if (a.type === 'bool') {
     const lab = document.createElement('label');
-    const cb = document.createElement('input'); cb.type = 'checkbox'; cb.className = 'inp';
+    const cb = wire(document.createElement('input'));
+    cb.type = 'checkbox'; cb.className = 'inp';
+    lab.htmlFor = fid;
     lab.appendChild(cb);
     lab.appendChild(document.createTextNode(' ' + humanize(a) +
       (a.help ? ' - ' + a.help : '')));
@@ -809,19 +869,22 @@ function fieldFor(a) {
     return wrap;
   }
   const lab = document.createElement('label');
-  lab.innerHTML = humanize(a) + (req ? ' <span class="req">*</span>' : '');
+  lab.htmlFor = fid;
+  lab.innerHTML = humanize(a) + (req ? ' <span class="req" aria-hidden="true">*</span>' : '');
   wrap.appendChild(lab);
   if (a.help) {
     const hp = document.createElement('div'); hp.className = 'help';
+    hp.id = helpId;
     hp.textContent = a.help; wrap.appendChild(hp);
   }
   const w = widgetType(a);
   if (w === 'amount') {   // currency-prefixed number field
     const box = document.createElement('div'); box.className = 'amtbox';
     const pfx = document.createElement('span'); pfx.className = 'amtpfx';
-    pfx.textContent = CURRENCY;
-    const inp = document.createElement('input'); inp.className = 'inp';
+    pfx.textContent = CURRENCY; pfx.setAttribute('aria-hidden', 'true');
+    const inp = wire(document.createElement('input')); inp.className = 'inp';
     inp.type = 'number'; inp.step = '0.01'; inp.min = '0'; inp.placeholder = '0.00';
+    inp.setAttribute('aria-label', humanize(a) + ' in ' + CURRENCY);
     box.appendChild(pfx); box.appendChild(inp); wrap.appendChild(box);
     return wrap;
   }
@@ -843,6 +906,7 @@ function fieldFor(a) {
     if (a.type === 'float') inp.step = 'any';
   }
   inp.className = 'inp';
+  wire(inp);
   wrap.appendChild(inp);
   return wrap;
 }

@@ -37,6 +37,12 @@ and every command added in the future — appears automatically as a form with i
 options, and running it shows the output as text, a table, a chart, or (for
 `heatmap`) a calendar. No data leaves your machine.
 
+It's built to be **keyboard- and screen-reader-friendly**: a skip link, labeled
+landmarks, visible focus rings, fully keyboard-operable command list and group
+headers (Tab / Enter / Space), form fields with associated labels and
+`aria-required`/`aria-describedby`, a theme toggle that reports its state, and a
+polite live region that announces command output as it updates.
+
 ### Shell completion (optional)
 
 ```bash
