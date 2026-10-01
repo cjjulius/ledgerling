@@ -286,6 +286,9 @@ ledgerling target 10000 --monthly 750 --start 2500
 ledgerling interest 10000 --rate 6 --years 20
 ledgerling interest 10000 --rate 6 --years 20 --monthly 200
 
+# Loan payment / amortization estimate (monthly payment + total interest)
+ledgerling loan 25000 --rate 7.5 --years 6
+
 # Recurring rules normalized to monthly / annual cost (your fixed obligations)
 ledgerling commitments
 

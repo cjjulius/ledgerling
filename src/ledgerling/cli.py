@@ -57,6 +57,7 @@ Commands:
     roundup   Simulate round-up savings (round each expense up to $N)
     tip       Tip calculator and even bill splitter
     interest  Compound-growth / future-value calculator
+    loan      Loan payment / amortization calculator
     fx        Offline currency converter (set/list/rm/convert, user-set rates)
     upcoming  Forecast recurring charges/income due in the next N days
     cashflow  Project a running balance forward (flags if it goes negative)
@@ -108,7 +109,7 @@ import sys
 import tempfile
 from datetime import datetime, date, timedelta
 
-__version__ = "1.110.0"
+__version__ = "1.111.0"
 
 # --------------------------------------------------------------------------- #
 # Sandbox + storage
@@ -1818,6 +1819,49 @@ def cmd_tip(args):
                   f"{extra} x {money(high_share)}")
         else:
             print(f"split {split} ways  {money(high_share)} each")
+
+
+def cmd_loan(args):
+    """Loan / amortization calculator: the level monthly payment for a fixed
+    principal, annual rate, and term, plus total paid and total interest.
+
+    Pure arithmetic -- touches no stored data. A calculator, not a loan offer.
+    """
+    if args.principal <= 0:
+        sys.exit("error: principal must be greater than zero")
+    if args.rate < 0:
+        sys.exit("error: --rate cannot be negative")
+    if args.years <= 0:
+        sys.exit("error: --years must be greater than 0")
+
+    n = round(args.years * 12)
+    i = args.rate / 100 / 12
+    if i:
+        payment = args.principal * i / (1 - (1 + i) ** -n)
+    else:
+        payment = args.principal / n
+    payment = round(payment, 2)
+    total = round(payment * n, 2)
+    interest = round(total - args.principal, 2)
+
+    if getattr(args, "json", False):
+        print(json.dumps({
+            "principal": round(args.principal, 2), "rate": args.rate,
+            "years": args.years, "periods": n,
+            "monthly_payment": payment, "total_paid": total,
+            "total_interest": interest,
+        }, indent=2))
+        return
+
+    print("Loan estimate")
+    print("=" * 44)
+    print(f"{'principal':<16} {money(round(args.principal, 2)):>14}")
+    print(f"{'rate':<16} {args.rate:g}% / year")
+    print(f"{'term':<16} {args.years:g} year(s) ({n} payments)")
+    print("-" * 44)
+    print(f"{'monthly payment':<16} {money(payment):>14}")
+    print(f"{'total paid':<16} {money(total):>14}")
+    print(f"{'total interest':<16} {money(interest):>14}")
 
 
 def cmd_interest(args):
@@ -4610,6 +4654,16 @@ def build_parser():
     it.add_argument("--json", action="store_true", help="output JSON instead of text")
     it.set_defaults(func=cmd_interest)
 
+    ln = sub.add_parser("loan",
+                        help="loan payment / amortization calculator")
+    ln.add_argument("principal", type=float, help="amount borrowed")
+    ln.add_argument("--rate", type=float, default=6.0,
+                    help="annual interest rate in %% (default 6)")
+    ln.add_argument("--years", type=float, default=5.0,
+                    help="term in years (default 5)")
+    ln.add_argument("--json", action="store_true", help="output JSON instead of text")
+    ln.set_defaults(func=cmd_loan)
+
     tgt = sub.add_parser("target",
                          help="estimate how long to reach a savings target")
     tgt.add_argument("amount", type=float, help="the savings amount to reach")
@@ -4881,7 +4935,7 @@ MUTATING_COMMANDS = frozenset({
     "untag", "retag", "recategorize", "unbudget", "goal", "autobudget",
     "import", "restore", "backup", "dedupe", "undo", "config", "recur",
     "completion", "version", "web", "where", "tip", "split", "fx", "check",
-    "interest",
+    "interest", "loan",
 })
 
 
