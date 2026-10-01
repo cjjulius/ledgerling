@@ -4,6 +4,23 @@ All notable changes to Ledgerling are documented here. The format is based on
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and this project
 adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.127.1] - 2026-10-01
+
+### Changed
+
+- Web UI accessibility: the calendar heatmap now exposes its data to screen
+  readers. The grid is a labeled `role="group"` ("Daily spending for <month>"),
+  and each day is a `role="img"` cell with an accessible name giving its date
+  and currency-formatted amount (or "no spending"); the decorative day numbers,
+  amount overlays and weekday headers are hidden from assistive tech. The
+  heatmap legend's peak value is formatted as currency.
+
+### Fixed
+
+- Web UI: the `overbudget` table's "over" column (and `total_over`) now renders
+  as a money amount instead of a bare number (`isMoneyKey` recognizes the
+  `over`/`*_over` fields).
+
 ## [1.127.0] - 2026-10-01
 
 ### Added
@@ -1418,6 +1435,7 @@ file, standard library only, strictly confined to its own folder.
   guard (`_within_app`) that refuses any path escaping the app folder; imports
   and restores are reduced to a basename and looked up only within the folder.
 
+[1.127.1]: #11271---2026-10-01
 [1.127.0]: #11270---2026-10-01
 [1.126.1]: #11261---2026-10-01
 [1.126.0]: #11260---2026-10-01

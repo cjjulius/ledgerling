@@ -570,6 +570,11 @@ class WebUI(TempAppCase):
         self.assertIn("'aria-live', 'assertive'", html)
         self.assertIn("'aria-busy'", html)
         self.assertIn('Command failed: ', html)
+        # the calendar heatmap exposes its data to assistive tech: a labeled
+        # grid and per-day cells with their own role + aria-label.
+        self.assertIn("'Daily spending for '", html)
+        self.assertIn("c.setAttribute('role', 'img')", html)
+        self.assertIn("c.setAttribute('aria-label', label)", html)
 
     def test_run_cli_bridge(self):
         from ledgerling import web
