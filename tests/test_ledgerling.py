@@ -263,6 +263,19 @@ class WebUI(TempAppCase):
         dests = {a["dest"] for a in add["args"]}
         self.assertTrue({"amount", "category", "note", "date"} <= dests)
 
+    def test_describe_marks_variadic_positional(self):
+        # split's `parts` is nargs="+", which the UI must know to tokenize.
+        from ledgerling import web
+        d = web.describe()
+        split = next(c for c in d["commands"] if c["name"] == "split")
+        parts = next(a for a in split["args"] if a["dest"] == "parts")
+        self.assertTrue(parts.get("variadic"))
+        self.assertEqual(parts["kind"], "positional")
+        # a plain positional is not variadic
+        add = next(c for c in d["commands"] if c["name"] == "add")
+        amount = next(a for a in add["args"] if a["dest"] == "amount")
+        self.assertFalse(amount.get("variadic"))
+
     def test_run_cli_bridge(self):
         from ledgerling import web
         web.run_cli(["add", "12.50", "food", "lunch #x"])

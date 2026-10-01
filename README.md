@@ -35,7 +35,9 @@ sidebar groups every command (Record / Analyze / Budgets & goals / Recurring /
 Data / Settings); it still **generates itself from the CLI**, so every command —
 and every command added in the future — appears automatically as a form with its
 options, and running it shows the output as text, a table, a chart, or (for
-`heatmap`) a calendar. No data leaves your machine.
+`heatmap`) a calendar. Multi-value arguments (like `split`'s category/amount
+pairs) are entered space-separated in one field and tokenized for you. No data
+leaves your machine.
 
 Some commands get bespoke visualizations: `heatmap` renders a real calendar,
 and `cashflow` renders a **projection chart** — a running-balance line with a
