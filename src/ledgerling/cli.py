@@ -107,7 +107,7 @@ import sys
 import tempfile
 from datetime import datetime, date, timedelta
 
-__version__ = "1.104.1"
+__version__ = "1.105.0"
 
 # --------------------------------------------------------------------------- #
 # Sandbox + storage
@@ -3803,12 +3803,31 @@ def cmd_fx_list(args):
 def cmd_fx_convert(args):
     rates = _fx_rates()
     src = _fx_code(args.src)
-    dst = _fx_code(args.dst)
-    for c in (src, dst):
-        if c not in rates:
-            sys.exit(f"error: no rate set for {c}. Try: fx set {c} <rate>")
     if args.amount < 0:
         sys.exit("error: amount cannot be negative")
+    if src not in rates:
+        sys.exit(f"error: no rate set for {src}. Try: fx set {src} <rate>")
+
+    # No target given: convert into every other stored currency.
+    if args.dst is None:
+        others = [c for c in sorted(rates) if c != src]
+        if not others:
+            sys.exit(f"error: no other currencies set. Try: fx set <code> <rate>")
+        conversions = [{"to": c, "rate": round(rates[src] / rates[c], 6),
+                        "result": round(args.amount * rates[src] / rates[c], 2)}
+                       for c in others]
+        if getattr(args, "json", False):
+            print(json.dumps({"amount": round(args.amount, 2), "from": src,
+                              "conversions": conversions}, indent=2))
+            return
+        print(f"{args.amount:g} {src} =")
+        for c in conversions:
+            print(f"  {c['result']:>14,.2f} {c['to']}")
+        return
+
+    dst = _fx_code(args.dst)
+    if dst not in rates:
+        sys.exit(f"error: no rate set for {dst}. Try: fx set {dst} <rate>")
     pair = rates[src] / rates[dst]
     result = round(args.amount * pair, 2)
     if getattr(args, "json", False):
@@ -4634,7 +4653,8 @@ def build_parser():
                            help="convert an amount between two set currencies")
     fxc.add_argument("amount", type=float, help="the amount to convert")
     fxc.add_argument("src", metavar="from", help="source currency code")
-    fxc.add_argument("dst", metavar="to", help="target currency code")
+    fxc.add_argument("dst", metavar="to", nargs="?", default=None,
+                     help="target currency code (omit to show every currency)")
     fxc.add_argument("--json", action="store_true", help="output JSON instead of text")
     fxc.set_defaults(func=cmd_fx_convert)
     fx.set_defaults(func=lambda args: fx.print_help())
