@@ -156,6 +156,7 @@ ledgerling import --file august.csv --dry-run   # preview counts, import nothing
 # Month-over-month trend + budget adherence
 ledgerling report
 ledgerling report --months 12
+ledgerling report --json              # trend/income/net as JSON
 
 # Tags: add #tags in the note; they're parsed automatically
 ledgerling add 40 food "client dinner #work #reimbursable"
@@ -391,7 +392,9 @@ changing the recurring catch-up behaviour. A second guard checks every
 top-level command is listed in the module's `--help` command summary, so the
 docs can't silently drift from the parser either. A third runs every
 no-argument command against an empty store, so adding a command that crashes on
-empty data (division by zero, `max()` of nothing, ...) fails the suite.
+empty data (division by zero, `max()` of nothing, ...) fails the suite. A fourth
+checks every read command offers `--json` (so it works for scripting and the
+web UI), with `export` exempt since it writes files via `--format`.
 
 The recurring-occurrence generator takes an optional `since` lower bound so
 projections and catch-up don't iterate over years of history for long-running
