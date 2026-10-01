@@ -508,6 +508,13 @@ ledgerling config --currency kr --symbol-position after   # -> 12.50 kr
 # Negative amounts print the sign first: -$5.00 (or -5.00 kr), matching the web UI
 ledgerling config --reset
 
+# Reconcile against your bank: mark entries cleared (posted) vs pending, then
+# see the cleared balance, what's still outstanding, and the projected total.
+ledgerling clear 12 13 14      # mark these entry ids cleared
+ledgerling unclear 13          # put one back to pending
+ledgerling reconcile
+ledgerling reconcile --json
+
 # Backup / restore (all copies live in backups/)
 ledgerling backup
 ledgerling backup --list

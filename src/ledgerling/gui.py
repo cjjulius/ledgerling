@@ -41,7 +41,8 @@ GROUP_DEFS = [
                    "recur remove", "recur run", "recur skip", "recur unskip",
                    "recur pause", "recur resume"]),
     ("Data", ["export", "import", "backup", "restore", "dedupe", "duplicates",
-              "retag", "tag", "untag", "recategorize", "check", "undo"]),
+              "retag", "tag", "untag", "recategorize", "clear", "unclear",
+              "reconcile", "check", "undo"]),
     ("Settings", ["config", "where", "version", "completion", "web", "gui"]),
     ("Almanac", ["fortune", "horoscope", "weather", "eightball"]),
 ]
@@ -74,6 +75,7 @@ ICONS = {
     "roundup": "\U0001fa99", "export": "⬆️", "import": "⬇️",
     "backup": "\U0001f4be", "restore": "♻️", "dedupe": "\U0001f9f9",
     "duplicates": "\U0001f46f", "check": "✅", "undo": "↶",
+    "clear": "☑️", "unclear": "☐", "reconcile": "⚖️",
     "retag": "\U0001f516", "recategorize": "\U0001f504", "config": "⚙️",
     "where": "\U0001f4c1", "version": "ℹ️", "completion": "⌨️",
     "web": "\U0001f310", "gui": "\U0001f5a5️",

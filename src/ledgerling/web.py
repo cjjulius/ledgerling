@@ -510,7 +510,8 @@ const GROUP_DEFS = [
     'fx convert', 'fx set', 'fx list', 'fx rm']],
   ['Recurring', ['recur add', 'recur from', 'recur list', 'recur edit', 'recur remove', 'recur run', 'recur skip', 'recur unskip', 'recur pause', 'recur resume']],
   ['Data', ['export', 'import', 'backup', 'restore', 'dedupe', 'duplicates',
-    'retag', 'tag', 'untag', 'recategorize', 'check', 'undo']],
+    'retag', 'tag', 'untag', 'recategorize', 'clear', 'unclear', 'reconcile',
+    'check', 'undo']],
   ['Settings', ['config', 'where', 'version', 'completion', 'web', 'gui']],
   ['Almanac', ['fortune', 'horoscope', 'weather', 'eightball']],
 ];

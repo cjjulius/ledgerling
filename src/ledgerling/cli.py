@@ -22,6 +22,9 @@ Commands:
     list      Show recent expenses (with optional filters)
     edit      Change fields on an existing expense
     delete    Remove an expense by id
+    clear     Mark entries cleared (reconciled)
+    unclear   Mark entries pending again (reverse a clear)
+    reconcile  Cleared vs pending balance and projected total
     split     Split an entry into category/amount parts that sum to it
     clone     Duplicate an entry (defaults to today's date)
     refund    Record a refund for an expense (as offsetting income)
@@ -124,7 +127,7 @@ import tempfile
 import time
 from datetime import datetime, date, timedelta
 
-__version__ = "1.136.1"
+__version__ = "1.137.0"
 
 # --------------------------------------------------------------------------- #
 # Sandbox + storage
@@ -833,6 +836,78 @@ def cmd_delete(args):
     save(data)
     print(f"deleted #{e['id']}: {money(e['amount'])} [{e['category']}] "
           f"on {e['date']}")
+
+
+def _set_cleared(args, value):
+    """Shared body of clear/unclear: flip the `cleared` flag on the given ids."""
+    data = load()
+    ids = list(dict.fromkeys(args.ids))   # de-dup, preserve order
+    missing = [i for i in ids if not find(data["expenses"], i)]
+    if missing:
+        sys.exit("error: no entr" + ("y" if len(missing) == 1 else "ies")
+                 + " with id " + ", ".join(f"#{i}" for i in missing))
+    changed = 0
+    for i in ids:
+        e = find(data["expenses"], i)
+        if value:
+            if not e.get("cleared"):
+                e["cleared"] = True
+                changed += 1
+        elif e.get("cleared"):
+            e["cleared"] = False
+            changed += 1
+    if changed:
+        save(data)
+    verb = "cleared" if value else "pending"
+    print(f"marked {len(ids)} entr{'y' if len(ids) == 1 else 'ies'} {verb} "
+          f"({changed} changed): " + ", ".join(f"#{i}" for i in ids))
+
+
+def cmd_clear(args):
+    """Mark one or more entries as cleared (e.g. posted to your bank)."""
+    _set_cleared(args, True)
+
+
+def cmd_unclear(args):
+    """Mark one or more entries as pending again (undo a clear)."""
+    _set_cleared(args, False)
+
+
+def cmd_reconcile(args):
+    """Reconcile cleared vs pending entries: the net of what's cleared, what's
+    still outstanding, and the projected balance once everything clears."""
+    data = load()
+    rows = data["expenses"]
+
+    def net(subset):
+        inc = sum(e["amount"] for e in subset if kind_of(e) == "income")
+        exp = sum(e["amount"] for e in subset if kind_of(e) == "expense")
+        return round(inc - exp, 2)
+
+    cleared = [e for e in rows if e.get("cleared")]
+    pending = [e for e in rows if not e.get("cleared")]
+    cleared_net = net(cleared)
+    pending_net = net(pending)
+    projected = round(cleared_net + pending_net, 2)
+
+    if getattr(args, "json", False):
+        print(json.dumps({
+            "cleared_count": len(cleared), "pending_count": len(pending),
+            "cleared_net": cleared_net, "pending_net": pending_net,
+            "projected_balance": projected,
+        }, indent=2))
+        return
+
+    print("Reconciliation")
+    print("=" * 48)
+    print(f"  cleared   {money(cleared_net):>12}   ({len(cleared)} entr"
+          f"{'y' if len(cleared) == 1 else 'ies'})")
+    print(f"  pending   {money(pending_net):>12}   ({len(pending)} entr"
+          f"{'y' if len(pending) == 1 else 'ies'})")
+    print("-" * 48)
+    print(f"  projected {money(projected):>12}   (once everything clears)")
+    if pending:
+        print("  mark entries cleared with `clear <id> ...`")
 
 
 def cmd_split(args):
@@ -5496,6 +5571,21 @@ def build_parser():
     d.add_argument("id", type=int, help="expense id (see `list`)")
     d.set_defaults(func=cmd_delete)
 
+    clr = sub.add_parser("clear", help="mark entries as cleared (reconciled)")
+    clr.add_argument("ids", type=int, nargs="+", metavar="ID",
+                     help="one or more entry ids")
+    clr.set_defaults(func=cmd_clear)
+
+    unclr = sub.add_parser("unclear", help="mark entries as pending again")
+    unclr.add_argument("ids", type=int, nargs="+", metavar="ID",
+                       help="one or more entry ids")
+    unclr.set_defaults(func=cmd_unclear)
+
+    rec = sub.add_parser("reconcile",
+                         help="cleared vs pending balance and projected total")
+    rec.add_argument("--json", action="store_true", help="output JSON instead of text")
+    rec.set_defaults(func=cmd_reconcile)
+
     sp = sub.add_parser("split",
                         help="split an entry into category/amount parts")
     sp.add_argument("id", type=int, help="entry id to split (see `list`)")
@@ -6204,12 +6294,12 @@ CATCHUP_COMMANDS = frozenset({
     "tagtrend", "range", "matrix", "cumulative", "allowance", "tagmatrix",
     "weekly", "years", "anomalies", "roundup", "cashflow", "target", "runway",
     "net", "subscriptions", "payees", "overbudget", "today", "worthtrend",
-    "statement",
+    "statement", "reconcile",
 })
 MUTATING_COMMANDS = frozenset({
     "add", "income", "edit", "delete", "clone", "refund", "note", "tag",
     "untag", "retag", "recategorize", "unbudget", "goal", "networth",
-    "autobudget",
+    "autobudget", "clear", "unclear",
     "import", "restore", "backup", "dedupe", "undo", "config", "recur",
     "completion", "version", "web", "gui", "where", "tip", "split", "fx",
     "check", "interest", "loan",
