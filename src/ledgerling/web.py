@@ -504,7 +504,7 @@ const GROUP_DEFS = [
   ['Analyze', ['today', 'month', 'insights', 'range', 'summary', 'report', 'stats', 'week', 'weekly', 'day', 'year', 'years',
     'quarter', 'weekday', 'trend', 'tagtrend', 'matrix', 'tagmatrix', 'cumulative', 'top', 'compare', 'average', 'distribution',
     'balance', 'savings', 'heatmap', 'streak', 'pace', 'forecast', 'sources', 'anomalies', 'cashflow', 'net', 'subscriptions',
-    'categories', 'payees', 'tags', 'untagged', 'search', 'list']],
+    'categories', 'payees', 'worthtrend', 'tags', 'untagged', 'search', 'list']],
   ['Budgets & goals', ['budget', 'unbudget', 'allowance', 'overbudget', 'goal', 'networth', 'suggest', 'autobudget', 'commitments', 'upcoming']],
   ['Calculators', ['tip', 'interest', 'loan', 'target', 'runway', 'roundup',
     'fx convert', 'fx set', 'fx list', 'fx rm']],

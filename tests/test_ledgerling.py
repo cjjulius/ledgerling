@@ -2672,6 +2672,30 @@ class CLI(TempAppCase):
         self._main(["networth", "--remove", "card"])
         self.assertNotIn("card", L.load()["accounts"])
 
+    def test_networth_snapshot_and_worthtrend(self):
+        self._main(["networth", "--set", "checking", "--amount", "1000"])
+        self._main(["networth", "--set", "card", "--amount", "400", "--debt"])
+        out = self._main(["networth", "--snapshot"])
+        self.assertIn("snapshot saved", out)
+        hist = L.load()["networth_history"]
+        self.assertEqual(len(hist), 1)
+        self.assertEqual(hist[0]["net"], 600.0)
+        self.assertEqual(hist[0]["date"], date.today().isoformat())
+        # a second same-day snapshot replaces rather than appends
+        self._main(["networth", "--set", "checking", "--amount", "1500"])
+        self._main(["networth", "--snapshot"])
+        hist = L.load()["networth_history"]
+        self.assertEqual(len(hist), 1)
+        self.assertEqual(hist[0]["net"], 1100.0)
+        # worthtrend reports it
+        d = json.loads(self._main(["worthtrend", "--json"]))
+        self.assertEqual(d["count"], 1)
+        self.assertEqual(d["snapshots"][0]["net"], 1100.0)
+        self.assertIsNone(d["snapshots"][0]["change"])   # first has no delta
+
+    def test_worthtrend_empty(self):
+        self.assertIn("no net-worth snapshots", self._main(["worthtrend"]))
+
     def test_networth_validation(self):
         # --set needs --amount; negative amount rejected; removing a missing one
         for argv in (["networth", "--set", "x"],

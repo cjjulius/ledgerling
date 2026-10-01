@@ -88,6 +88,7 @@ Commands:
     overbudget  Budget breaches across every month of history
     goal      Set / view a monthly savings goal
     networth  Track account balances (assets/debts) and net worth
+    worthtrend  Net-worth snapshots over time
     recur     Recurring rules (add/from/edit/list/remove/run/skip/unskip/pause/resume)
     export    Write entries to CSV/JSON (filter by month/range/category/kind)
     import    Read entries back from a CSV or JSON file (deduped)
@@ -122,7 +123,7 @@ import tempfile
 import time
 from datetime import datetime, date, timedelta
 
-__version__ = "1.133.0"
+__version__ = "1.134.0"
 
 # --------------------------------------------------------------------------- #
 # Sandbox + storage
@@ -175,7 +176,7 @@ def _within_home(path):
 def load():
     if not os.path.exists(DATA_FILE):
         return {"expenses": [], "budgets": {}, "recurring": [], "goal": None,
-                "accounts": {}}
+                "accounts": {}, "networth_history": []}
     try:
         with open(DATA_FILE, "r", encoding="utf-8") as fh:
             data = json.load(fh)
@@ -186,6 +187,7 @@ def load():
     data.setdefault("recurring", [])
     data.setdefault("goal", None)
     data.setdefault("accounts", {})
+    data.setdefault("networth_history", [])
     return data
 
 
@@ -4120,6 +4122,21 @@ def cmd_networth(args):
     if getattr(args, "set", None) and getattr(args, "remove", None):
         sys.exit("error: use --set or --remove, not both")
 
+    if getattr(args, "snapshot", False):
+        assets, debts, net = networth_totals(accounts)
+        today = date.today().isoformat()
+        entry = {"date": today, "assets": assets, "debts": debts,
+                 "net": net, "cash": all_time_net(data)}
+        hist = [h for h in data["networth_history"] if h.get("date") != today]
+        hist.append(entry)
+        hist.sort(key=lambda h: h.get("date", ""))
+        data["networth_history"] = hist
+        save(data)
+        print(f"snapshot saved for {today}: net worth {money(net)} "
+              f"({len(hist)} on record)")
+        if not getattr(args, "json", False):
+            return
+
     if getattr(args, "set", None):
         label = args.set.strip().lower()
         if not label:
@@ -4172,6 +4189,50 @@ def cmd_networth(args):
         print(f"  {'debts':<18} {money(debts):>12}")
         print(f"  {'net worth':<18} {money(net):>12}")
     print(f"  {'ledger cash':<18} {money(cash):>12}   (all-time net, for context)")
+    if data["networth_history"]:
+        print(f"  ({len(data['networth_history'])} snapshot(s) on record "
+              f"- see `worthtrend`)")
+    else:
+        print("  (tip: `networth --snapshot` records today's net worth over time)")
+
+
+def cmd_worthtrend(args):
+    """Show recorded net-worth snapshots over time (from `networth --snapshot`),
+    with the change since the previous snapshot."""
+    data = load()
+    hist = sorted(data["networth_history"], key=lambda h: h.get("date", ""))
+
+    rows = []
+    prev = None
+    for h in hist:
+        net = round(h.get("net", 0.0), 2)
+        change = None if prev is None else round(net - prev, 2)
+        rows.append({"date": h.get("date"), "assets": round(h.get("assets", 0), 2),
+                     "debts": round(h.get("debts", 0), 2), "net": net,
+                     "change": change})
+        prev = net
+
+    if getattr(args, "json", False):
+        print(json.dumps({"snapshots": rows, "count": len(rows)}, indent=2))
+        return
+
+    if not rows:
+        print("no net-worth snapshots yet. Record one with "
+              "`networth --snapshot`")
+        return
+
+    peak = max((abs(r["net"]) for r in rows), default=0) or 1.0
+    print("Net worth over time")
+    print("=" * 58)
+    for r in rows:
+        chg = "" if r["change"] is None else f"  ({_signed(r['change'])})"
+        print(f"{r['date']}  {money(r['net']):>13}  "
+              f"{bar(max(0.0, r['net']) / peak)}{chg}")
+    print("-" * 58)
+    first, last = rows[0], rows[-1]
+    span = round(last["net"] - first["net"], 2)
+    print(f"{len(rows)} snapshot(s); change since {first['date']}: "
+          f"{_signed(span)}")
 
 
 def _completion_spec():
@@ -5730,8 +5791,15 @@ def build_parser():
     nw.add_argument("--debt", action="store_true",
                     help="mark the --set account as a liability")
     nw.add_argument("--remove", metavar="LABEL", help="remove an account")
+    nw.add_argument("--snapshot", action="store_true",
+                    help="record today's net worth to the history (for worthtrend)")
     nw.add_argument("--json", action="store_true", help="output JSON instead of text")
     nw.set_defaults(func=cmd_networth)
+
+    wt = sub.add_parser("worthtrend",
+                        help="net-worth snapshots over time (see networth --snapshot)")
+    wt.add_argument("--json", action="store_true", help="output JSON instead of text")
+    wt.set_defaults(func=cmd_worthtrend)
 
     bk = sub.add_parser("backup", help="save a timestamped copy of your data")
     bk.add_argument("--list", action="store_true", help="list existing backups")
@@ -5942,7 +6010,7 @@ CATCHUP_COMMANDS = frozenset({
     "balance", "commitments", "savings", "heatmap", "suggest", "insights",
     "tagtrend", "range", "matrix", "cumulative", "allowance", "tagmatrix",
     "weekly", "years", "anomalies", "roundup", "cashflow", "target", "runway",
-    "net", "subscriptions", "payees", "overbudget", "today",
+    "net", "subscriptions", "payees", "overbudget", "today", "worthtrend",
 })
 MUTATING_COMMANDS = frozenset({
     "add", "income", "edit", "delete", "clone", "refund", "note", "tag",
