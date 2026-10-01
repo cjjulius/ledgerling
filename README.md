@@ -52,7 +52,8 @@ headers (Tab / Enter / Space), form fields with associated labels and
 polite live region that announces command output as it updates. The result
 views (Text / Table / Chart / …) are a proper ARIA tablist — arrow keys plus
 Home/End move between tabs with a roving focus, and each tab is wired to its
-panel.
+panel. Data tables mark their header cells with `scope` (col/row) so screen
+readers announce the right header for each cell.
 
 ### Shell completion (optional)
 
