@@ -47,6 +47,9 @@ and `cashflow` renders a **projection chart** — a running-balance line with a
 zero baseline, a start/end/lowest summary strip, and a highlighted warning if
 the balance is projected to go negative.
 
+Each command's output has a **Copy** button to grab the result (text or JSON)
+in one click.
+
 It's built to be **keyboard- and screen-reader-friendly**: a skip link, labeled
 landmarks, visible focus rings, fully keyboard-operable command list and group
 headers (Tab / Enter / Space), form fields with associated labels and

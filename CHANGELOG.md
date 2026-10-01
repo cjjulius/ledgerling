@@ -4,6 +4,14 @@ All notable changes to Ledgerling are documented here. The format is based on
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and this project
 adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.121.0] - 2026-10-01
+
+### Added
+
+- Web UI: a **Copy** button on each command's output card copies the text
+  result to the clipboard (with a brief "Copied!" confirmation) — handy for
+  grabbing JSON or a table of numbers.
+
 ## [1.120.0] - 2026-10-01
 
 ### Added
@@ -1277,6 +1285,7 @@ file, standard library only, strictly confined to its own folder.
   guard (`_within_app`) that refuses any path escaping the app folder; imports
   and restores are reduced to a basename and looked up only within the folder.
 
+[1.121.0]: #11210---2026-10-01
 [1.120.0]: #11200---2026-10-01
 [1.119.0]: #11190---2026-10-01
 [1.118.0]: #11180---2026-10-01

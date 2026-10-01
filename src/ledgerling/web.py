@@ -336,7 +336,11 @@ INDEX_HTML = r"""<!doctype html>
     font-size:14px; box-shadow:var(--shadow); }
   button.run:hover { background:var(--accent2); }
   button.run:disabled { opacity:.6; cursor:default; }
-  .out { margin-top:18px; }
+  .out { margin-top:18px; position:relative; }
+  .copybtn { position:absolute; top:0; right:0; z-index:2; padding:4px 10px;
+    border:1px solid var(--line); background:var(--panel2); color:var(--muted);
+    border-radius:8px; cursor:pointer; font-size:12px; }
+  .copybtn:hover { color:var(--ink); border-color:var(--accent); }
   pre { background:var(--code); color:var(--code-ink); padding:15px 17px;
     border-radius:11px; overflow:auto; font:13px/1.5 ui-monospace,SFMono-Regular,
     Menlo,Consolas,monospace; white-space:pre-wrap; word-break:break-word; min-height:40px;
@@ -700,6 +704,23 @@ function selectCmd(c) {
     '<div id="outtable" style="display:none"></div>' +
     '<div id="outchart" style="display:none"></div>' +
     '<div id="outcal" style="display:none"></div>';
+  // A Copy button grabs the text output (handy for JSON / results).
+  const copyBtn = document.createElement('button');
+  copyBtn.type = 'button'; copyBtn.className = 'copybtn';
+  copyBtn.textContent = 'Copy';
+  copyBtn.setAttribute('aria-label', 'Copy the output text to the clipboard');
+  copyBtn.onclick = () => {
+    const text = document.getElementById('outpre').textContent || '';
+    const flash = () => {
+      copyBtn.textContent = 'Copied!';
+      setTimeout(() => { copyBtn.textContent = 'Copy'; }, 1200);
+    };
+    try {
+      if (navigator.clipboard) navigator.clipboard.writeText(text).then(flash, flash);
+      else flash();
+    } catch (e) { flash(); }
+  };
+  out.insertBefore(copyBtn, out.firstChild);
   m.appendChild(out);
 }
 
