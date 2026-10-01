@@ -231,6 +231,10 @@ ledgerling anomalies --category groceries --min-count 6
 ledgerling roundup                          # to the nearest $1.00
 ledgerling roundup --to 5 --month 2026-09   # to the nearest $5.00
 
+# Tip calculator and even bill splitter (pure math; touches no stored data)
+ledgerling tip 84.50 --pct 20               # tip + total
+ledgerling tip 100 --pct 18 --split 3       # split evenly; cents always sum back
+
 # Monthly spending trend for one category
 ledgerling trend food --months 6
 

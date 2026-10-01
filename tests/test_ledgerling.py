@@ -597,6 +597,37 @@ class CLI(TempAppCase):
         self.assertIsNone(d["negative_on"])
         self.assertEqual(d["end_balance"], 50.0)
 
+    def test_tip_basic_math(self):
+        d = json.loads(self._main(["tip", "84.50", "--pct", "20", "--json"]))
+        self.assertEqual(d["bill"], 84.50)
+        self.assertEqual(d["tip"], 16.90)
+        self.assertEqual(d["total"], 101.40)
+        self.assertEqual(d["split"], 1)
+        self.assertFalse(d["uneven"])
+
+    def test_tip_even_split(self):
+        d = json.loads(self._main(["tip", "80", "--pct", "25", "--split", "4",
+                                   "--json"]))
+        self.assertEqual(d["total"], 100.00)
+        self.assertEqual(d["per_person"], 25.00)
+        self.assertFalse(d["uneven"])
+
+    def test_tip_uneven_split_sums_to_total(self):
+        # $100.00 total across 3 -> 33.34, 33.33, 33.33 (sums back to 100.00)
+        d = json.loads(self._main(["tip", "100", "--pct", "0", "--split", "3",
+                                   "--json"]))
+        self.assertTrue(d["uneven"])
+        self.assertEqual(d["high_share"], 33.34)
+        self.assertEqual(d["low_share"], 33.33)
+        self.assertEqual(d["high_count"], 1)
+        total = round(d["high_share"] * d["high_count"]
+                      + d["low_share"] * (d["split"] - d["high_count"]), 2)
+        self.assertEqual(total, d["total"])
+
+    def test_tip_rejects_bad_split(self):
+        with self.assertRaises(SystemExit):
+            self._main(["tip", "20", "--split", "0"])
+
     def test_average_json(self):
         self._main(["add", "100", "food", "a", "--date", "2026-01-01"])
         self._main(["add", "100", "food", "b", "--date", "2026-01-11"])  # 11-day span
