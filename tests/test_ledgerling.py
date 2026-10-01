@@ -21,6 +21,27 @@ from ledgerling import cli as L  # noqa: E402
 
 
 class PureLogic(unittest.TestCase):
+    def test_read_commands_support_json(self):
+        # Every catch-up (read) command should offer --json for scripting and
+        # the self-generating web UI. export is exempt: it writes files and
+        # uses --format json for that instead.
+        import argparse
+        parser = L.build_parser()
+        sub = next(a for a in parser._actions
+                   if isinstance(a, argparse._SubParsersAction))
+        exempt = {"export"}
+        missing = []
+        for name in L.CATCHUP_COMMANDS:
+            if name in exempt:
+                continue
+            opts = set()
+            for a in sub.choices[name]._actions:
+                opts.update(a.option_strings)
+            if "--json" not in opts:
+                missing.append(name)
+        self.assertEqual(sorted(missing), [],
+                         "catch-up commands missing --json: %s" % sorted(missing))
+
     def test_docstring_lists_every_command(self):
         # Guard against help-text drift: every top-level command must appear in
         # the module docstring's command list (indented "name   description").
@@ -959,6 +980,20 @@ class CLI(TempAppCase):
         self._main(["add", "10", "food", "a"])
         with self.assertRaises(SystemExit):
             self._main(["export", "--income", "--expenses"])
+
+    def test_report_json(self):
+        t = date.today().isoformat()
+        self._main(["add", "40", "food", "a", "--date", t])
+        self._main(["income", "100", "salary", "b", "--date", t])
+        d = json.loads(self._main(["report", "--months", "3", "--json"]))
+        self.assertEqual(len(d["months"]), 3)
+        this_month = date.today().isoformat()[:7]
+        cur = [m for m in d["months"] if m["month"] == this_month][0]
+        self.assertEqual(cur["spending"], 40.0)
+        self.assertEqual(cur["income"], 100.0)
+        self.assertEqual(cur["net"], 60.0)
+        self.assertEqual(d["total_spending"], 40.0)
+        self.assertEqual(d["net"], 60.0)
 
     def test_summary_json(self):
         t = date.today().isoformat()

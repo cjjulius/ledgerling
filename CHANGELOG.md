@@ -4,6 +4,17 @@ All notable changes to Ledgerling are documented here. The format is based on
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and this project
 adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.109.0] - 2026-10-01
+
+### Added
+
+- `report` gains `--json`: a `months` array (spending, income, net, and
+  month-over-month `change_pct` each), plus window `average`, `total_income`,
+  `total_spending`, `net`, and goal figures. This completes structured output
+  for every read command, so the web UI renders `report` as a table/chart too.
+  A new guard test enforces that every catch-up command offers `--json`
+  (`export` exempt — it writes files via `--format`).
+
 ## [1.108.0] - 2026-10-01
 
 ### Added
@@ -1113,6 +1124,7 @@ file, standard library only, strictly confined to its own folder.
   guard (`_within_app`) that refuses any path escaping the app folder; imports
   and restores are reduced to a basename and looked up only within the folder.
 
+[1.109.0]: #11090---2026-10-01
 [1.108.0]: #11080---2026-10-01
 [1.107.0]: #11070---2026-10-01
 [1.106.0]: #11060---2026-10-01

@@ -107,7 +107,7 @@ import sys
 import tempfile
 from datetime import datetime, date, timedelta
 
-__version__ = "1.108.0"
+__version__ = "1.109.0"
 
 # --------------------------------------------------------------------------- #
 # Sandbox + storage
@@ -969,6 +969,31 @@ def cmd_report(args):
                 totals[m] += e["amount"]
 
     peak = max(totals.values()) if any(totals.values()) else 0
+
+    if getattr(args, "json", False):
+        rows = []
+        prev = None
+        for k in keys:
+            amt = round(totals[k], 2)
+            inc = round(income[k], 2)
+            change = (None if (prev is None or prev == 0)
+                      else round((amt - prev) / prev * 100, 1))
+            rows.append({"month": k, "spending": amt, "income": inc,
+                         "net": round(inc - amt, 2), "change_pct": change})
+            prev = amt
+        active = [k for k in keys if totals[k] > 0]
+        avg = round(sum(totals[k] for k in active) / len(active), 2) \
+            if active else 0.0
+        ti = round(sum(income.values()), 2)
+        ts = round(sum(totals.values()), 2)
+        out = {"months": rows, "average": avg, "total_income": ti,
+               "total_spending": ts, "net": round(ti - ts, 2)}
+        goal = data.get("goal")
+        if goal is not None:
+            out["goal_per_month"] = goal
+            out["goal_target"] = round(goal * months, 2)
+        print(json.dumps(out, indent=2))
+        return
 
     print(f"Spending trend (last {months} month(s))")
     print("=" * 56)
@@ -4294,6 +4319,7 @@ def build_parser():
     rp = sub.add_parser("report", help="month-over-month trend and budget adherence")
     rp.add_argument("--months", type=int, default=6,
                     help="how many months to show (default 6)")
+    rp.add_argument("--json", action="store_true", help="output JSON instead of text")
     rp.set_defaults(func=cmd_report)
 
     sr = sub.add_parser("search", help="find expenses by keyword and filters")
