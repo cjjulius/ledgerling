@@ -4,6 +4,18 @@ All notable changes to Ledgerling are documented here. The format is based on
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and this project
 adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.87.0] - 2026-09-30
+
+### Changed
+
+- Performance: the recurring-occurrence generator (`_occurrences`) now takes an
+  optional `since` lower bound and fast-forwards to the first relevant date
+  instead of iterating from the rule's start every time. Projections
+  (`upcoming`, `cashflow`), the `recur list` next-due lookup, `recur skip`, and
+  the post-`last` part of the catch-up no longer loop over years of history for
+  long-running daily/weekly rules. Output is identical (a new brute-force
+  equivalence test guards this); only the wasted iteration is gone.
+
 ## [1.86.0] - 2026-09-30
 
 ### Added
@@ -866,6 +878,7 @@ file, standard library only, strictly confined to its own folder.
   guard (`_within_app`) that refuses any path escaping the app folder; imports
   and restores are reduced to a basename and looked up only within the folder.
 
+[1.87.0]: #1870---2026-09-30
 [1.86.0]: #1860---2026-09-30
 [1.85.0]: #1850---2026-09-30
 [1.84.0]: #1840---2026-09-30
