@@ -319,6 +319,9 @@ ledgerling --version
 # Where does my data live? (folder + files with sizes)
 ledgerling where
 
+# Scan your data for integrity problems (duplicate ids, bad dates, orphans, ...)
+ledgerling check
+
 # Settings (currency symbol, default list size)
 ledgerling config
 ledgerling config --currency "€" --list-limit 50
