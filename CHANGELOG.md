@@ -4,6 +4,15 @@ All notable changes to Ledgerling are documented here. The format is based on
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and this project
 adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.104.1] - 2026-10-01
+
+### Changed
+
+- Internal: added a regression guard that runs every no-argument command
+  against an empty data store and fails if any raises an unhandled exception,
+  so a future command that doesn't handle the empty case (division by zero,
+  `max()` of an empty list, ...) is caught in CI. No user-facing change.
+
 ## [1.104.0] - 2026-10-01
 
 ### Added
@@ -1065,6 +1074,7 @@ file, standard library only, strictly confined to its own folder.
   guard (`_within_app`) that refuses any path escaping the app folder; imports
   and restores are reduced to a basename and looked up only within the folder.
 
+[1.104.1]: #11041---2026-10-01
 [1.104.0]: #11040---2026-10-01
 [1.103.0]: #11030---2026-10-01
 [1.102.0]: #11020---2026-10-01
