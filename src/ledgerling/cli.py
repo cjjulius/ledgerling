@@ -59,6 +59,7 @@ Commands:
     fx        Offline currency converter (set/list/rm/convert, user-set rates)
     upcoming  Forecast recurring charges/income due in the next N days
     cashflow  Project a running balance forward (flags if it goes negative)
+    target    Estimate how long to reach a lump-sum savings target
     commitments  Recurring rules normalized to monthly/annual cost
     suggest   Suggest per-category budgets from recent average spending
     autobudget  Apply suggested budgets from recent spending (undoable)
@@ -97,6 +98,7 @@ import calendar
 import copy
 import csv
 import json
+import math
 import os
 import re
 import shutil
@@ -104,7 +106,7 @@ import sys
 import tempfile
 from datetime import datetime, date, timedelta
 
-__version__ = "1.95.0"
+__version__ = "1.96.0"
 
 # --------------------------------------------------------------------------- #
 # Sandbox + storage
@@ -1710,6 +1712,77 @@ def cmd_tip(args):
                   f"{extra} x {money(high_share)}")
         else:
             print(f"split {split} ways  {money(high_share)} each")
+
+
+def _avg_monthly_net(data, months):
+    """Average net (income - expenses) per month over the trailing `months`."""
+    today = date.today()
+    keys = {month_of(add_months(today, -i).isoformat()) for i in range(months)}
+    net = 0.0
+    for e in data["expenses"]:
+        if month_of(e["date"]) in keys:
+            net += e["amount"] if kind_of(e) == "income" else -e["amount"]
+    return round(net / months, 2)
+
+
+def cmd_target(args):
+    """Estimate how long to reach a lump-sum savings target at a monthly rate.
+
+    The monthly contribution defaults to your average net over the last
+    --months months; the starting balance defaults to your all-time net.
+    """
+    if args.amount <= 0:
+        sys.exit("error: target must be greater than zero")
+    months_window = args.months if args.months and args.months > 0 else 6
+    data = load()
+
+    if args.start is not None:
+        start = round(args.start, 2)
+    else:
+        inc = sum(e["amount"] for e in income_only(data["expenses"]))
+        exp = sum(e["amount"] for e in expenses_only(data["expenses"]))
+        start = round(inc - exp, 2)
+
+    if args.monthly is not None:
+        monthly = round(args.monthly, 2)
+        basis = "given"
+    else:
+        monthly = _avg_monthly_net(data, months_window)
+        basis = f"avg of last {months_window} mo"
+
+    remaining = round(args.amount - start, 2)
+    today = date.today()
+    if remaining <= 0:
+        status, months_needed, reach_date = "reached", 0, today.isoformat()
+    elif monthly <= 0:
+        status, months_needed, reach_date = "unreachable", None, None
+    else:
+        months_needed = math.ceil(round(remaining / monthly, 6))
+        status = "on_track"
+        reach_date = add_months(today, months_needed).isoformat()
+
+    if getattr(args, "json", False):
+        print(json.dumps({
+            "target": round(args.amount, 2), "start": start, "monthly": monthly,
+            "remaining": max(0.0, remaining), "status": status,
+            "months": months_needed, "reach_date": reach_date,
+        }, indent=2))
+        return
+
+    print("Savings target")
+    print("=" * 44)
+    print(f"{'target':<14} {money(round(args.amount, 2)):>16}")
+    print(f"{'current':<14} {money(start):>16}")
+    print(f"{'monthly':<14} {money(monthly):>16}  ({basis})")
+    if status == "reached":
+        print(f"already reached (+{money(start - args.amount)})")
+    elif status == "unreachable":
+        print(f"{'remaining':<14} {money(remaining):>16}")
+        print("at this rate you won't reach it - spending meets or exceeds income")
+    else:
+        print(f"{'remaining':<14} {money(remaining):>16}")
+        label = "month" if months_needed == 1 else "months"
+        print(f"about {months_needed} {label} -> around {reach_date}")
 
 
 def cmd_average(args):
@@ -4165,6 +4238,19 @@ def build_parser():
     tip.add_argument("--json", action="store_true", help="output JSON instead of text")
     tip.set_defaults(func=cmd_tip)
 
+    tgt = sub.add_parser("target",
+                         help="estimate how long to reach a savings target")
+    tgt.add_argument("amount", type=float, help="the savings amount to reach")
+    tgt.add_argument("--monthly", type=float,
+                     help="monthly contribution (default: your recent average net)")
+    tgt.add_argument("--start", type=float,
+                     help="starting balance (default: your all-time net)")
+    tgt.add_argument("--months", type=int, default=6,
+                     help="months of history to average for the default rate "
+                          "(default 6)")
+    tgt.add_argument("--json", action="store_true", help="output JSON instead of text")
+    tgt.set_defaults(func=cmd_target)
+
     av = sub.add_parser("average", help="average spending per day/week/month")
     av.add_argument("--json", action="store_true", help="output JSON instead of text")
     av.set_defaults(func=cmd_average)
@@ -4401,7 +4487,7 @@ CATCHUP_COMMANDS = frozenset({
     "untagged", "average", "distribution", "sources", "quarter", "forecast",
     "balance", "commitments", "savings", "heatmap", "suggest", "insights",
     "tagtrend", "range", "matrix", "cumulative", "allowance", "tagmatrix",
-    "weekly", "years", "anomalies", "roundup", "cashflow",
+    "weekly", "years", "anomalies", "roundup", "cashflow", "target",
 })
 MUTATING_COMMANDS = frozenset({
     "add", "income", "edit", "delete", "clone", "refund", "note", "tag",

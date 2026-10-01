@@ -777,6 +777,35 @@ class CLI(TempAppCase):
         self.assertEqual(L.DEFAULT_CONFIG["fx"], {})        # default untouched
         self.assertEqual(L.load_config()["fx"], {})         # next load is clean
 
+    def test_target_on_track(self):
+        d = json.loads(self._main(
+            ["target", "1000", "--monthly", "250", "--start", "100", "--json"]))
+        self.assertEqual(d["status"], "on_track")
+        self.assertEqual(d["remaining"], 900.0)
+        self.assertEqual(d["months"], 4)       # ceil(900 / 250)
+        self.assertIsNotNone(d["reach_date"])
+
+    def test_target_already_reached(self):
+        d = json.loads(self._main(
+            ["target", "500", "--monthly", "100", "--start", "500", "--json"]))
+        self.assertEqual(d["status"], "reached")
+        self.assertEqual(d["months"], 0)
+
+    def test_target_unreachable_when_not_saving(self):
+        d = json.loads(self._main(
+            ["target", "1000", "--monthly", "0", "--start", "0", "--json"]))
+        self.assertEqual(d["status"], "unreachable")
+        self.assertIsNone(d["months"])
+        self.assertIsNone(d["reach_date"])
+
+    def test_target_default_rate_from_history(self):
+        # one income-only month -> positive average net drives the estimate
+        self._main(["income", "600", "salary", "x",
+                    "--date", date.today().isoformat()])
+        d = json.loads(self._main(["target", "300", "--start", "0", "--json"]))
+        self.assertEqual(d["status"], "on_track")
+        self.assertGreater(d["monthly"], 0)
+
     def test_fx_set_list_convert(self):
         self._main(["fx", "set", "usd", "1"])
         self._main(["fx", "set", "eur", "1.09"])

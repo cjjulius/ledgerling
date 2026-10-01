@@ -267,6 +267,10 @@ ledgerling upcoming --days 60
 ledgerling cashflow --days 45
 ledgerling cashflow --days 60 --start-balance 2500
 
+# How long to reach a lump-sum savings target (uses your recent average net)
+ledgerling target 10000
+ledgerling target 10000 --monthly 750 --start 2500
+
 # Recurring rules normalized to monthly / annual cost (your fixed obligations)
 ledgerling commitments
 
