@@ -869,6 +869,25 @@ class CLI(TempAppCase):
         self.assertEqual(d["status"], "on_track")
         self.assertGreater(d["monthly"], 0)
 
+    def test_export_filters_by_kind_and_category(self):
+        self._main(["add", "10", "food", "a", "--date", "2026-01-01"])
+        self._main(["add", "20", "rent", "b", "--date", "2026-01-02"])
+        self._main(["income", "500", "salary", "c", "--date", "2026-01-03"])
+        self._main(["export", "--income", "--format", "json", "--file", "inc.json"])
+        with open(os.path.join(L.EXPORT_DIR, "inc.json"), encoding="utf-8") as fh:
+            rows = json.load(fh)
+        self.assertEqual([r["kind"] for r in rows], ["income"])
+        self._main(["export", "--category", "food", "--format", "json",
+                    "--file", "food.json"])
+        with open(os.path.join(L.EXPORT_DIR, "food.json"), encoding="utf-8") as fh:
+            rows = json.load(fh)
+        self.assertEqual([r["category"] for r in rows], ["food"])
+
+    def test_export_rejects_both_kinds(self):
+        self._main(["add", "10", "food", "a"])
+        with self.assertRaises(SystemExit):
+            self._main(["export", "--income", "--expenses"])
+
     def test_check_clean(self):
         self._main(["add", "10", "food", "x"])
         d = json.loads(self._main(["check", "--json"]))
