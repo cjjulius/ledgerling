@@ -4,6 +4,15 @@ All notable changes to Ledgerling are documented here. The format is based on
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and this project
 adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.93.0] - 2026-10-01
+
+### Added
+
+- Web UI dashboard: a new **Upcoming (30 days)** card lists the recurring
+  income/expenses scheduled in the next 30 days (from `upcoming --json`) with a
+  projected-net footer. Each row is clickable and opens the `cashflow`
+  projection, tying the recurring/forecast features into the landing view.
+
 ## [1.92.0] - 2026-09-30
 
 ### Added
@@ -933,6 +942,7 @@ file, standard library only, strictly confined to its own folder.
   guard (`_within_app`) that refuses any path escaping the app folder; imports
   and restores are reduced to a basename and looked up only within the folder.
 
+[1.93.0]: #1930---2026-10-01
 [1.92.0]: #1920---2026-09-30
 [1.91.0]: #1910---2026-09-30
 [1.90.0]: #1900---2026-09-30

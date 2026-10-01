@@ -406,6 +406,10 @@ INDEX_HTML = r"""<!doctype html>
   .recrow .ramt { font:12px ui-monospace,Menlo,Consolas,monospace; text-align:right;
     font-weight:600; }
   .recrow .ramt.pos { color:var(--pos); }
+  .upfoot { margin-top:10px; padding-top:9px; border-top:1px solid var(--line);
+    font-size:12px; color:var(--muted); }
+  .upfoot .pos { color:var(--pos); font-weight:600; }
+  .upfoot .neg { color:var(--neg); font-weight:600; }
   @media (max-width:720px) {
     .wrap { grid-template-columns:1fr; height:auto; }
     .side { border-right:0; border-bottom:1px solid var(--line); max-height:40vh; }
@@ -797,14 +801,16 @@ async function showDashboard(month) {
   stats.appendChild(statCard('Net', money(d.net), netSub, d.net >= 0 ? 'pos' : 'neg'));
   body.appendChild(stats);
 
-  // Insights strip + recent activity, fetched in parallel.
-  const [insRes, listRes] = await Promise.all([
+  // Insights strip + recent activity + upcoming, fetched in parallel.
+  const [insRes, listRes, upRes] = await Promise.all([
     postRun(['insights', '--month', month, '--json']),
     postRun(['list', '--all', '--month', month, '--limit', '8', '--json']),
+    postRun(['upcoming', '--days', '30', '--json']),
   ]);
-  let insD = null, recent = null;
+  let insD = null, recent = null, upc = null;
   try { insD = JSON.parse(insRes.stdout); } catch (e) {}
   try { recent = JSON.parse(listRes.stdout); } catch (e) {}
+  try { upc = JSON.parse(upRes.stdout); } catch (e) {}
 
   if (insD && Array.isArray(insD.insights) && insD.insights.length) {
     const c = insightsCard(insD.insights.slice(0, 4));
@@ -816,8 +822,42 @@ async function showDashboard(month) {
   dg.appendChild(topCatCard(d.by_category));
   if (d.budgets && Object.keys(d.budgets).length) dg.appendChild(budgetCard(d.budgets));
   dg.appendChild(goalCard(d.goal, d.net));
+  if (upc && Array.isArray(upc.items) && upc.items.length) {
+    dg.appendChild(upcomingCard(upc));
+  }
   if (Array.isArray(recent) && recent.length) dg.appendChild(recentCard(recent));
   body.appendChild(dg);
+}
+
+function upcomingCard(data) {
+  const c = document.createElement('div'); c.className = 'card';
+  const h = document.createElement('h3');
+  h.textContent = 'Upcoming (' + data.days + ' days)'; c.appendChild(h);
+  const list = document.createElement('div'); list.className = 'recent';
+  data.items.slice(0, 6).forEach(i => {
+    const income = i.kind === 'income';
+    const row = document.createElement('div'); row.className = 'recrow clickable';
+    row.title = 'Open the cash-flow projection';
+    row.onclick = () => openCommand('cashflow', {days: data.days}, true);
+    const d = document.createElement('div'); d.className = 'rdate';
+    d.textContent = i.date;
+    const cat = document.createElement('div'); cat.className = 'rcat';
+    cat.textContent = i.category + (i.note ? ' - ' + i.note : '');
+    const amt = document.createElement('div');
+    amt.className = 'ramt' + (income ? ' pos' : '');
+    amt.textContent = (income ? '+' : '-') + money(i.amount);
+    row.appendChild(d); row.appendChild(cat); row.appendChild(amt);
+    list.appendChild(row);
+  });
+  c.appendChild(list);
+  const foot = document.createElement('div'); foot.className = 'upfoot';
+  const cls = data.net >= 0 ? 'pos' : 'neg';
+  const more = data.items.length > 6
+    ? ' &middot; ' + data.items.length + ' scheduled' : '';
+  foot.innerHTML = 'projected net <span class="' + cls + '">' +
+    (data.net >= 0 ? '+' : '') + esc(money(data.net)) + '</span>' + more;
+  c.appendChild(foot);
+  return c;
 }
 
 function insightsCard(list) {
