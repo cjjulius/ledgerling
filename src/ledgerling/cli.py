@@ -87,6 +87,7 @@ Commands:
     config    View or change settings (currency symbol, default list limit)
     version   Show the version (also `--version`)
     where     Show the data folder and its files
+    check     Scan your data for integrity problems
     completion  Print a bash/zsh tab-completion script
     web       Launch a local web UI covering every command
 
@@ -106,7 +107,7 @@ import sys
 import tempfile
 from datetime import datetime, date, timedelta
 
-__version__ = "1.98.0"
+__version__ = "1.99.0"
 
 # --------------------------------------------------------------------------- #
 # Sandbox + storage
@@ -3475,6 +3476,92 @@ def _dir_summary(path):
         return None, None
 
 
+def _valid_iso(s):
+    try:
+        date.fromisoformat(s)
+        return True
+    except (ValueError, TypeError):
+        return False
+
+
+def cmd_check(args):
+    """Scan the stored data for integrity problems and report them.
+
+    Read-only (no recurring catch-up runs first, so it inspects the data as
+    stored). Reports duplicate ids, non-positive amounts, malformed dates,
+    empty categories, expenses pointing at a missing recurring rule, and
+    invalid recurring rules or budgets.
+    """
+    data = load()
+    issues = []
+
+    counts = {}
+    for e in data["expenses"]:
+        counts[e.get("id")] = counts.get(e.get("id"), 0) + 1
+    for eid, n in sorted(counts.items(), key=lambda kv: (kv[0] is None, kv[0])):
+        if n > 1:
+            issues.append({"kind": "duplicate_id", "id": eid,
+                           "detail": f"id #{eid} is used by {n} entries"})
+
+    rule_ids = {r.get("id") for r in data["recurring"]}
+    for e in data["expenses"]:
+        eid = e.get("id")
+        amt = e.get("amount")
+        if isinstance(amt, bool) or not isinstance(amt, (int, float)) or amt <= 0:
+            issues.append({"kind": "bad_amount", "id": eid,
+                           "detail": f"#{eid} has amount {amt!r}"})
+        if not _valid_iso(e.get("date")):
+            issues.append({"kind": "bad_date", "id": eid,
+                           "detail": f"#{eid} has date {e.get('date')!r}"})
+        if not str(e.get("category") or "").strip():
+            issues.append({"kind": "empty_category", "id": eid,
+                           "detail": f"#{eid} has no category"})
+        rid = e.get("recur_id")
+        if rid is not None and rid not in rule_ids:
+            issues.append({"kind": "orphan_recur_id", "id": eid,
+                           "detail": f"#{eid} points at missing rule #{rid}"})
+
+    for r in data["recurring"]:
+        rid = r.get("id")
+        if r.get("every") not in ("day", "week", "month"):
+            issues.append({"kind": "bad_frequency", "id": rid,
+                           "detail": f"rule #{rid} has every={r.get('every')!r}"})
+        if not _valid_iso(r.get("start")):
+            issues.append({"kind": "bad_rule_start", "id": rid,
+                           "detail": f"rule #{rid} start {r.get('start')!r}"})
+        if r.get("until") is not None and not _valid_iso(r.get("until")):
+            issues.append({"kind": "bad_rule_until", "id": rid,
+                           "detail": f"rule #{rid} until {r.get('until')!r}"})
+        cnt = r.get("count")
+        if cnt is not None and (isinstance(cnt, bool)
+                                or not isinstance(cnt, int) or cnt < 1):
+            issues.append({"kind": "bad_rule_count", "id": rid,
+                           "detail": f"rule #{rid} count {cnt!r}"})
+
+    for cat, lim in data["budgets"].items():
+        if isinstance(lim, bool) or not isinstance(lim, (int, float)) or lim <= 0:
+            issues.append({"kind": "bad_budget", "id": None,
+                           "detail": f"budget [{cat}] is {lim!r}"})
+
+    if getattr(args, "json", False):
+        print(json.dumps({"ok": not issues, "count": len(issues),
+                          "issues": issues}, indent=2))
+        return
+
+    n_exp = len(data["expenses"])
+    n_rules = len(data["recurring"])
+    if not issues:
+        print(f"No problems found - {n_exp} entr{'y' if n_exp == 1 else 'ies'}, "
+              f"{n_rules} recurring rule(s) look healthy.")
+        return
+    print(f"Found {len(issues)} problem(s)")
+    print("=" * 52)
+    for i in issues:
+        print(f"  [{i['kind']}] {i['detail']}")
+    print("-" * 52)
+    print("Tip: fix with edit/delete/recategorize, or restore a backup.")
+
+
 def cmd_where(args):
     entries = [
         ("data file", DATA_FILE, "file"),
@@ -4393,6 +4480,11 @@ def build_parser():
     wh.add_argument("--json", action="store_true", help="output JSON instead of text")
     wh.set_defaults(func=cmd_where)
 
+    ck = sub.add_parser("check",
+                        help="scan your data for integrity problems")
+    ck.add_argument("--json", action="store_true", help="output JSON instead of text")
+    ck.set_defaults(func=cmd_check)
+
     wb = sub.add_parser("web", help="launch a local web UI (auto-covers every command)")
     wb.add_argument("--port", type=int, default=8730, help="port (default 8730)")
     wb.add_argument("--no-browser", action="store_true",
@@ -4531,7 +4623,7 @@ MUTATING_COMMANDS = frozenset({
     "add", "income", "edit", "delete", "clone", "refund", "note", "tag",
     "untag", "retag", "recategorize", "unbudget", "goal", "autobudget",
     "import", "restore", "backup", "dedupe", "undo", "config", "recur",
-    "completion", "version", "web", "where", "tip", "split", "fx",
+    "completion", "version", "web", "where", "tip", "split", "fx", "check",
 })
 
 

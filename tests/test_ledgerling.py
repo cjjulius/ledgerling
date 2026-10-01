@@ -852,6 +852,38 @@ class CLI(TempAppCase):
         self.assertEqual(d["status"], "on_track")
         self.assertGreater(d["monthly"], 0)
 
+    def test_check_clean(self):
+        self._main(["add", "10", "food", "x"])
+        d = json.loads(self._main(["check", "--json"]))
+        self.assertTrue(d["ok"])
+        self.assertEqual(d["issues"], [])
+
+    def test_check_finds_problems(self):
+        L.save({"expenses": [
+            {"id": 1, "amount": -5, "category": "food", "note": "",
+             "date": "2026-01-01", "tags": [], "kind": "expense"},
+            {"id": 1, "amount": 10, "category": "", "note": "",
+             "date": "not-a-date", "tags": [], "kind": "expense",
+             "recur_id": 99},
+        ], "budgets": {"rent": -100}, "recurring": [], "goal": None})
+        d = json.loads(self._main(["check", "--json"]))
+        self.assertFalse(d["ok"])
+        kinds = {i["kind"] for i in d["issues"]}
+        for expected in ("duplicate_id", "bad_amount", "bad_date",
+                         "empty_category", "orphan_recur_id", "bad_budget"):
+            self.assertIn(expected, kinds)
+
+    def test_check_flags_invalid_rule(self):
+        L.save({"expenses": [], "budgets": {}, "recurring": [
+            {"id": 1, "amount": 10.0, "category": "x", "note": "",
+             "every": "fortnight", "start": "nope", "count": 0},
+        ], "goal": None})
+        kinds = {i["kind"] for i in json.loads(
+            self._main(["check", "--json"]))["issues"]}
+        self.assertIn("bad_frequency", kinds)
+        self.assertIn("bad_rule_start", kinds)
+        self.assertIn("bad_rule_count", kinds)
+
     def test_fx_set_list_convert(self):
         self._main(["fx", "set", "usd", "1"])
         self._main(["fx", "set", "eur", "1.09"])

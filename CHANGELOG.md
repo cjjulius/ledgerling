@@ -4,6 +4,17 @@ All notable changes to Ledgerling are documented here. The format is based on
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and this project
 adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.99.0] - 2026-10-01
+
+### Added
+
+- `check` — a data-integrity scan (a "doctor" for your ledger). Read-only (no
+  catch-up runs first, so it inspects the data as stored) and reports duplicate
+  ids, non-positive amounts, malformed dates, empty categories, expenses whose
+  `recur_id` points at a missing rule, and invalid recurring rules (bad
+  frequency/start/until/count) or budgets. Prints a healthy summary when clean;
+  supports `--json` and appears in the self-generating web UI.
+
 ## [1.98.0] - 2026-10-01
 
 ### Fixed
@@ -996,6 +1007,7 @@ file, standard library only, strictly confined to its own folder.
   guard (`_within_app`) that refuses any path escaping the app folder; imports
   and restores are reduced to a basename and looked up only within the folder.
 
+[1.99.0]: #1990---2026-10-01
 [1.98.0]: #1980---2026-10-01
 [1.97.0]: #1970---2026-10-01
 [1.96.0]: #1960---2026-10-01
