@@ -107,7 +107,7 @@ import sys
 import tempfile
 from datetime import datetime, date, timedelta
 
-__version__ = "1.103.0"
+__version__ = "1.104.0"
 
 # --------------------------------------------------------------------------- #
 # Sandbox + storage
@@ -515,10 +515,19 @@ def cmd_list(args):
         rows = [e for e in rows if e["category"] == args.category.strip().lower()]
     if args.month:
         rows = [e for e in rows if month_of(e["date"]) == args.month]
-    rows = sorted(rows, key=lambda e: (e["date"], e["id"]))
+    key = getattr(args, "sort", "date") or "date"
+    reverse = bool(getattr(args, "desc", False))
+    if key == "amount":
+        rows.sort(key=lambda e: (e["amount"], e["date"], e["id"]), reverse=reverse)
+    elif key == "category":
+        rows.sort(key=lambda e: (e["category"], e["date"], e["id"]), reverse=reverse)
+    else:  # date
+        rows.sort(key=lambda e: (e["date"], e["id"]), reverse=reverse)
     limit = args.limit if args.limit is not None else _CONFIG["list_limit"]
     if limit and limit > 0:
-        rows = rows[-limit:]
+        # Default (date, ascending) keeps the most recent N; any other sort or
+        # an explicit --desc takes the first N of the chosen order.
+        rows = rows[-limit:] if (key == "date" and not reverse) else rows[:limit]
 
     if getattr(args, "json", False):
         print(json.dumps(rows, indent=2))
@@ -4156,6 +4165,10 @@ def build_parser():
                    help="show at most N most-recent items (default from config)")
     l.add_argument("--income", action="store_true", help="show income instead")
     l.add_argument("--all", action="store_true", help="show expenses and income")
+    l.add_argument("--sort", choices=["date", "amount", "category"],
+                   default="date", help="sort order (default date)")
+    l.add_argument("--desc", action="store_true",
+                   help="reverse the sort (e.g. largest first with --sort amount)")
     l.add_argument("--json", action="store_true", help="output JSON instead of text")
     l.set_defaults(func=cmd_list)
 

@@ -103,6 +103,7 @@ ledgerling list                       # expenses only (default)
 ledgerling list --income              # income only
 ledgerling list --all                 # both, income marked +income
 ledgerling list --category food --month 2026-09
+ledgerling list --sort amount --desc --limit 5   # your 5 biggest recent entries
 
 # Totals by category, ASCII bar chart (defaults to this month)
 ledgerling summary
