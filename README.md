@@ -422,7 +422,8 @@ import) assign ids from a running counter instead of re-scanning the list per
 row, so materializing thousands of entries stays linear.
 
 Shared derived values (e.g. the all-time net that `cashflow`, `target`, and
-`runway` use as a default balance) live in single helpers rather than being
+`runway` use as a default balance, or a category's spend in a month used by
+`budget`/`pace`/`allowance`/`report`) live in single helpers rather than being
 re-implemented per command.
 
 Config loading is defensive: a stored setting is only accepted when its type

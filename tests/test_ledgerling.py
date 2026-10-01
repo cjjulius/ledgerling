@@ -122,6 +122,20 @@ class PureLogic(unittest.TestCase):
         self.assertEqual(L.add_months(date(2026, 12, 10), 1), date(2027, 1, 10))
         self.assertEqual(L.add_months(date(2026, 3, 15), -3), date(2025, 12, 15))
 
+    def test_category_spent(self):
+        data = {"expenses": [
+            {"id": 1, "amount": 10.0, "category": "food", "kind": "expense",
+             "date": "2026-01-05", "note": "", "tags": []},
+            {"id": 2, "amount": 20.0, "category": "food", "kind": "expense",
+             "date": "2026-01-20", "note": "", "tags": []},
+            {"id": 3, "amount": 99.0, "category": "food", "kind": "expense",
+             "date": "2026-02-01", "note": "", "tags": []},     # other month
+            {"id": 4, "amount": 50.0, "category": "food", "kind": "income",
+             "date": "2026-01-10", "note": "", "tags": []},     # income, ignored
+        ]}
+        self.assertEqual(L.category_spent(data, "food", "2026-01"), 30.0)
+        self.assertEqual(L.category_spent(data, "rent", "2026-01"), 0)
+
     def test_all_time_net(self):
         data = {"expenses": [
             {"id": 1, "amount": 100.0, "category": "food", "kind": "expense",

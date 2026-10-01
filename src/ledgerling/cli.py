@@ -110,7 +110,7 @@ import sys
 import tempfile
 from datetime import datetime, date, timedelta
 
-__version__ = "1.117.0"
+__version__ = "1.117.1"
 
 # --------------------------------------------------------------------------- #
 # Sandbox + storage
@@ -338,14 +338,22 @@ def add_months(d, n):
     return date(year, month, day)
 
 
+def category_spent(data, category, period):
+    """Raw total expense spend for a category in a YYYY-MM period.
+
+    Returns an unrounded sum; callers round for display as they see fit.
+    """
+    return sum(e["amount"] for e in data["expenses"]
+               if kind_of(e) == "expense" and e["category"] == category
+               and month_of(e["date"]) == period)
+
+
 def budget_status_line(data, category, ref_iso):
     """Return a one-line budget status for a category/month, or None."""
     limit = data["budgets"].get(category)
     if not limit:
         return None
-    spent = sum(e["amount"] for e in data["expenses"]
-                if kind_of(e) == "expense" and e["category"] == category
-                and month_of(e["date"]) == month_of(ref_iso))
+    spent = category_spent(data, category, month_of(ref_iso))
     left = limit - spent
     status = "OVER" if left < 0 else "left"
     return (f"  budget: {money(spent)} of {money(limit)} this month "
@@ -787,9 +795,7 @@ def cmd_budget(args):
     period = args.month or date.today().isoformat()[:7]
     rows = []
     for cat, limit in sorted(data["budgets"].items()):
-        spent = round(sum(e["amount"] for e in data["expenses"]
-                          if kind_of(e) == "expense" and e["category"] == cat
-                          and month_of(e["date"]) == period), 2)
+        spent = round(category_spent(data, cat, period), 2)
         rows.append({
             "category": cat, "limit": limit, "spent": spent,
             "remaining": round(limit - spent, 2),
@@ -1074,9 +1080,7 @@ def cmd_report(args):
         print("=" * 56)
         over = 0
         for cat, limit in sorted(data["budgets"].items()):
-            spent = sum(e["amount"] for e in data["expenses"]
-                        if kind_of(e) == "expense" and e["category"] == cat
-                        and month_of(e["date"]) == latest)
+            spent = category_spent(data, cat, latest)
             frac = spent / limit if limit else 0
             flag = "  <-- OVER" if spent > limit else ""
             if spent > limit:
@@ -1560,9 +1564,7 @@ def cmd_pace(args):
 
     cats = {}
     for cat, limit in sorted(data["budgets"].items()):
-        spent = sum(e["amount"] for e in data["expenses"]
-                    if kind_of(e) == "expense" and e["category"] == cat
-                    and month_of(e["date"]) == period)
+        spent = category_spent(data, cat, period)
         expected = round(limit * frac_time, 2)
         projected = round(spent / elapsed * days_in_month, 2) if elapsed else 0.0
         cats[cat] = {"spent": round(spent, 2), "limit": round(limit, 2),
@@ -1608,9 +1610,7 @@ def cmd_allowance(args):
     cats = {}
     total_remaining = 0.0
     for cat, limit in sorted(data["budgets"].items()):
-        spent = sum(e["amount"] for e in data["expenses"]
-                    if kind_of(e) == "expense" and e["category"] == cat
-                    and month_of(e["date"]) == period)
+        spent = category_spent(data, cat, period)
         remaining = round(limit - spent, 2)
         total_remaining = round(total_remaining + remaining, 2)
         cats[cat] = {"limit": round(limit, 2), "spent": round(spent, 2),

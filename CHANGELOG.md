@@ -4,6 +4,15 @@ All notable changes to Ledgerling are documented here. The format is based on
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and this project
 adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.117.1] - 2026-10-01
+
+### Changed
+
+- Internal: factored the repeated "a category's expense spend in a month"
+  computation (duplicated across `budget`, `pace`, `allowance`, `report`, and
+  the budget status line) into a single `category_spent()` helper. Behaviour
+  preserved (callers keep their own rounding); covered by a unit test.
+
 ## [1.117.0] - 2026-10-01
 
 ### Added
@@ -1218,6 +1227,7 @@ file, standard library only, strictly confined to its own folder.
   guard (`_within_app`) that refuses any path escaping the app folder; imports
   and restores are reduced to a basename and looked up only within the folder.
 
+[1.117.1]: #11171---2026-10-01
 [1.117.0]: #11170---2026-10-01
 [1.116.0]: #11160---2026-10-01
 [1.115.0]: #11150---2026-10-01
