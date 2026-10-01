@@ -38,8 +38,13 @@ standard library only — no extra dependencies). It opens a real OS window with
 - a **sidebar** that groups every command (Record / Analyze / Budgets & goals /
   Calculators / Recurring / Data / Settings) with a live **filter** box;
 - a **schema-driven form** for the selected command (it generates itself from
-  the CLI, so every current and future command appears automatically), an
-  **output pane** with a Copy button, and a **status bar**;
+  the CLI, so every current and future command appears automatically), a
+  results area with an **Output** tab (text, with a Copy button) and a
+  **Table** tab, and a **status bar**;
+- a **sortable results table**: for any command that supports `--json`, the
+  Table tab fills from its structured output — money and percent columns are
+  formatted, and clicking a column header sorts by it (numeric-aware);
+- it **remembers** your theme and window size/position between launches;
 - **keyboard shortcuts**: `Ctrl+Enter` to run, `Ctrl+K` to focus the filter,
   `Ctrl+T` to toggle the theme, `Ctrl+Q` to quit — and Enter in any field runs
   the command.
