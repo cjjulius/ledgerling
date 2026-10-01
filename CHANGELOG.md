@@ -4,6 +4,16 @@ All notable changes to Ledgerling are documented here. The format is based on
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and this project
 adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.110.0] - 2026-10-01
+
+### Added
+
+- `interest` — a compound-growth / future-value calculator. Given a principal,
+  an annual `--rate`, `--years`, and an optional fixed `--monthly`
+  contribution, it reports the projected future value (monthly compounding),
+  total contributed, and interest earned. Pure arithmetic that touches no
+  stored data; supports `--json`. It's a calculator, not investment advice.
+
 ## [1.109.0] - 2026-10-01
 
 ### Added
@@ -1124,6 +1134,7 @@ file, standard library only, strictly confined to its own folder.
   guard (`_within_app`) that refuses any path escaping the app folder; imports
   and restores are reduced to a basename and looked up only within the folder.
 
+[1.110.0]: #11100---2026-10-01
 [1.109.0]: #11090---2026-10-01
 [1.108.0]: #11080---2026-10-01
 [1.107.0]: #11070---2026-10-01

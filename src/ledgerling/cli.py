@@ -56,6 +56,7 @@ Commands:
     anomalies  Flag unusually large expenses within each category
     roundup   Simulate round-up savings (round each expense up to $N)
     tip       Tip calculator and even bill splitter
+    interest  Compound-growth / future-value calculator
     fx        Offline currency converter (set/list/rm/convert, user-set rates)
     upcoming  Forecast recurring charges/income due in the next N days
     cashflow  Project a running balance forward (flags if it goes negative)
@@ -107,7 +108,7 @@ import sys
 import tempfile
 from datetime import datetime, date, timedelta
 
-__version__ = "1.109.0"
+__version__ = "1.110.0"
 
 # --------------------------------------------------------------------------- #
 # Sandbox + storage
@@ -1817,6 +1818,56 @@ def cmd_tip(args):
                   f"{extra} x {money(high_share)}")
         else:
             print(f"split {split} ways  {money(high_share)} each")
+
+
+def cmd_interest(args):
+    """Compound-growth / future-value calculator (monthly compounding).
+
+    Pure arithmetic -- touches no stored data. Projects what a starting
+    `principal` grows to over `--years` at an annual `--rate`, optionally with a
+    fixed `--monthly` contribution. Not investment advice, just the math.
+    """
+    if args.principal < 0:
+        sys.exit("error: principal cannot be negative")
+    if args.rate < 0:
+        sys.exit("error: --rate cannot be negative")
+    if args.years <= 0:
+        sys.exit("error: --years must be greater than 0")
+    monthly = args.monthly
+    if monthly < 0:
+        sys.exit("error: --monthly cannot be negative")
+
+    n = round(args.years * 12)
+    i = args.rate / 100 / 12
+    if i:
+        growth = (1 + i) ** n
+        future = args.principal * growth + monthly * ((growth - 1) / i)
+    else:
+        future = args.principal + monthly * n
+    future = round(future, 2)
+    contributed = round(args.principal + monthly * n, 2)
+    interest = round(future - contributed, 2)
+
+    if getattr(args, "json", False):
+        print(json.dumps({
+            "principal": round(args.principal, 2), "rate": args.rate,
+            "years": args.years, "monthly": round(monthly, 2), "periods": n,
+            "contributed": contributed, "interest": interest,
+            "future_value": future,
+        }, indent=2))
+        return
+
+    print("Compound growth")
+    print("=" * 44)
+    print(f"{'principal':<14} {money(round(args.principal, 2)):>16}")
+    if monthly:
+        print(f"{'monthly':<14} {money(round(monthly, 2)):>16}")
+    print(f"{'rate':<14} {args.rate:g}% / year (monthly compounding)")
+    print(f"{'years':<14} {args.years:g}")
+    print("-" * 44)
+    print(f"{'contributed':<14} {money(contributed):>16}")
+    print(f"{'interest':<14} {money(interest):>16}")
+    print(f"{'future value':<14} {money(future):>16}")
 
 
 def _avg_monthly_net(data, months):
@@ -4547,6 +4598,18 @@ def build_parser():
     tip.add_argument("--json", action="store_true", help="output JSON instead of text")
     tip.set_defaults(func=cmd_tip)
 
+    it = sub.add_parser("interest",
+                        help="compound-growth / future-value calculator")
+    it.add_argument("principal", type=float, help="starting amount")
+    it.add_argument("--rate", type=float, default=5.0,
+                    help="annual interest rate in %% (default 5)")
+    it.add_argument("--years", type=float, default=10.0,
+                    help="number of years (default 10)")
+    it.add_argument("--monthly", type=float, default=0.0,
+                    help="fixed monthly contribution (default 0)")
+    it.add_argument("--json", action="store_true", help="output JSON instead of text")
+    it.set_defaults(func=cmd_interest)
+
     tgt = sub.add_parser("target",
                          help="estimate how long to reach a savings target")
     tgt.add_argument("amount", type=float, help="the savings amount to reach")
@@ -4818,6 +4881,7 @@ MUTATING_COMMANDS = frozenset({
     "untag", "retag", "recategorize", "unbudget", "goal", "autobudget",
     "import", "restore", "backup", "dedupe", "undo", "config", "recur",
     "completion", "version", "web", "where", "tip", "split", "fx", "check",
+    "interest",
 })
 
 
