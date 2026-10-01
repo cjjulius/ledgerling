@@ -55,11 +55,16 @@ It's built to be **keyboard- and screen-reader-friendly**: a skip link, labeled
 landmarks, visible focus rings, fully keyboard-operable command list and group
 headers (Tab / Enter / Space), form fields with associated labels and
 `aria-required`/`aria-describedby`, a theme toggle that reports its state, and a
-polite live region that announces command output as it updates. The result
-views (Text / Table / Chart / …) are a proper ARIA tablist — arrow keys plus
-Home/End move between tabs with a roving focus, and each tab is wired to its
+polite live region that announces command output as it updates (held quiet with
+`aria-busy` while a command runs, so the finished result is announced once
+rather than the interim state). A command failure is additionally surfaced on a
+dedicated assertive status line so screen-reader users hear it immediately. The
+result views (Text / Table / Chart / …) are a proper ARIA tablist — arrow keys
+plus Home/End move between tabs with a roving focus, and each tab is wired to its
 panel. Data tables mark their header cells with `scope` (col/row) so screen
-readers announce the right header for each cell.
+readers announce the right header for each cell. The whole UI honours
+`prefers-reduced-motion`, dropping transitions and animations for users who ask
+for less motion.
 
 ### Shell completion (optional)
 
