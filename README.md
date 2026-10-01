@@ -111,7 +111,8 @@ ledgerling summary --month 2026-08
 
 # Monthly budgets
 ledgerling budget --category food --amount 200
-ledgerling budget
+ledgerling budget                      # usage per category: spent / limit / left
+ledgerling budget --month 2026-09 --json
 ledgerling unbudget food               # remove one budget (undoable)
 ledgerling unbudget --all              # clear every budget
 

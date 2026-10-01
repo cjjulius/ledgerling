@@ -960,6 +960,22 @@ class CLI(TempAppCase):
         with self.assertRaises(SystemExit):
             self._main(["export", "--income", "--expenses"])
 
+    def test_budget_json_view(self):
+        self._main(["budget", "--category", "food", "--amount", "100"])
+        self._main(["add", "30", "food", "a", "--date", date.today().isoformat()])
+        d = json.loads(self._main(["budget", "--json"]))
+        self.assertEqual(d["month"], date.today().isoformat()[:7])
+        row = d["budgets"][0]
+        self.assertEqual(row["category"], "food")
+        self.assertEqual(row["limit"], 100.0)
+        self.assertEqual(row["spent"], 30.0)
+        self.assertEqual(row["remaining"], 70.0)
+        self.assertFalse(row["over"])
+
+    def test_budget_json_empty(self):
+        d = json.loads(self._main(["budget", "--json"]))
+        self.assertEqual(d["budgets"], [])
+
     def test_check_clean(self):
         self._main(["add", "10", "food", "x"])
         d = json.loads(self._main(["check", "--json"]))
