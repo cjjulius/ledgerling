@@ -4,6 +4,29 @@ All notable changes to Ledgerling are documented here. The format is based on
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and this project
 adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.130.0] - 2026-10-01
+
+### Added
+
+- Desktop app visual overhaul — made it **pop**:
+  - Two polished **green themes**: a light theme with a green accent, and a deep
+    **green dark theme with a light (mint) accent**, toggled with an animated
+    colour **crossfade**.
+  - **Motion**: a gently animated header accent, an animated run **spinner**,
+    and smooth **hover animations** on the command buttons.
+  - The sidebar is now a scrollable list of **icon buttons** — every command
+    with its own icon, a hover effect, a tooltip of its help text, and an
+    active-command highlight (accent bar + bold label).
+- **Fun modes** (new commands) — playful, fully **offline** extras (no network,
+  no stored data touched), deterministic given `--seed`; the daily ones
+  otherwise vary by date. All support `--json` and appear in both UIs under a
+  new **Fun** group:
+  - `fortune` — a fortune cookie with lucky numbers.
+  - `horoscope [sign]` — a finance-flavoured daily horoscope.
+  - `weather [--where PLACE]` — a whimsical offline "forecast" (clearly labelled
+    for-fun; it makes no network request).
+  - `eightball [question]` — a Magic 8-Ball.
+
 ## [1.129.0] - 2026-10-01
 
 ### Added
@@ -1467,6 +1490,7 @@ file, standard library only, strictly confined to its own folder.
   guard (`_within_app`) that refuses any path escaping the app folder; imports
   and restores are reduced to a basename and looked up only within the folder.
 
+[1.130.0]: #11300---2026-10-01
 [1.129.0]: #11290---2026-10-01
 [1.128.0]: #11280---2026-10-01
 [1.127.1]: #11271---2026-10-01
