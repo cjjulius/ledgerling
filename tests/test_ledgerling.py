@@ -530,6 +530,26 @@ class CLI(TempAppCase):
         self.assertEqual(len(d2["anomalies"]), 1)
         self.assertEqual(d2["anomalies"][0]["amount"], 500.0)
 
+    def test_roundup_default_nearest_dollar(self):
+        for amt in ("1.01", "2.50", "3.00", "9.99"):
+            self._main(["add", amt, "food", "x"])
+        d = json.loads(self._main(["roundup", "--json"]))
+        # bumps: 0.99 + 0.50 + 0.00 + 0.01 = 1.50
+        self.assertEqual(d["to"], 1.0)
+        self.assertEqual(d["expenses"], 4)
+        self.assertEqual(d["total_saved"], 1.50)
+        self.assertEqual(d["largest"], 0.99)
+        self.assertEqual(d["average"], round(1.50 / 4, 2))
+
+    def test_roundup_to_five_and_ignores_income(self):
+        self._main(["add", "12", "food", "x"])        # bump to 15 -> 3.00
+        self._main(["add", "20", "rent", "y"])        # already on a $5 step -> 0
+        self._main(["income", "999", "salary", "z"])  # ignored
+        d = json.loads(self._main(["roundup", "--to", "5", "--json"]))
+        self.assertEqual(d["to"], 5.0)
+        self.assertEqual(d["expenses"], 2)
+        self.assertEqual(d["total_saved"], 3.00)
+
     def test_average_json(self):
         self._main(["add", "100", "food", "a", "--date", "2026-01-01"])
         self._main(["add", "100", "food", "b", "--date", "2026-01-11"])  # 11-day span
