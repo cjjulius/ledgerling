@@ -4,6 +4,16 @@ All notable changes to Ledgerling are documented here. The format is based on
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and this project
 adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.112.0] - 2026-10-01
+
+### Changed
+
+- Web UI sidebar: added a **Calculators** group (tip, interest, loan, target,
+  roundup, and the fx commands) and slotted the other recent commands into
+  their natural sections (`split` under Record, `anomalies`/`cashflow` under
+  Analyze, `check` under Data). Every command is now in a named group — nothing
+  falls into the catch-all "More" list anymore.
+
 ## [1.111.0] - 2026-10-01
 
 ### Added
@@ -1144,6 +1154,7 @@ file, standard library only, strictly confined to its own folder.
   guard (`_within_app`) that refuses any path escaping the app folder; imports
   and restores are reduced to a basename and looked up only within the folder.
 
+[1.112.0]: #11120---2026-10-01
 [1.111.0]: #11110---2026-10-01
 [1.110.0]: #11100---2026-10-01
 [1.109.0]: #11090---2026-10-01

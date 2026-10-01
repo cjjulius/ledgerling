@@ -32,8 +32,8 @@ opens on a **Dashboard** — this month's income, spending, net, an insights
 strip, top categories, budget progress, savings-goal status, an **Upcoming
 (30 days)** card of scheduled recurring items (click any row to open the
 cash-flow projection), and recent activity at a glance, with a month picker. The
-sidebar groups every command (Record / Analyze / Budgets & goals / Recurring /
-Data / Settings); it still **generates itself from the CLI**, so every command —
+sidebar groups every command (Record / Analyze / Budgets & goals / Calculators /
+Recurring / Data / Settings); it still **generates itself from the CLI**, so every command —
 and every command added in the future — appears automatically as a form with its
 options, and running it shows the output as text, a table, a chart, or (for
 `heatmap`) a calendar. Multi-value arguments (like `split`'s category/amount
