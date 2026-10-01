@@ -4,6 +4,15 @@ All notable changes to Ledgerling are documented here. The format is based on
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and this project
 adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.132.1] - 2026-10-01
+
+### Changed
+
+- Internal (desktop app): extracted a pure `build_argv(cmd, values)` helper for
+  turning a command's form state into an argv, and routed both the main window
+  and the pop-out command windows through it (they had near-identical copies).
+  No behaviour change; covered by a new headless unit test.
+
 ## [1.132.0] - 2026-10-01
 
 ### Added
@@ -1532,6 +1541,7 @@ file, standard library only, strictly confined to its own folder.
   guard (`_within_app`) that refuses any path escaping the app folder; imports
   and restores are reduced to a basename and looked up only within the folder.
 
+[1.132.1]: #11321---2026-10-01
 [1.132.0]: #11320---2026-10-01
 [1.131.0]: #11310---2026-10-01
 [1.130.0]: #11300---2026-10-01

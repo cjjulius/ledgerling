@@ -47,7 +47,8 @@ standard library only — no extra dependencies). It opens a real OS window with
   your pins persist between launches;
 - **multiple windows** — File → New window (Ctrl+N) opens another command
   window so you can run things side by side, and "Pop out current command"
-  detaches the one you're viewing;
+  detaches the one you're viewing; the windows share the main window's
+  schema-driven form logic, so they behave identically;
 - a **getting-started assistant** — a short guided tour that greets new users on
   first launch and is reopenable any time from Help → Getting started (or the
   toolbar's **? guide**);

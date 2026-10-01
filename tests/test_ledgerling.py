@@ -614,6 +614,33 @@ class WebUI(TempAppCase):
         self.assertEqual((mode, cols), ("scalars", ["value"]))
         self.assertIsNone(gui._tabular(None))
 
+    def test_gui_build_argv(self):
+        from ledgerling import gui, web
+        cmds = {c["name"]: c for c in web.describe()["commands"]}
+        # add: amount/category positional (required), note positional (optional),
+        # --date option, --in option; bool-less
+        add = cmds["add"]
+        argv = gui.build_argv(add, {"amount": "12.5", "category": "food",
+                                    "note": "", "date": "2026-01-02", "in_": ""})
+        self.assertEqual(argv[:3], ["add", "12.5", "food"])   # empty note skipped
+        self.assertIn("--date", argv)
+        self.assertEqual(argv[argv.index("--date") + 1], "2026-01-02")
+        self.assertNotIn("--in", argv)                        # empty option omitted
+        # a store-true flag only appears when truthy
+        top = cmds["top"]
+        self.assertIn("--income", gui.build_argv(top, {"income": True}))
+        self.assertNotIn("--income", gui.build_argv(top, {"income": False}))
+        # a variadic positional is split on whitespace (synthetic spec)
+        fake = {"argv": ["x"], "args": [
+            {"dest": "a", "kind": "positional", "type": "str"},
+            {"dest": "parts", "kind": "positional", "type": "str",
+             "variadic": True}]}
+        self.assertEqual(gui.build_argv(fake, {"a": "30", "parts": "a 10 b 20"}),
+                         ["x", "30", "a", "10", "b", "20"])
+        # nested command keeps its full argv prefix
+        self.assertEqual(gui.build_argv(cmds["recur list"], {})[:2],
+                         ["recur", "list"])
+
     def test_gui_cmd_has_json(self):
         from ledgerling import gui, web
         cmds = {c["name"]: c for c in web.describe()["commands"]}
