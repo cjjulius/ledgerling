@@ -242,6 +242,11 @@ ledgerling tagmatrix --months 6
 ledgerling upcoming
 ledgerling upcoming --days 60
 
+# Project a running balance forward from your recurring rules (register view);
+# flags if/when the balance dips below zero. Starts from your all-time net.
+ledgerling cashflow --days 45
+ledgerling cashflow --days 60 --start-balance 2500
+
 # Recurring rules normalized to monthly / annual cost (your fixed obligations)
 ledgerling commitments
 

@@ -4,6 +4,18 @@ All notable changes to Ledgerling are documented here. The format is based on
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and this project
 adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.84.0] - 2026-09-30
+
+### Added
+
+- `cashflow` — project a running balance forward over the next N days from your
+  recurring rules, shown as a register (each scheduled income/expense with the
+  resulting balance). Starts from your all-time net by default, overridable with
+  `--start-balance`; reports the end balance, net change, lowest point, and
+  flags if/when the balance goes negative. Paused rules and skipped occurrences
+  are excluded, and same-day income is applied before expenses. Supports
+  `--days` and `--json`, and is picked up automatically by the web UI.
+
 ## [1.83.0] - 2026-09-30
 
 ### Changed
@@ -832,6 +844,7 @@ file, standard library only, strictly confined to its own folder.
   guard (`_within_app`) that refuses any path escaping the app folder; imports
   and restores are reduced to a basename and looked up only within the folder.
 
+[1.84.0]: #1840---2026-09-30
 [1.83.0]: #1830---2026-09-30
 [1.82.0]: #1820---2026-09-30
 [1.81.0]: #1810---2026-09-30
