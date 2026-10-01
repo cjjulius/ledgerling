@@ -320,7 +320,7 @@ ledgerling --version
 ledgerling where
 
 # Scan your data for integrity problems (duplicate ids, bad dates, orphans, ...)
-ledgerling check
+ledgerling check          # in the web UI this renders as a grouped Health panel
 
 # Settings (currency symbol, default list size)
 ledgerling config

@@ -4,6 +4,16 @@ All notable changes to Ledgerling are documented here. The format is based on
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and this project
 adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.100.0] - 2026-10-01
+
+### Added
+
+- Web UI: `check` now renders a dedicated **Health** panel instead of a generic
+  object dump — a green "No problems found" banner when clean, or a red
+  problem-count banner followed by the issues grouped by kind (bad amount, bad
+  date, orphan recur id, ...) with each detail listed. Detected by shape, so it
+  stays within the self-generating UI.
+
 ## [1.99.0] - 2026-10-01
 
 ### Added
@@ -1007,6 +1017,7 @@ file, standard library only, strictly confined to its own folder.
   guard (`_within_app`) that refuses any path escaping the app folder; imports
   and restores are reduced to a basename and looked up only within the folder.
 
+[1.100.0]: #11000---2026-10-01
 [1.99.0]: #1990---2026-10-01
 [1.98.0]: #1980---2026-10-01
 [1.97.0]: #1970---2026-10-01
