@@ -4,6 +4,21 @@ All notable changes to Ledgerling are documented here. The format is based on
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and this project
 adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.124.1] - 2026-10-01
+
+### Changed
+
+- Internal: extracted a `group_totals(rows, key_fn)` helper for the
+  per-period income/spending accumulation that `savings` and `years` each
+  reimplemented, so the two reports share one rounding-accurate loop. No
+  behaviour change (both remain covered by their JSON tests).
+
+### Fixed
+
+- Test suite: removed a duplicate `test_median` method whose second definition
+  silently shadowed the first (so one of the two never ran); the surviving test
+  now covers both even- and odd-length inputs.
+
 ## [1.124.0] - 2026-10-01
 
 ### Added
@@ -1347,6 +1362,7 @@ file, standard library only, strictly confined to its own folder.
   guard (`_within_app`) that refuses any path escaping the app folder; imports
   and restores are reduced to a basename and looked up only within the folder.
 
+[1.124.1]: #11241---2026-10-01
 [1.124.0]: #11240---2026-10-01
 [1.123.0]: #11230---2026-10-01
 [1.122.1]: #11221---2026-10-01

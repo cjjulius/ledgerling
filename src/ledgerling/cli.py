@@ -113,7 +113,7 @@ import tempfile
 import time
 from datetime import datetime, date, timedelta
 
-__version__ = "1.124.0"
+__version__ = "1.124.1"
 
 # --------------------------------------------------------------------------- #
 # Sandbox + storage
@@ -311,6 +311,23 @@ def all_time_net(data):
     inc = sum(e["amount"] for e in income_only(data["expenses"]))
     exp = sum(e["amount"] for e in expenses_only(data["expenses"]))
     return round(inc - exp, 2)
+
+
+def group_totals(rows, key_fn):
+    """Group entries by key_fn(entry) into {key: {"income", "spending"}},
+    accumulating each bucket with running 2dp rounding (the shape the per-period
+    reports -- savings, years -- share). A None key skips the entry."""
+    agg = {}
+    for e in rows:
+        k = key_fn(e)
+        if k is None:
+            continue
+        a = agg.setdefault(k, {"income": 0.0, "spending": 0.0})
+        if kind_of(e) == "income":
+            a["income"] = round(a["income"] + e["amount"], 2)
+        else:
+            a["spending"] = round(a["spending"] + e["amount"], 2)
+    return agg
 
 
 _TAG_RE = re.compile(r"#(\w+)")
@@ -3150,14 +3167,7 @@ def cmd_subscriptions(args):
 
 def cmd_savings(args):
     data = load()
-    agg = {}
-    for e in data["expenses"]:
-        m = month_of(e["date"])
-        a = agg.setdefault(m, {"income": 0.0, "spending": 0.0})
-        if kind_of(e) == "income":
-            a["income"] = round(a["income"] + e["amount"], 2)
-        else:
-            a["spending"] = round(a["spending"] + e["amount"], 2)
+    agg = group_totals(data["expenses"], lambda e: month_of(e["date"]))
 
     rows = []
     for m in sorted(agg):
@@ -3258,14 +3268,7 @@ def cmd_quarter(args):
 
 def cmd_years(args):
     data = load()
-    agg = {}
-    for e in data["expenses"]:
-        y = e["date"][:4]
-        a = agg.setdefault(y, {"spending": 0.0, "income": 0.0})
-        if kind_of(e) == "income":
-            a["income"] = round(a["income"] + e["amount"], 2)
-        else:
-            a["spending"] = round(a["spending"] + e["amount"], 2)
+    agg = group_totals(data["expenses"], lambda e: e["date"][:4])
 
     rows = []
     for y in sorted(agg):
