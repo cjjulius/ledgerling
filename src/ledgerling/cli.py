@@ -80,7 +80,7 @@ Commands:
     allowance  How much you can still spend per day to stay on budget
     goal      Set / view a monthly savings goal
     recur     Recurring rules (add/from/edit/list/remove/run/skip/unskip/pause/resume)
-    export    Write expenses to a CSV file (inside the data folder)
+    export    Write entries to CSV/JSON (filter by month/range/category/kind)
     import    Read expenses back from a CSV (deduped)
     backup    Save a timestamped copy of your data
     restore   Restore data from a backup (with a pre-restore safety copy)
@@ -107,7 +107,7 @@ import sys
 import tempfile
 from datetime import datetime, date, timedelta
 
-__version__ = "1.101.1"
+__version__ = "1.102.0"
 
 # --------------------------------------------------------------------------- #
 # Sandbox + storage
@@ -787,6 +787,16 @@ def cmd_export(args):
             start, end = end, start
         rows = [e for e in rows if start <= e["date"] <= end]
 
+    if getattr(args, "income", False) and getattr(args, "expenses", False):
+        sys.exit("error: choose either --income or --expenses, not both")
+    if getattr(args, "category", None):
+        cat = clean_category(args.category)
+        rows = [e for e in rows if e["category"] == cat]
+    if getattr(args, "income", False):
+        rows = [e for e in rows if kind_of(e) == "income"]
+    elif getattr(args, "expenses", False):
+        rows = [e for e in rows if kind_of(e) == "expense"]
+
     fmt = args.format
     if args.file:
         # Force the export to stay inside the data folder, ignoring any path
@@ -813,7 +823,8 @@ def cmd_export(args):
                                      "yes" if e.get("recur_id") else "no"])
     except OSError as exc:
         sys.exit(f"error: could not write {target}: {exc}")
-    print(f"exported {len(rows)} expense(s) to {target}")
+    print(f"exported {len(rows)} entr{'y' if len(rows) == 1 else 'ies'} "
+          f"to {target}")
 
 
 def cmd_import(args):
@@ -4173,11 +4184,15 @@ def build_parser():
     ub.add_argument("--all", action="store_true", help="clear every budget")
     ub.set_defaults(func=cmd_unbudget)
 
-    x = sub.add_parser("export", help="write expenses to CSV (in data folder)")
+    x = sub.add_parser("export",
+                       help="write entries to CSV/JSON (in data folder)")
     x.add_argument("--file", help="file name (basename only; saved in exports/)")
     x.add_argument("--month", help="only export this month, YYYY-MM")
     x.add_argument("--start", help="range start date (with --end); YYYY-MM-DD/today")
     x.add_argument("--end", help="range end date (with --start); YYYY-MM-DD/today")
+    x.add_argument("--category", help="only export this category")
+    x.add_argument("--income", action="store_true", help="only income entries")
+    x.add_argument("--expenses", action="store_true", help="only expense entries")
     x.add_argument("--format", choices=["csv", "json"], default="csv",
                    help="output format (default csv)")
     x.set_defaults(func=cmd_export)
