@@ -21,6 +21,27 @@ from ledgerling import cli as L  # noqa: E402
 
 
 class PureLogic(unittest.TestCase):
+    def test_commands_are_all_classified(self):
+        # Guard: every top-level command must be classified as either a
+        # catch-up (read) command or a mutating/meta command, so the implicit
+        # recurring catch-up in main() can never drift out of sync when a new
+        # command is added. Fails loudly naming any unclassified/stale entry.
+        import argparse
+        parser = L.build_parser()
+        names = set()
+        for a in parser._actions:
+            if isinstance(a, argparse._SubParsersAction):
+                names |= set(a.choices.keys())
+                break
+        classified = L.CATCHUP_COMMANDS | L.MUTATING_COMMANDS
+        self.assertEqual(
+            names, classified,
+            "unclassified: %s | stale: %s" % (
+                sorted(names - classified), sorted(classified - names)))
+        self.assertEqual(
+            L.CATCHUP_COMMANDS & L.MUTATING_COMMANDS, frozenset(),
+            "a command is in both buckets")
+
     def test_parse_tags(self):
         self.assertEqual(L.parse_tags("dinner #Work #work #reimbursable"),
                          ["reimbursable", "work"])  # deduped + lowercased
