@@ -113,7 +113,7 @@ import tempfile
 import time
 from datetime import datetime, date, timedelta
 
-__version__ = "1.124.1"
+__version__ = "1.125.0"
 
 # --------------------------------------------------------------------------- #
 # Sandbox + storage
@@ -378,6 +378,49 @@ def add_months(d, n):
     month = total % 12 + 1
     day = min(d.day, calendar.monthrange(year, month)[1])
     return date(year, month, day)
+
+
+def _ics_escape(text):
+    """Escape a value for an iCalendar text field (RFC 5545 §3.3.11)."""
+    return (str(text).replace("\\", "\\\\").replace(";", "\\;")
+            .replace(",", "\\,").replace("\n", "\\n"))
+
+
+def build_ics(items, now=None):
+    """Render upcoming recurring occurrences as an iCalendar (.ics) document.
+
+    Each item (a dict with date/amount/category/kind/note/recur_id, as produced
+    by `upcoming`) becomes an all-day VEVENT with a stable UID so re-importing
+    updates rather than duplicates. Pure function -> easy to test. `now` (a
+    datetime) is only overridable for deterministic tests."""
+    stamp = (now or datetime.now()).strftime("%Y%m%dT%H%M%SZ")
+    lines = [
+        "BEGIN:VCALENDAR", "VERSION:2.0",
+        "PRODID:-//Ledgerling//Upcoming//EN", "CALSCALE:GREGORIAN",
+        "METHOD:PUBLISH",
+    ]
+    for it in items:
+        day = it["date"].replace("-", "")
+        sign = "+" if it.get("kind") == "income" else "-"
+        amt = f"{sign}{abs(it['amount']):.2f}"
+        label = it.get("note") or it["category"]
+        summary = f"{label} ({amt})"
+        uid = f"{it.get('recur_id', 'x')}-{it['date']}@ledgerling"
+        lines += [
+            "BEGIN:VEVENT",
+            f"UID:{_ics_escape(uid)}",
+            f"DTSTAMP:{stamp}",
+            f"DTSTART;VALUE=DATE:{day}",
+            f"SUMMARY:{_ics_escape(summary)}",
+            f"CATEGORIES:{_ics_escape(it['category'])}",
+            f"DESCRIPTION:{_ics_escape(it.get('kind', 'expense'))} "
+            f"{_ics_escape(amt)} [{_ics_escape(it['category'])}]",
+            "TRANSP:TRANSPARENT",
+            "END:VEVENT",
+        ]
+    lines.append("END:VCALENDAR")
+    # iCalendar lines are CRLF-terminated, including a trailing CRLF.
+    return "\r\n".join(lines) + "\r\n"
 
 
 def category_spent(data, category, period):
@@ -2535,6 +2578,21 @@ def cmd_upcoming(args):
 
     exp_total = sum(i["amount"] for i in items if i["kind"] == "expense")
     inc_total = sum(i["amount"] for i in items if i["kind"] == "income")
+
+    ics_target = getattr(args, "ics", None)
+    if ics_target:
+        # Keep the file inside the data folder, ignoring any path the user gave.
+        target = os.path.join(EXPORT_DIR, os.path.basename(ics_target))
+        os.makedirs(EXPORT_DIR, exist_ok=True)
+        _within_home(target)
+        try:
+            with open(target, "w", encoding="utf-8", newline="") as fh:
+                fh.write(build_ics(items))
+        except OSError as exc:
+            sys.exit(f"error: could not write {target}: {exc}")
+        if not getattr(args, "json", False):
+            print(f"wrote {len(items)} event(s) to {target}")
+            return
 
     if getattr(args, "json", False):
         print(json.dumps({
@@ -4856,6 +4914,10 @@ def build_parser():
                         help="forecast recurring charges/income due soon")
     up.add_argument("--days", type=int, default=30,
                     help="how many days ahead to look (default 30)")
+    up.add_argument("--ics", nargs="?", const="upcoming.ics", default=None,
+                    metavar="FILE",
+                    help="also write the schedule as an iCalendar (.ics) file "
+                         "in the data folder (default name: upcoming.ics)")
     up.add_argument("--json", action="store_true", help="output JSON instead of text")
     up.set_defaults(func=cmd_upcoming)
 

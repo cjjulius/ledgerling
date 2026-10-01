@@ -4,6 +4,20 @@ All notable changes to Ledgerling are documented here. The format is based on
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and this project
 adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.125.0] - 2026-10-01
+
+### Added
+
+- `upcoming --ics [FILE]`: export the forecast of upcoming recurring charges
+  as an iCalendar (`.ics`) file you can import into Google / Apple / Outlook
+  calendars. Each occurrence becomes an all-day `VEVENT` with a stable UID
+  (`<recur_id>-<date>@ledgerling`) so re-importing updates rather than
+  duplicates; expenses show a negative amount, income positive, and the note
+  (or category) is the event title. The file lands in the data folder's
+  `exports/` dir (any path components are stripped to a basename, keeping the
+  sandbox guarantee). A bare `--ics` uses `upcoming.ics`. Backed by a pure,
+  tested `build_ics()` helper with RFC 5545 text escaping and CRLF lines.
+
 ## [1.124.1] - 2026-10-01
 
 ### Changed
@@ -1362,6 +1376,7 @@ file, standard library only, strictly confined to its own folder.
   guard (`_within_app`) that refuses any path escaping the app folder; imports
   and restores are reduced to a basename and looked up only within the folder.
 
+[1.125.0]: #11250---2026-10-01
 [1.124.1]: #11241---2026-10-01
 [1.124.0]: #11240---2026-10-01
 [1.123.0]: #11230---2026-10-01
