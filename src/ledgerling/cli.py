@@ -112,7 +112,7 @@ import tempfile
 import time
 from datetime import datetime, date, timedelta
 
-__version__ = "1.121.0"
+__version__ = "1.121.1"
 
 # --------------------------------------------------------------------------- #
 # Sandbox + storage
@@ -2107,8 +2107,10 @@ def cmd_net(args):
     rate = round(net / income * 100, 1) if income > 0 else None
 
     if getattr(args, "json", False):
+        # "spending" (not "expenses") so the web table formats it as money and
+        # to match the key month --json uses; "expenses" is a count elsewhere.
         print(json.dumps({"scope": scope, "income": income,
-                          "expenses": expenses, "net": net,
+                          "spending": expenses, "net": net,
                           "savings_rate": rate}, indent=2))
         return
 
