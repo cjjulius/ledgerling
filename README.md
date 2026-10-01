@@ -37,6 +37,11 @@ and every command added in the future — appears automatically as a form with i
 options, and running it shows the output as text, a table, a chart, or (for
 `heatmap`) a calendar. No data leaves your machine.
 
+Some commands get bespoke visualizations: `heatmap` renders a real calendar,
+and `cashflow` renders a **projection chart** — a running-balance line with a
+zero baseline, a start/end/lowest summary strip, and a highlighted warning if
+the balance is projected to go negative.
+
 It's built to be **keyboard- and screen-reader-friendly**: a skip link, labeled
 landmarks, visible focus rings, fully keyboard-operable command list and group
 headers (Tab / Enter / Space), form fields with associated labels and
