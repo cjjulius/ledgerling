@@ -110,7 +110,7 @@ import sys
 import tempfile
 from datetime import datetime, date, timedelta
 
-__version__ = "1.114.0"
+__version__ = "1.114.1"
 
 # --------------------------------------------------------------------------- #
 # Sandbox + storage
@@ -284,6 +284,13 @@ def expenses_only(rows):
 
 def income_only(rows):
     return [e for e in rows if kind_of(e) == "income"]
+
+
+def all_time_net(data):
+    """All-time net position: total income minus total expenses (rounded)."""
+    inc = sum(e["amount"] for e in income_only(data["expenses"]))
+    exp = sum(e["amount"] for e in expenses_only(data["expenses"]))
+    return round(inc - exp, 2)
 
 
 _TAG_RE = re.compile(r"#(\w+)")
@@ -1940,9 +1947,7 @@ def cmd_target(args):
     if args.start is not None:
         start = round(args.start, 2)
     else:
-        inc = sum(e["amount"] for e in income_only(data["expenses"]))
-        exp = sum(e["amount"] for e in expenses_only(data["expenses"]))
-        start = round(inc - exp, 2)
+        start = all_time_net(data)
 
     if args.monthly is not None:
         monthly = round(args.monthly, 2)
@@ -1997,9 +2002,7 @@ def cmd_runway(args):
     if args.balance is not None:
         balance = round(args.balance, 2)
     else:
-        inc = sum(e["amount"] for e in income_only(data["expenses"]))
-        exp = sum(e["amount"] for e in expenses_only(data["expenses"]))
-        balance = round(inc - exp, 2)
+        balance = all_time_net(data)
     if args.monthly_net is not None:
         net = round(args.monthly_net, 2)
         basis = "given"
@@ -2456,9 +2459,7 @@ def cmd_cashflow(args):
     if args.start_balance is not None:
         balance = round(args.start_balance, 2)
     else:
-        inc = sum(e["amount"] for e in income_only(data["expenses"]))
-        exp = sum(e["amount"] for e in expenses_only(data["expenses"]))
-        balance = round(inc - exp, 2)
+        balance = all_time_net(data)
     start_balance = balance
 
     events = []
