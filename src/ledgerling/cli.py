@@ -106,7 +106,7 @@ import sys
 import tempfile
 from datetime import datetime, date, timedelta
 
-__version__ = "1.97.0"
+__version__ = "1.98.0"
 
 # --------------------------------------------------------------------------- #
 # Sandbox + storage
@@ -292,9 +292,13 @@ def parse_tags(note):
 
 def money(amount):
     cur = _CONFIG.get("currency", "$")
-    if _CONFIG.get("symbol_position") == "after":
-        return f"{amount:,.2f} {cur}"
-    return f"{cur}{amount:,.2f}"
+    # Put the sign in front of the whole thing ("-$5.00", not "$-5.00") to match
+    # the web UI and the usual convention. -0.0 formats as a plain zero.
+    neg = amount < 0
+    mag = abs(amount)
+    body = (f"{mag:,.2f} {cur}" if _CONFIG.get("symbol_position") == "after"
+            else f"{cur}{mag:,.2f}")
+    return f"-{body}" if neg else body
 
 
 def bar(fraction, width=24):
