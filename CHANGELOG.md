@@ -4,6 +4,15 @@ All notable changes to Ledgerling are documented here. The format is based on
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and this project
 adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.120.0] - 2026-10-01
+
+### Added
+
+- `net` — a quick income / expenses / net / savings-rate summary for all time
+  (default) or a single `--month`. A focused one-screen number, distinct from
+  the running `balance` series and the heavier `stats` report. Supports
+  `--json` and appears in the web UI's Analyze group.
+
 ## [1.119.0] - 2026-10-01
 
 ### Fixed
@@ -1268,6 +1277,7 @@ file, standard library only, strictly confined to its own folder.
   guard (`_within_app`) that refuses any path escaping the app folder; imports
   and restores are reduced to a basename and looked up only within the folder.
 
+[1.120.0]: #11200---2026-10-01
 [1.119.0]: #11190---2026-10-01
 [1.118.0]: #11180---2026-10-01
 [1.117.1]: #11171---2026-10-01

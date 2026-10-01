@@ -209,6 +209,10 @@ ledgerling month --month 2026-08
 ledgerling insights
 ledgerling insights --month 2026-08
 
+# Income, expenses, net and savings rate (all-time, or one month)
+ledgerling net
+ledgerling net --month 2026-09
+
 # Totals over an arbitrary date range (end defaults to today)
 ledgerling range 2026-08-01 2026-08-15
 ledgerling range 2026-09-01            # 2026-09-01 through today
