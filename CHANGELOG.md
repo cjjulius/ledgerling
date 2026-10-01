@@ -4,6 +4,14 @@ All notable changes to Ledgerling are documented here. The format is based on
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and this project
 adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.117.0] - 2026-10-01
+
+### Added
+
+- `list` and `top` now accept `--tag` to filter by a `#tag` (with or without
+  the leading `#`), matching the filter `search` already had. Composes with the
+  existing category/month/kind filters and sorting.
+
 ## [1.116.0] - 2026-10-01
 
 ### Added
@@ -1210,6 +1218,7 @@ file, standard library only, strictly confined to its own folder.
   guard (`_within_app`) that refuses any path escaping the app folder; imports
   and restores are reduced to a basename and looked up only within the folder.
 
+[1.117.0]: #11170---2026-10-01
 [1.116.0]: #11160---2026-10-01
 [1.115.0]: #11150---2026-10-01
 [1.114.1]: #11141---2026-10-01
