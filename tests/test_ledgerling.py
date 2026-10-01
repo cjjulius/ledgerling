@@ -1043,6 +1043,22 @@ class CLI(TempAppCase):
         self.assertEqual(conv["to"], "USD")
         self.assertEqual(conv["result"], 109.0)  # 100 * 1.09 / 1
 
+    def test_fx_convert_to_all(self):
+        self._main(["fx", "set", "usd", "1"])
+        self._main(["fx", "set", "eur", "1.09"])
+        self._main(["fx", "set", "gbp", "1.27"])
+        d = json.loads(self._main(["fx", "convert", "100", "usd", "--json"]))
+        self.assertEqual(d["from"], "USD")
+        tos = {c["to"]: c["result"] for c in d["conversions"]}
+        self.assertEqual(set(tos), {"EUR", "GBP"})       # every other currency
+        self.assertEqual(tos["EUR"], round(100 * 1 / 1.09, 2))
+        self.assertEqual(tos["GBP"], round(100 * 1 / 1.27, 2))
+
+    def test_fx_convert_to_all_needs_others(self):
+        self._main(["fx", "set", "usd", "1"])
+        with self.assertRaises(SystemExit):
+            self._main(["fx", "convert", "100", "usd"])   # nothing else set
+
     def test_fx_convert_unknown_code(self):
         self._main(["fx", "set", "usd", "1"])
         with self.assertRaises(SystemExit):
