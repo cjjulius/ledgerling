@@ -111,6 +111,7 @@ ledgerling list --sort amount --desc --limit 5   # your 5 biggest recent entries
 # Totals by category, ASCII bar chart (defaults to this month)
 ledgerling summary
 ledgerling summary --month 2026-08
+ledgerling summary --json             # category breakdown as JSON
 
 # Monthly budgets
 ledgerling budget --category food --amount 200
