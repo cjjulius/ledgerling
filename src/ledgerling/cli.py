@@ -37,6 +37,7 @@ Commands:
     heatmap   Daily-spending calendar for a month (with a web calendar view)
     cumulative  Cumulative spending by day within a month
     month     One-screen dashboard for a month (income, spend, net, budgets)
+    today     A daily briefing: this month, what's due soon, and a fortune
     insights  Plain-language observations about a month
     range     Totals over an arbitrary date range (start [end])
     forecast  Project this year's spending/income/net to year-end
@@ -120,7 +121,7 @@ import tempfile
 import time
 from datetime import datetime, date, timedelta
 
-__version__ = "1.130.0"
+__version__ = "1.131.0"
 
 # --------------------------------------------------------------------------- #
 # Sandbox + storage
@@ -480,6 +481,33 @@ def _first_index(start, every, since):
     while add_months(start, k) < since:
         k += 1
     return k
+
+
+def upcoming_items(data, days):
+    """Scheduled recurring occurrences in the next `days` days (strictly after
+    today, through today+days). Paused rules and skipped dates are excluded.
+    Each item is a dict (date/amount/category/kind/note/recur_id), sorted by
+    date then category. Shared by `upcoming` and `today`."""
+    today = date.today()
+    horizon = today + timedelta(days=days)
+    tomorrow = today + timedelta(days=1)
+    items = []
+    for rule in data["recurring"]:
+        if rule.get("paused"):
+            continue  # a paused rule won't actually charge
+        skips = set(rule.get("skips", []))
+        for d in _occurrences(rule, horizon, tomorrow):
+            if d > today and d.isoformat() not in skips:
+                items.append({
+                    "date": d.isoformat(),
+                    "amount": rule["amount"],
+                    "category": rule["category"],
+                    "kind": rule.get("kind", "expense"),
+                    "note": rule["note"],
+                    "recur_id": rule["id"],
+                })
+    items.sort(key=lambda i: (i["date"], i["category"]))
+    return items
 
 
 def _occurrences(rule, through, since=None):
@@ -2677,24 +2705,7 @@ def cmd_upcoming(args):
     data = load()
     today = date.today()
     horizon = today + timedelta(days=days)
-
-    items = []
-    tomorrow = today + timedelta(days=1)
-    for rule in data["recurring"]:
-        if rule.get("paused"):
-            continue  # a paused rule won't actually charge
-        skips = set(rule.get("skips", []))
-        for d in _occurrences(rule, horizon, tomorrow):
-            if d > today and d.isoformat() not in skips:
-                items.append({
-                    "date": d.isoformat(),
-                    "amount": rule["amount"],
-                    "category": rule["category"],
-                    "kind": rule.get("kind", "expense"),
-                    "note": rule["note"],
-                    "recur_id": rule["id"],
-                })
-    items.sort(key=lambda i: (i["date"], i["category"]))
+    items = upcoming_items(data, days)
 
     exp_total = sum(i["amount"] for i in items if i["kind"] == "expense")
     inc_total = sum(i["amount"] for i in items if i["kind"] == "income")
@@ -3688,6 +3699,76 @@ def cmd_month(args):
         status = (f"met (+{money(net - goal)})" if net >= goal
                   else f"{money(goal - net)} to go")
         print(f"savings goal   {money(net)} of {money(goal)}   {status}")
+
+
+def cmd_today(args):
+    """A daily briefing: this month so far, the next few days of recurring
+    items, any budgets already over, and a fortune for the day."""
+    data = load()
+    today = date.today()
+    period = today.isoformat()[:7]
+    rows = data["expenses"]
+    income = round(sum(e["amount"] for e in rows if kind_of(e) == "income"
+                       and month_of(e["date"]) == period), 2)
+    spending = round(sum(e["amount"] for e in rows if kind_of(e) == "expense"
+                         and month_of(e["date"]) == period), 2)
+    net = round(income - spending, 2)
+    balance = all_time_net(data)
+
+    days = getattr(args, "days", 7) or 7
+    if days < 1:
+        sys.exit("error: --days must be at least 1")
+    up = upcoming_items(data, days)
+    up_exp = round(sum(i["amount"] for i in up if i["kind"] == "expense"), 2)
+    up_inc = round(sum(i["amount"] for i in up if i["kind"] == "income"), 2)
+
+    over = []
+    for cat, limit in sorted(data["budgets"].items()):
+        spent = round(category_spent(data, cat, period), 2)
+        if limit > 0 and spent > limit:
+            over.append({"category": cat, "spent": spent,
+                         "budget": round(limit, 2),
+                         "over": round(spent - limit, 2)})
+
+    fortune = _fun_rng(today.isoformat(), "today").choice(_FORTUNES)
+
+    if getattr(args, "json", False):
+        print(json.dumps({
+            "date": today.isoformat(),
+            "month": period,
+            "income": income, "spending": spending, "net": net,
+            "balance": balance,
+            "upcoming": {"days": days, "count": len(up),
+                         "expense_total": up_exp, "income_total": up_inc,
+                         "net": round(up_inc - up_exp, 2)},
+            "budgets_over": over,
+            "fortune": fortune,
+        }, indent=2))
+        return
+
+    print(f"Good day — {today.strftime('%A, %d %b %Y')}")
+    print("=" * 52)
+    print(f"  This month ({period}):  spent {money(spending)}   "
+          f"income {money(income)}   net {money(net)}")
+    print(f"  Balance (all-time net): {money(balance)}")
+    print("-" * 52)
+    if up:
+        nxt = up[0]
+        nnote = f" - {nxt['note']}" if nxt["note"] else ""
+        print(f"  Next {days} day(s): {len(up)} scheduled "
+              f"(expenses {money(up_exp)}, income {money(up_inc)})")
+        print(f"    soonest: {nxt['date']} {money(nxt['amount'])} "
+              f"[{nxt['category']}]{nnote}")
+    else:
+        print(f"  Next {days} day(s): nothing scheduled")
+    if over:
+        worst = max(over, key=lambda b: b["over"])
+        print(f"  Budgets over this month: {len(over)} "
+              f"(worst: {worst['category']} by {money(worst['over'])})")
+    elif data["budgets"]:
+        print("  Budgets: all within limits this month")
+    print("-" * 52)
+    print(f"  \U0001f960 {fortune}")
 
 
 def cmd_insights(args):
@@ -5170,6 +5251,13 @@ def build_parser():
     mo.add_argument("--json", action="store_true", help="output JSON instead of text")
     mo.set_defaults(func=cmd_month)
 
+    tdy = sub.add_parser("today",
+                         help="a daily briefing: this month, what's due soon, a fortune")
+    tdy.add_argument("--days", type=int, default=7,
+                     help="how many days ahead to look (default 7)")
+    tdy.add_argument("--json", action="store_true", help="output JSON instead of text")
+    tdy.set_defaults(func=cmd_today)
+
     ins = sub.add_parser("insights",
                          help="plain-language observations about a month")
     ins.add_argument("--month", help="which month, YYYY-MM (default: current)")
@@ -5662,7 +5750,7 @@ CATCHUP_COMMANDS = frozenset({
     "balance", "commitments", "savings", "heatmap", "suggest", "insights",
     "tagtrend", "range", "matrix", "cumulative", "allowance", "tagmatrix",
     "weekly", "years", "anomalies", "roundup", "cashflow", "target", "runway",
-    "net", "subscriptions", "payees", "overbudget",
+    "net", "subscriptions", "payees", "overbudget", "today",
 })
 MUTATING_COMMANDS = frozenset({
     "add", "income", "edit", "delete", "clone", "refund", "note", "tag",

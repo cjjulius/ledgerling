@@ -807,6 +807,22 @@ class CLI(TempAppCase):
         self.assertIn(e["answer"], L._EIGHTBALL)
         self.assertEqual(e["question"], "will I save")
 
+    def test_today_json(self):
+        m = date.today().isoformat()[:7]
+        self._main(["income", "1000", "salary", "pay", "--date", f"{m}-02"])
+        self._main(["add", "120", "food", "groceries", "--date", f"{m}-03"])
+        self._main(["budget", "--category", "food", "--amount", "50"])
+        d = json.loads(self._main(["today", "--json"]))
+        self.assertEqual(d["month"], m)
+        self.assertEqual(d["income"], 1000.0)
+        self.assertEqual(d["spending"], 120.0)
+        self.assertEqual(d["net"], 880.0)
+        self.assertEqual(d["upcoming"]["days"], 7)
+        # the over-budget food category shows up in the briefing
+        self.assertEqual([b["category"] for b in d["budgets_over"]], ["food"])
+        self.assertEqual(d["budgets_over"][0]["over"], 70.0)
+        self.assertIn(d["fortune"], L._FORTUNES)
+
     def test_horoscope_rejects_unknown_sign(self):
         with self.assertRaises(SystemExit):
             with contextlib.redirect_stdout(io.StringIO()), \
