@@ -571,6 +571,32 @@ class CLI(TempAppCase):
         self.assertEqual(d["expenses"], 2)
         self.assertEqual(d["total_saved"], 3.00)
 
+    def test_cashflow_projects_and_flags_negative(self):
+        # Start from a known balance; one recurring bill pushes it negative.
+        self._main(["recur", "add", "100", "rent", "monthly bill",
+                    "--every", "month", "--start", date.today().isoformat()])
+        d = json.loads(self._main(
+            ["cashflow", "--days", "40", "--start-balance", "60", "--json"]))
+        self.assertEqual(d["start_balance"], 60.0)
+        self.assertTrue(len(d["events"]) >= 1)
+        self.assertEqual(d["end_balance"], -40.0)
+        self.assertEqual(d["net_change"], -100.0)
+        self.assertEqual(d["low_balance"], -40.0)
+        self.assertIsNotNone(d["negative_on"])
+
+    def test_cashflow_income_before_expense_same_day(self):
+        today = date.today().isoformat()
+        self._main(["recur", "add", "200", "salary", "pay", "--every",
+                    "month", "--start", today, "--income"])
+        self._main(["recur", "add", "150", "rent", "bill", "--every",
+                    "month", "--start", today])
+        d = json.loads(self._main(
+            ["cashflow", "--days", "40", "--start-balance", "0", "--json"]))
+        # Same-day: income is applied first, so the running balance never dips
+        # below zero even though the expense alone would overdraw a 0 start.
+        self.assertIsNone(d["negative_on"])
+        self.assertEqual(d["end_balance"], 50.0)
+
     def test_average_json(self):
         self._main(["add", "100", "food", "a", "--date", "2026-01-01"])
         self._main(["add", "100", "food", "b", "--date", "2026-01-11"])  # 11-day span

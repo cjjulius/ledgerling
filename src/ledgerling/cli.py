@@ -55,6 +55,7 @@ Commands:
     anomalies  Flag unusually large expenses within each category
     roundup   Simulate round-up savings (round each expense up to $N)
     upcoming  Forecast recurring charges/income due in the next N days
+    cashflow  Project a running balance forward (flags if it goes negative)
     commitments  Recurring rules normalized to monthly/annual cost
     suggest   Suggest per-category budgets from recent average spending
     autobudget  Apply suggested budgets from recent spending (undoable)
@@ -99,7 +100,7 @@ import sys
 import tempfile
 from datetime import datetime, date, timedelta
 
-__version__ = "1.83.0"
+__version__ = "1.84.0"
 
 # --------------------------------------------------------------------------- #
 # Sandbox + storage
@@ -1935,6 +1936,90 @@ def cmd_upcoming(args):
           f"net {money(inc_total - exp_total)}")
 
 
+def cmd_cashflow(args):
+    """Project a running balance forward over the next N days using scheduled
+    recurring income and expenses, and flag if/when it dips below zero.
+
+    The starting balance defaults to your all-time net (income minus expenses);
+    override it with --start-balance. Paused rules and skipped occurrences are
+    excluded, since they won't actually happen.
+    """
+    days = args.days
+    if days < 1:
+        sys.exit("error: --days must be at least 1")
+    data = load()
+    today = date.today()
+    horizon = today + timedelta(days=days)
+
+    if args.start_balance is not None:
+        balance = round(args.start_balance, 2)
+    else:
+        inc = sum(e["amount"] for e in income_only(data["expenses"]))
+        exp = sum(e["amount"] for e in expenses_only(data["expenses"]))
+        balance = round(inc - exp, 2)
+    start_balance = balance
+
+    events = []
+    for rule in data["recurring"]:
+        if rule.get("paused"):
+            continue
+        skips = set(rule.get("skips", []))
+        for d in _occurrences(rule, horizon):
+            if d > today and d.isoformat() not in skips:
+                events.append({
+                    "date": d.isoformat(),
+                    "amount": rule["amount"],
+                    "category": rule["category"],
+                    "kind": rule.get("kind", "expense"),
+                    "note": rule["note"],
+                })
+    # Income before expense on the same day, so a payday that covers a bill
+    # doesn't show a spurious dip.
+    events.sort(key=lambda e: (e["date"], e["kind"] != "income", e["category"]))
+
+    low_balance, low_date = start_balance, today.isoformat()
+    negative_on = None
+    for e in events:
+        delta = e["amount"] if e["kind"] == "income" else -e["amount"]
+        balance = round(balance + delta, 2)
+        e["balance"] = balance
+        if balance < low_balance:
+            low_balance, low_date = balance, e["date"]
+        if negative_on is None and balance < 0:
+            negative_on = e["date"]
+
+    if getattr(args, "json", False):
+        print(json.dumps({
+            "days": days, "until": horizon.isoformat(),
+            "start_balance": start_balance, "end_balance": balance,
+            "net_change": round(balance - start_balance, 2),
+            "low_balance": low_balance, "low_date": low_date,
+            "negative_on": negative_on, "events": events,
+        }, indent=2))
+        return
+
+    print(f"Cash-flow projection (next {days} day(s), through "
+          f"{horizon.isoformat()})")
+    print("=" * 60)
+    print(f"{'start balance':<22} {money(start_balance):>14}")
+    if not events:
+        print("nothing scheduled in range")
+        return
+    for e in events:
+        sign = "+" if e["kind"] == "income" else "-"
+        amt = f"{sign}{money(e['amount'])}"
+        cat = f"[{e['category']}]"
+        print(f"{e['date']}  {amt:>13}  {cat:<16}{money(e['balance']):>14}")
+    print("-" * 60)
+    change = round(balance - start_balance, 2)
+    change_str = ("+" if change >= 0 else "-") + money(abs(change))
+    print(f"{'end balance':<22} {money(balance):>14}")
+    print(f"{'net change':<22} {change_str:>14}")
+    print(f"{'lowest balance':<22} {money(low_balance):>14}  on {low_date}")
+    if negative_on:
+        print(f"** balance goes negative on {negative_on} **")
+
+
 def _nice_budget(avg):
     """Round an average up to a friendly budget figure (nearest 5/10/25)."""
     if avg <= 0:
@@ -3652,6 +3737,16 @@ def build_parser():
     up.add_argument("--json", action="store_true", help="output JSON instead of text")
     up.set_defaults(func=cmd_upcoming)
 
+    cfw = sub.add_parser("cashflow",
+                         help="project a running balance forward from recurring rules")
+    cfw.add_argument("--days", type=int, default=30,
+                     help="how many days ahead to project (default 30)")
+    cfw.add_argument("--start-balance", type=float, default=None,
+                     dest="start_balance",
+                     help="starting balance (default: your all-time net)")
+    cfw.add_argument("--json", action="store_true", help="output JSON instead of text")
+    cfw.set_defaults(func=cmd_cashflow)
+
     sg = sub.add_parser("suggest",
                         help="suggest per-category budgets from recent spending")
     sg.add_argument("--months", type=int, default=3,
@@ -3945,7 +4040,7 @@ CATCHUP_COMMANDS = frozenset({
     "untagged", "average", "distribution", "sources", "quarter", "forecast",
     "balance", "commitments", "savings", "heatmap", "suggest", "insights",
     "tagtrend", "range", "matrix", "cumulative", "allowance", "tagmatrix",
-    "weekly", "years", "anomalies", "roundup",
+    "weekly", "years", "anomalies", "roundup", "cashflow",
 })
 MUTATING_COMMANDS = frozenset({
     "add", "income", "edit", "delete", "clone", "refund", "note", "tag",
