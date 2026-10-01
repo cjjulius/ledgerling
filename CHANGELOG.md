@@ -4,6 +4,15 @@ All notable changes to Ledgerling are documented here. The format is based on
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and this project
 adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.98.0] - 2026-10-01
+
+### Fixed
+
+- Negative amounts now format with the sign before the currency symbol
+  (`-$5.00` instead of `$5.00`'s old `$-5.00`), matching the web UI and the
+  usual convention. Applies everywhere the CLI prints money (net, balance,
+  cashflow, compare, ...). A negative zero prints as a plain `$0.00`.
+
 ## [1.97.0] - 2026-10-01
 
 ### Added
@@ -987,6 +996,7 @@ file, standard library only, strictly confined to its own folder.
   guard (`_within_app`) that refuses any path escaping the app folder; imports
   and restores are reduced to a basename and looked up only within the folder.
 
+[1.98.0]: #1980---2026-10-01
 [1.97.0]: #1970---2026-10-01
 [1.96.0]: #1960---2026-10-01
 [1.95.0]: #1950---2026-10-01

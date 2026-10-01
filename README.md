@@ -323,6 +323,7 @@ ledgerling where
 ledgerling config
 ledgerling config --currency "€" --list-limit 50
 ledgerling config --currency kr --symbol-position after   # -> 12.50 kr
+# Negative amounts print the sign first: -$5.00 (or -5.00 kr), matching the web UI
 ledgerling config --reset
 
 # Backup / restore (all copies live in backups/)

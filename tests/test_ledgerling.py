@@ -90,6 +90,18 @@ class PureLogic(unittest.TestCase):
         self.assertEqual(L._median([1, 3]), 2)          # even -> mean of middle two
         self.assertEqual(L._median([3, 1, 2]), 2)       # odd, unsorted input
 
+    def test_money_formatting(self):
+        L._CONFIG.clear(); L._CONFIG.update(L.DEFAULT_CONFIG)
+        self.assertEqual(L.money(5), "$5.00")
+        self.assertEqual(L.money(-5), "-$5.00")      # sign before the symbol
+        self.assertEqual(L.money(1234.5), "$1,234.50")
+        self.assertEqual(L.money(-0.0), "$0.00")     # negative zero -> plain
+        L._CONFIG["symbol_position"] = "after"
+        L._CONFIG["currency"] = "kr"
+        self.assertEqual(L.money(5), "5.00 kr")
+        self.assertEqual(L.money(-5), "-5.00 kr")
+        L._CONFIG.clear(); L._CONFIG.update(L.DEFAULT_CONFIG)
+
     def test_bar_clamps(self):
         self.assertEqual(L.bar(0, width=4), "----")
         self.assertEqual(L.bar(1, width=4), "####")
