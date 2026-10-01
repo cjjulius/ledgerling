@@ -238,6 +238,13 @@ ledgerling roundup --to 5 --month 2026-09   # to the nearest $5.00
 ledgerling tip 84.50 --pct 20               # tip + total
 ledgerling tip 100 --pct 18 --split 3       # split evenly; cents always sum back
 
+# Offline currency converter with your own rates (no network; stays sandboxed)
+ledgerling fx set USD 1                      # pick a reference, then set others
+ledgerling fx set EUR 1.09                   # 1 EUR = 1.09 reference units
+ledgerling fx list
+ledgerling fx convert 100 EUR USD            # -> 109.00 USD
+ledgerling fx rm EUR
+
 # Monthly spending trend for one category
 ledgerling trend food --months 6
 
