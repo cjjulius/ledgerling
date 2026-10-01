@@ -127,7 +127,7 @@ import tempfile
 import time
 from datetime import datetime, date, timedelta
 
-__version__ = "1.138.0"
+__version__ = "1.139.0"
 
 # --------------------------------------------------------------------------- #
 # Sandbox + storage
@@ -701,6 +701,20 @@ def _scope_by_kind(rows, args):
     return expenses_only(rows)
 
 
+def _filter_cleared(rows, args):
+    """Apply the optional --cleared / --pending reconciliation filter (the two
+    are mutually exclusive). Shared by list and search."""
+    cleared = getattr(args, "cleared", False)
+    pending = getattr(args, "pending", False)
+    if cleared and pending:
+        sys.exit("error: use --cleared or --pending, not both")
+    if cleared:
+        return [e for e in rows if e.get("cleared")]
+    if pending:
+        return [e for e in rows if not e.get("cleared")]
+    return rows
+
+
 def cmd_list(args):
     check_month(args.month)
     data = load()
@@ -711,6 +725,7 @@ def cmd_list(args):
         want = args.tag.strip().lstrip("#").lower()
         rows = [e for e in rows if want in e.get("tags", [])]
     rows = filter_month(rows, args.month)
+    rows = _filter_cleared(rows, args)
     key = getattr(args, "sort", "date") or "date"
     reverse = bool(getattr(args, "desc", False))
     if key == "amount":
@@ -736,9 +751,10 @@ def cmd_list(args):
     for e in rows:
         note = f" - {e['note']}" if e["note"] else ""
         tag = " *" if e.get("recur_id") else ""
+        clr = " ✓" if e.get("cleared") else ""
         mark = " +income" if kind_of(e) == "income" else ""
         print(f"#{e['id']:<4} {e['date']}  {money(e['amount']):>12}  "
-              f"[{e['category']}]{note}{tag}{mark}")
+              f"[{e['category']}]{note}{tag}{clr}{mark}")
     print("-" * 50)
     exp_sum = sum(e["amount"] for e in rows if kind_of(e) == "expense")
     inc_sum = sum(e["amount"] for e in rows if kind_of(e) == "income")
@@ -1417,6 +1433,7 @@ def cmd_search(args):
         rows = [e for e in rows if e["amount"] >= args.min]
     if args.max is not None:
         rows = [e for e in rows if e["amount"] <= args.max]
+    rows = _filter_cleared(rows, args)
 
     sort = getattr(args, "sort", None) or "date"
     keyfn = {
@@ -1437,9 +1454,10 @@ def cmd_search(args):
     for e in rows:
         note = f" - {e['note']}" if e["note"] else ""
         tag = " *" if e.get("recur_id") else ""
+        clr = " ✓" if e.get("cleared") else ""
         mark = " +income" if kind_of(e) == "income" else ""
         print(f"#{e['id']:<4} {e['date']}  {money(e['amount']):>12}  "
-              f"[{e['category']}]{note}{tag}{mark}")
+              f"[{e['category']}]{note}{tag}{clr}{mark}")
     print("-" * 50)
     print(f"{len(rows)} match(es), total {money(sum(e['amount'] for e in rows))}")
 
@@ -5552,6 +5570,9 @@ def build_parser():
                    help="show at most N most-recent items (default from config)")
     l.add_argument("--income", action="store_true", help="show income instead")
     l.add_argument("--all", action="store_true", help="show expenses and income")
+    l.add_argument("--cleared", action="store_true", help="only cleared entries")
+    l.add_argument("--pending", action="store_true",
+                   help="only pending (uncleared) entries")
     l.add_argument("--sort", choices=["date", "amount", "category"],
                    default="date", help="sort order (default date)")
     l.add_argument("--desc", action="store_true",
@@ -5679,6 +5700,9 @@ def build_parser():
     sr.add_argument("--max", type=float, help="maximum amount")
     sr.add_argument("--income", action="store_true", help="search income instead")
     sr.add_argument("--all", action="store_true", help="search expenses and income")
+    sr.add_argument("--cleared", action="store_true", help="only cleared entries")
+    sr.add_argument("--pending", action="store_true",
+                    help="only pending (uncleared) entries")
     sr.add_argument("--sort", choices=["date", "amount", "category"],
                     default="date", help="sort order (default date)")
     sr.add_argument("--desc", action="store_true", help="sort descending")

@@ -2737,6 +2737,25 @@ class CLI(TempAppCase):
         self.assertEqual(d2["cleared_net"], 1000.0)
         self.assertFalse(L.load()["expenses"][1]["cleared"])
 
+    def test_list_search_cleared_pending_filters(self):
+        self._main(["add", "10", "food", "a"])   # #1
+        self._main(["add", "20", "food", "b"])   # #2
+        self._main(["add", "30", "food", "c"])   # #3
+        self._main(["clear", "1", "3"])
+        # list --pending shows only the uncleared one
+        pend = json.loads(self._main(["list", "--pending", "--json"]))
+        self.assertEqual([e["id"] for e in pend], [2])
+        clr = json.loads(self._main(["list", "--cleared", "--json"]))
+        self.assertEqual(sorted(e["id"] for e in clr), [1, 3])
+        # search honours the same filters (combined with other criteria)
+        s = json.loads(self._main(["search", "food", "--pending", "--json"]))
+        self.assertEqual([e["id"] for e in s], [2])
+        # mutually exclusive
+        with self.assertRaises(SystemExit):
+            with contextlib.redirect_stdout(io.StringIO()), \
+                    contextlib.redirect_stderr(io.StringIO()):
+                L.main(["list", "--cleared", "--pending"])
+
     def test_clear_rejects_missing_id(self):
         self._main(["add", "10", "food", "x"])
         with self.assertRaises(SystemExit):

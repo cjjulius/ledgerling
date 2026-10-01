@@ -4,6 +4,15 @@ All notable changes to Ledgerling are documented here. The format is based on
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and this project
 adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.139.0] - 2026-10-01
+
+### Added
+
+- `list` and `search` gained `--cleared` / `--pending` filters (mutually
+  exclusive) to show only cleared or only uncleared entries — completing the
+  reconciliation workflow (find what still needs clearing). Both commands now
+  also mark cleared entries with a `✓` in their text output.
+
 ## [1.138.0] - 2026-10-01
 
 ### Added
@@ -1635,6 +1644,7 @@ file, standard library only, strictly confined to its own folder.
   guard (`_within_app`) that refuses any path escaping the app folder; imports
   and restores are reduced to a basename and looked up only within the folder.
 
+[1.139.0]: #11390---2026-10-01
 [1.138.0]: #11380---2026-10-01
 [1.137.0]: #11370---2026-10-01
 [1.136.1]: #11361---2026-10-01

@@ -517,6 +517,8 @@ ledgerling clear 12 13 14      # mark these entry ids cleared
 ledgerling unclear 13          # put one back to pending
 ledgerling reconcile
 ledgerling reconcile --json
+ledgerling list --pending      # find what still needs clearing (✓ marks cleared)
+ledgerling search rent --cleared   # filters also work on search
 
 # Backup / restore (all copies live in backups/)
 ledgerling backup
