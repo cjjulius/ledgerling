@@ -1654,6 +1654,38 @@ class CLI(TempAppCase):
         self.assertEqual(data["expenses"][1]["category"], "uncategorized")
         self.assertEqual(data["budgets"], {})            # invalid budget removed
 
+    def test_check_flags_and_fixes_bad_accounts_and_snapshots(self):
+        L.save({"expenses": [], "budgets": {}, "recurring": [], "goal": None,
+                "accounts": {"good": {"amount": 100.0, "debt": False},
+                             "bad1": {"amount": "lots"},   # non-numeric
+                             "bad2": "not-a-dict"},
+                "networth_history": [
+                    {"date": "2026-01-01", "net": 50.0},   # good
+                    {"date": "nope", "net": 5.0},          # bad date
+                    {"date": "2026-02-01", "net": "x"}]})  # bad net
+        d = json.loads(self._main(["check", "--json"]))
+        kinds = [i["kind"] for i in d["issues"]]
+        self.assertEqual(kinds.count("bad_account"), 2)
+        self.assertEqual(kinds.count("bad_snapshot"), 2)
+        # --fix removes the malformed ones, keeps the good ones
+        d2 = json.loads(self._main(["check", "--fix", "--json"]))
+        self.assertTrue(d2["ok"])
+        data = L.load()
+        self.assertEqual(list(data["accounts"]), ["good"])
+        self.assertEqual([s["date"] for s in data["networth_history"]],
+                         ["2026-01-01"])
+
+    def test_load_coerces_corrupt_account_sections(self):
+        # wrong container types in a hand-edited file must not crash later
+        L.save({"expenses": [], "budgets": {}, "recurring": [], "goal": None,
+                "accounts": "garbage", "networth_history": "garbage"})
+        data = L.load()
+        self.assertEqual(data["accounts"], {})
+        self.assertEqual(data["networth_history"], [])
+        # networth still runs on the coerced data
+        out = self._main(["networth"])
+        self.assertIn("Net worth", out)
+
     def test_check_fix_leaves_unfixable(self):
         L.save({"expenses": [
             {"id": 1, "amount": -5.0, "category": "food", "note": "",

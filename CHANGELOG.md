@@ -4,6 +4,17 @@ All notable changes to Ledgerling are documented here. The format is based on
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and this project
 adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.134.1] - 2026-10-01
+
+### Changed
+
+- Robustness: the `accounts` and `networth_history` sections are now hardened.
+  `load()` coerces each to its container type (so a corrupt/hand-edited file
+  can't crash a later command), `networth_totals()` skips malformed account
+  entries, and the `networth` summary ignores them. The `check` command now
+  reports malformed accounts (`bad_account`) and net-worth snapshots
+  (`bad_snapshot`), and `check --fix` removes them (undoable).
+
 ## [1.134.0] - 2026-10-01
 
 ### Added
@@ -1566,6 +1577,7 @@ file, standard library only, strictly confined to its own folder.
   guard (`_within_app`) that refuses any path escaping the app folder; imports
   and restores are reduced to a basename and looked up only within the folder.
 
+[1.134.1]: #11341---2026-10-01
 [1.134.0]: #11340---2026-10-01
 [1.133.0]: #11330---2026-10-01
 [1.132.1]: #11321---2026-10-01
