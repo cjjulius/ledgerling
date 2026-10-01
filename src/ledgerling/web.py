@@ -480,15 +480,17 @@ function toggleGroup(g) {
 // added one) still shows up automatically under "More", so the nav stays
 // comprehensive without per-command edits.
 const GROUP_DEFS = [
-  ['Record', ['add', 'income', 'edit', 'delete', 'clone', 'note', 'refund']],
+  ['Record', ['add', 'income', 'edit', 'delete', 'split', 'clone', 'note', 'refund']],
   ['Analyze', ['month', 'insights', 'range', 'summary', 'report', 'stats', 'week', 'weekly', 'day', 'year', 'years',
     'quarter', 'weekday', 'trend', 'tagtrend', 'matrix', 'tagmatrix', 'cumulative', 'top', 'compare', 'average', 'distribution',
-    'balance', 'savings', 'heatmap', 'streak', 'pace', 'forecast', 'sources',
+    'balance', 'savings', 'heatmap', 'streak', 'pace', 'forecast', 'sources', 'anomalies', 'cashflow',
     'categories', 'tags', 'untagged', 'search', 'list']],
   ['Budgets & goals', ['budget', 'unbudget', 'allowance', 'goal', 'suggest', 'autobudget', 'commitments', 'upcoming']],
+  ['Calculators', ['tip', 'interest', 'loan', 'target', 'roundup',
+    'fx convert', 'fx set', 'fx list', 'fx rm']],
   ['Recurring', ['recur add', 'recur from', 'recur list', 'recur edit', 'recur remove', 'recur run', 'recur skip', 'recur unskip', 'recur pause', 'recur resume']],
   ['Data', ['export', 'import', 'backup', 'restore', 'dedupe', 'duplicates',
-    'retag', 'tag', 'untag', 'recategorize', 'undo']],
+    'retag', 'tag', 'untag', 'recategorize', 'check', 'undo']],
   ['Settings', ['config', 'where', 'version', 'completion', 'web']],
 ];
 function groupOf(name) {
