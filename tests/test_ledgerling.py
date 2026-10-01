@@ -21,6 +21,23 @@ from ledgerling import cli as L  # noqa: E402
 
 
 class PureLogic(unittest.TestCase):
+    def test_docstring_lists_every_command(self):
+        # Guard against help-text drift: every top-level command must appear in
+        # the module docstring's command list (indented "name   description").
+        import argparse
+        import re
+        parser = L.build_parser()
+        cmds = set()
+        for a in parser._actions:
+            if isinstance(a, argparse._SubParsersAction):
+                cmds |= set(a.choices.keys())
+        documented = set(re.findall(r'^\s{4}([a-z][a-z0-9-]+)\s{2,}',
+                                    L.__doc__ or "", re.M))
+        missing = cmds - documented
+        self.assertEqual(missing, set(),
+                         "commands missing from the module docstring: %s"
+                         % sorted(missing))
+
     def test_commands_are_all_classified(self):
         # Guard: every top-level command must be classified as either a
         # catch-up (read) command or a mutating/meta command, so the implicit
