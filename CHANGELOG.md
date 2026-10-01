@@ -4,6 +4,17 @@ All notable changes to Ledgerling are documented here. The format is based on
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and this project
 adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.91.0] - 2026-09-30
+
+### Changed
+
+- Performance: recurring catch-up and CSV import now assign entry ids from a
+  running counter instead of calling `next_id` (an O(n) scan) on every append,
+  turning an O(n^2) bulk insert into O(n). Materializing a few thousand
+  occurrences (e.g. catching up a years-old daily rule) is now effectively
+  instant. Ids are assigned in the same sequence as before; a new test checks
+  they stay unique and continue past existing ids.
+
 ## [1.90.0] - 2026-09-30
 
 ### Added
@@ -910,6 +921,7 @@ file, standard library only, strictly confined to its own folder.
   guard (`_within_app`) that refuses any path escaping the app folder; imports
   and restores are reduced to a basename and looked up only within the folder.
 
+[1.91.0]: #1910---2026-09-30
 [1.90.0]: #1900---2026-09-30
 [1.89.0]: #1890---2026-09-30
 [1.88.0]: #1880---2026-09-30

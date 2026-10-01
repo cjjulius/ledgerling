@@ -365,7 +365,9 @@ changing the recurring catch-up behaviour.
 The recurring-occurrence generator takes an optional `since` lower bound so
 projections and catch-up don't iterate over years of history for long-running
 daily rules; a brute-force equivalence test guards that the fast path returns
-exactly the same dates as a full scan.
+exactly the same dates as a full scan. Bulk inserts (recurring catch-up, CSV
+import) assign ids from a running counter instead of re-scanning the list per
+row, so materializing thousands of entries stays linear.
 
 ## How things behave
 

@@ -146,6 +146,24 @@ class RecurringEngine(unittest.TestCase):
         self.assertIn("home", data["expenses"][0]["tags"])
 
 
+    def test_apply_recurring_ids_unique_and_sequential(self):
+        # Pre-existing entry at id 5; two rules generate several occurrences.
+        # The running id counter must keep every id unique and continue past 5.
+        data = {"expenses": [{"id": 5, "amount": 9.0, "category": "x",
+                              "note": "", "date": "2026-01-01", "tags": [],
+                              "kind": "expense"}],
+                "budgets": {}, "recurring": [
+                    {"id": 1, "amount": 3.0, "category": "coffee", "note": "",
+                     "every": "week", "start": "2026-01-01", "last": None},
+                    {"id": 2, "amount": 50.0, "category": "gym", "note": "",
+                     "every": "month", "start": "2026-01-01", "last": None},
+                ]}
+        created = L.apply_recurring(data)
+        self.assertGreater(created, 0)
+        ids = [e["id"] for e in data["expenses"]]
+        self.assertEqual(len(ids), len(set(ids)))        # all unique
+        self.assertEqual(max(ids), 5 + created)          # continued past id 5
+
     def test_apply_recurring_skips_paused_rule(self):
         data = {"expenses": [], "budgets": {}, "recurring": [{
             "id": 1, "amount": 15.0, "category": "subscriptions", "note": "music",
