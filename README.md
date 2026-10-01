@@ -30,13 +30,18 @@ ledgerling gui --theme light
 Ledgerling ships a **native desktop application** built on Tkinter (still
 standard library only — no extra dependencies). It opens a real OS window with:
 
+- two polished **themes** — a light theme with a **green accent**, and a deep
+  **green dark theme with a light (mint) accent** — toggled with an animated
+  colour crossfade, plus a gently **animated header** and an animated run
+  spinner so the app feels alive rather than flat;
 - a **menu bar** — File (Run, open web UI, Quit), a **Commands** menu with every
   command organized into submenus, View (toggle light/dark, focus search), and
   Help;
-- a **toolbar** of quick-access buttons for the common actions (add, income,
-  summary, search, upcoming, settings);
-- a **sidebar** that groups every command (Record / Analyze / Budgets & goals /
-  Calculators / Recurring / Data / Settings) with a live **filter** box;
+- a **toolbar** of quick-access buttons for the common actions;
+- a **sidebar** of **icon buttons** — every command, grouped (Record / Analyze /
+  Budgets & goals / Calculators / Recurring / Data / Settings / Fun), each with
+  an icon, a hover animation, and a tooltip of its help — with a live **filter**
+  box and an active-command highlight;
 - a **schema-driven form** for the selected command (it generates itself from
   the CLI, so every current and future command appears automatically), a
   results area with an **Output** tab (text, with a Copy button) and a
@@ -484,6 +489,14 @@ ledgerling recur unskip 1 --date 2026-12-01   # cancel that skip
 ledgerling recur unskip 1 --all               # clear all skips on the rule
 ledgerling recur pause 1              # stop a rule until resumed
 ledgerling recur resume 1             # resume (no backfill of the paused gap)
+
+# Fun modes — playful, fully offline extras (no network, no stored data touched).
+# Deterministic given --seed; the daily ones otherwise vary by date.
+ledgerling fortune                    # a fortune cookie + lucky numbers
+ledgerling horoscope leo              # finance-flavoured daily horoscope
+ledgerling weather --where Dublin     # whimsical OFFLINE forecast (for fun)
+ledgerling eightball "will I save money this month"   # Magic 8-Ball
+ledgerling fortune --seed 42 --json   # reproducible; all support --json
 ```
 
 ## Tests

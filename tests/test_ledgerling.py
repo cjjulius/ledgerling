@@ -779,6 +779,40 @@ class CLI(TempAppCase):
                 L.main(["--version"])
         self.assertEqual(ctx.exception.code, 0)
 
+    def test_fun_modes_json_and_determinism(self):
+        # fortune: same seed -> same result; valid lucky numbers
+        a = json.loads(self._main(["fortune", "--seed", "42", "--json"]))
+        b = json.loads(self._main(["fortune", "--seed", "42", "--json"]))
+        self.assertEqual(a, b)
+        self.assertIn(a["fortune"], L._FORTUNES)
+        self.assertEqual(len(a["lucky_numbers"]), 6)
+        self.assertTrue(all(1 <= n < 50 for n in a["lucky_numbers"]))
+        # horoscope: seeded is reproducible; fields present
+        h = json.loads(self._main(["horoscope", "leo", "--seed", "1", "--json"]))
+        self.assertEqual(h["sign"], "leo")
+        self.assertIn(h["money_mood"], L._HORO_MOOD)
+        self.assertNotEqual(h["favoured"], h["avoid"])
+        self.assertEqual(
+            h, json.loads(self._main(["horoscope", "leo", "--seed", "1",
+                                      "--json"])))
+        # weather: offline flag + reproducible for a seed/place
+        w = json.loads(self._main(["weather", "--where", "Dublin", "--seed",
+                                   "7", "--json"]))
+        self.assertTrue(w["offline"])
+        self.assertEqual(w["location"], "Dublin")
+        self.assertGreaterEqual(w["high_c"], w["low_c"])
+        # eightball: answer from the canonical set; question echoed
+        e = json.loads(self._main(["eightball", "will", "I", "save",
+                                   "--seed", "3", "--json"]))
+        self.assertIn(e["answer"], L._EIGHTBALL)
+        self.assertEqual(e["question"], "will I save")
+
+    def test_horoscope_rejects_unknown_sign(self):
+        with self.assertRaises(SystemExit):
+            with contextlib.redirect_stdout(io.StringIO()), \
+                    contextlib.redirect_stderr(io.StringIO()):
+                L.main(["horoscope", "notasign"])
+
     def test_categories_json(self):
         self._main(["add", "10", "food", "a"])
         self._main(["add", "20", "food", "b"])

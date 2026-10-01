@@ -19,7 +19,7 @@ from . import cli as L
 from . import web
 
 # Sidebar grouping (mirrors the web UI's GROUP_DEFS). Anything not listed falls
-# into "More", so a newly added command can never be lost from the tree.
+# into "More", so a newly added command can never be lost from the nav.
 GROUP_DEFS = [
     ("Record", ["add", "income", "edit", "delete", "split", "clone", "note",
                 "refund"]),
@@ -40,32 +40,65 @@ GROUP_DEFS = [
     ("Data", ["export", "import", "backup", "restore", "dedupe", "duplicates",
               "retag", "tag", "untag", "recategorize", "check", "undo"]),
     ("Settings", ["config", "where", "version", "completion", "web", "gui"]),
+    ("Fun", ["fortune", "horoscope", "weather", "eightball"]),
 ]
 
-# Quick-access toolbar: (glyph, command name, tooltip). Glyphs keep the look
-# icon-like while staying dependency-free (no bundled image assets).
+# A glyph per group (fallback) and per command (when a specific one reads well).
+GROUP_ICONS = {
+    "Record": "✍️", "Analyze": "\U0001f4ca",
+    "Budgets & goals": "\U0001f3af", "Calculators": "\U0001f9ee",
+    "Recurring": "\U0001f501", "Data": "\U0001f5c4️",
+    "Settings": "⚙️", "Fun": "\U0001f389", "More": "•",
+}
+ICONS = {
+    "add": "➕", "income": "\U0001f4b0", "edit": "✏️",
+    "delete": "\U0001f5d1️", "split": "✂️", "clone": "⧉",
+    "note": "\U0001f4dd", "refund": "↩️",
+    "summary": "\U0001f4ca", "stats": "\U0001f4c8", "search": "\U0001f50d",
+    "categories": "\U0001f3f7️", "tags": "#️⃣",
+    "payees": "\U0001f3ea", "subscriptions": "\U0001f501",
+    "heatmap": "\U0001f5d3️", "cashflow": "\U0001f4c9",
+    "upcoming": "\U0001f4c5", "overbudget": "⚠️", "trend": "\U0001f4c8",
+    "top": "\U0001f51d", "compare": "⚖️", "net": "\U0001f9ee",
+    "savings": "\U0001f437", "forecast": "\U0001f52e", "insights": "\U0001f4a1",
+    "budget": "\U0001f3af", "goal": "\U0001f945", "allowance": "\U0001fa99",
+    "suggest": "\U0001f4a1", "autobudget": "\U0001f916",
+    "commitments": "\U0001f4cc", "tip": "\U0001f9ee", "interest": "\U0001f4c8",
+    "loan": "\U0001f3e6", "target": "\U0001f3af", "runway": "\U0001f6eb",
+    "roundup": "\U0001fa99", "export": "⬆️", "import": "⬇️",
+    "backup": "\U0001f4be", "restore": "♻️", "dedupe": "\U0001f9f9",
+    "duplicates": "\U0001f46f", "check": "✅", "undo": "↶",
+    "retag": "\U0001f516", "recategorize": "\U0001f504", "config": "⚙️",
+    "where": "\U0001f4c1", "version": "ℹ️", "completion": "⌨️",
+    "web": "\U0001f310", "gui": "\U0001f5a5️",
+    "fortune": "\U0001f960", "horoscope": "✨", "weather": "⛅",
+    "eightball": "\U0001f3b1",
+}
+
+# Quick-access toolbar: (command, tooltip).
 TOOLBAR = [
-    ("➕", "add", "Record an expense"),
-    ("\U0001f4b0", "income", "Record income"),
-    ("\U0001f4ca", "summary", "Category summary"),
-    ("\U0001f50d", "search", "Search entries"),
-    ("\U0001f4c5", "upcoming", "Upcoming recurring charges"),
-    ("⚙", "config", "Settings"),
+    ("add", "Record an expense"),
+    ("income", "Record income"),
+    ("summary", "Category summary"),
+    ("payees", "Spending by merchant"),
+    ("search", "Search entries"),
+    ("upcoming", "Upcoming recurring charges"),
 ]
 
-# Two palettes; toggled at runtime. ttk needs explicit colors to look modern.
+# Two palettes. Light = light surface + green accent. Dark = deep green surface
+# + light (mint) accent. Toggled at runtime with an animated colour crossfade.
 THEMES = {
-    "dark": {
-        "bg": "#14161a", "panel": "#1b1e24", "ink": "#e7e9ee",
-        "muted": "#9aa3b2", "line": "#2a2f38", "accent": "#5b9cff",
-        "accent_ink": "#0b1020", "err": "#ff9b8a", "field": "#0f1115",
-        "sel": "#263040",
-    },
     "light": {
-        "bg": "#f4f5f7", "panel": "#ffffff", "ink": "#1c2330",
-        "muted": "#5c6472", "line": "#dfe3ea", "accent": "#2f6bff",
-        "accent_ink": "#ffffff", "err": "#b23b2e", "field": "#ffffff",
-        "sel": "#dce7ff",
+        "bg": "#eef3ee", "panel": "#ffffff", "ink": "#13241a",
+        "muted": "#5f7068", "line": "#d6e0d8", "accent": "#1f9d55",
+        "accent2": "#34c47a", "accent_ink": "#ffffff", "err": "#b23b2e",
+        "field": "#ffffff", "sel": "#d6f0e0",
+    },
+    "dark": {
+        "bg": "#0e1c14", "panel": "#13271b", "ink": "#e8f3ec",
+        "muted": "#9ab8a6", "line": "#1f3a2a", "accent": "#7fe3a6",
+        "accent2": "#a7f0c4", "accent_ink": "#06160d", "err": "#ff9b8a",
+        "field": "#0b1710", "sel": "#1c3a28",
     },
 }
 
@@ -77,8 +110,24 @@ def _group_of(name):
     return "More"
 
 
+def _icon_for(name):
+    return ICONS.get(name) or GROUP_ICONS.get(_group_of(name), "•")
+
+
 def _humanize(dest):
     return dest.replace("_", " ").strip().capitalize()
+
+
+def _lerp(c1, c2, t):
+    """Blend two #rrggbb colours; t in [0,1]. Used for animated transitions."""
+    c1, c2 = c1.lstrip("#"), c2.lstrip("#")
+    try:
+        a = tuple(int(c1[i:i + 2], 16) for i in (0, 2, 4))
+        b = tuple(int(c2[i:i + 2], 16) for i in (0, 2, 4))
+    except (ValueError, IndexError):
+        return "#" + c2
+    m = tuple(round(a[i] + (b[i] - a[i]) * max(0.0, min(1.0, t))) for i in range(3))
+    return "#%02x%02x%02x" % m
 
 
 # --- JSON -> table formatting (mirrors the web UI's column heuristics) ------- #
@@ -207,33 +256,48 @@ class LedgerlingGUI:
         self.current = None       # selected command name
         self.fields = {}          # dest -> (widget, arg-spec)
         self._results = queue.Queue()
+        self._nav = {}            # command -> {row, bar, gl, tx}
+        self._alive = True
+        self._comet = 0.0
+        self._spin = 0
+        self._spinning = False
 
-        # Restore theme + window size/position from last session (if saved).
         state = _load_state()
         self.theme_name = state.get("theme") or theme
+        self.colors = dict(THEMES.get(self.theme_name, THEMES["dark"]))
 
         root.title("Ledgerling")
-        root.minsize(900, 560)
+        root.minsize(940, 580)
         geo = state.get("geometry")
         try:
-            root.geometry(geo if _valid_geometry(geo) else "1040x660")
+            root.geometry(geo if _valid_geometry(geo) else "1100x680")
         except Exception:
             pass
 
         self._build_menu()
+        self._build_header()
         self._build_toolbar()
         self._build_body()
         self._build_statusbar()
-        self.apply_theme(self.theme_name)
+        self.apply_theme(self.theme_name, animate=False)
         self._bind_shortcuts()
         self._poll_results()
+        self._animate_header()
         root.protocol("WM_DELETE_WINDOW", self._on_close)
 
-        # Open a friendly default command.
         self.open_command("summary" if "summary" in self.commands else
                           next(iter(self.commands)))
 
-    # ----- layout ---------------------------------------------------------- #
+    # ----- scheduling helpers --------------------------------------------- #
+    def _after(self, ms, fn):
+        if self._alive:
+            try:
+                return self.root.after(ms, fn)
+            except Exception:
+                return None
+        return None
+
+    # ----- menu ------------------------------------------------------------ #
     def _build_menu(self):
         tk = self.tk
         bar = tk.Menu(self.root)
@@ -245,7 +309,7 @@ class LedgerlingGUI:
         filem.add_command(label="Open web UI", command=self._open_web)
         filem.add_separator()
         filem.add_command(label="Quit", accelerator="Ctrl+Q",
-                          command=self.root.destroy)
+                          command=self._on_close)
         bar.add_cascade(label="File", menu=filem)
 
         cmds = tk.Menu(bar, tearoff=0)
@@ -276,68 +340,135 @@ class LedgerlingGUI:
 
         self.root.config(menu=bar)
 
+    # ----- header (animated) ---------------------------------------------- #
+    def _build_header(self):
+        tk = self.tk
+        self.header = tk.Canvas(self.root, height=72, highlightthickness=0,
+                                bd=0)
+        self.header.pack(side="top", fill="x")
+        self.header.bind("<Configure>", lambda _e: self._draw_header_static())
+
+    def _draw_header_static(self):
+        c, h = self.colors, self.header
+        try:
+            w = h.winfo_width() or 1100
+            h.delete("static")
+            h.configure(background=c["panel"])
+            # a soft accent underline across the header bottom
+            h.create_line(0, 70, w, 70, fill=c["line"], tags="static")
+            h.create_text(22, 26, anchor="w", text="Ledgerling", tags="static",
+                          fill=c["accent"], font=("Segoe UI Semibold", 20))
+            h.create_text(24, 50, anchor="w", tags="static", fill=c["muted"],
+                          font=("Segoe UI", 9),
+                          text=f"v{self.schema['version']}  •  "
+                               f"private local ledger  •  "
+                               f"currency {self.currency}")
+        except Exception:
+            pass
+
+    def _animate_header(self):
+        if not self._alive:
+            return
+        c, h = self.colors, self.header
+        try:
+            w = h.winfo_width() or 1100
+            h.delete("comet")
+            self._comet = (self._comet + 0.006) % 1.0
+            # ease-in-out so the dot glides rather than scrolls linearly
+            t = self._comet
+            ease = 0.5 - 0.5 * __import__("math").cos(t * 2 * 3.14159265)
+            x = 20 + ease * (w - 40)
+            for i, (dx, r, mix) in enumerate(
+                    [(-18, 2, .15), (-12, 3, .3), (-6, 4, .55), (0, 5, 1.0)]):
+                col = _lerp(c["panel"], c["accent2"], mix)
+                h.create_oval(x + dx - r, 70 - r, x + dx + r, 70 + r,
+                              fill=col, outline="", tags="comet")
+        except Exception:
+            pass
+        self._hdr_after = self._after(40, self._animate_header)
+
+    # ----- toolbar --------------------------------------------------------- #
     def _build_toolbar(self):
         ttk = self.ttk
-        self.toolbar = ttk.Frame(self.root, style="Toolbar.TFrame", padding=(8, 6))
+        self.toolbar = ttk.Frame(self.root, style="Toolbar.TFrame",
+                                 padding=(12, 8))
         self.toolbar.pack(side="top", fill="x")
-        for glyph, name, tip in TOOLBAR:
+        for name, tip in TOOLBAR:
             if name not in self.commands:
                 continue
-            b = ttk.Button(self.toolbar, text=f"{glyph}  {name}",
+            b = ttk.Button(self.toolbar, text=f"{_icon_for(name)}  {name}",
                            style="Tool.TButton",
                            command=lambda n=name: self.open_command(n))
             b.pack(side="left", padx=(0, 6))
             _Tooltip(b, tip)
-        self.theme_btn = ttk.Button(self.toolbar, text="◑ theme",
+        self.theme_btn = ttk.Button(self.toolbar, text="◑  theme",
                                     style="Tool.TButton", command=self.toggle_theme)
         self.theme_btn.pack(side="right")
+        _Tooltip(self.theme_btn, "Toggle light / dark  (Ctrl+T)")
 
+    # ----- body ------------------------------------------------------------ #
     def _build_body(self):
         tk, ttk = self.tk, self.ttk
         body = ttk.Panedwindow(self.root, orient="horizontal")
         body.pack(side="top", fill="both", expand=True)
 
-        # --- left: filter + grouped command tree ---
-        left = ttk.Frame(body, style="Side.TFrame", padding=8)
+        # --- left: filter + scrollable icon-button nav ---
+        left = ttk.Frame(body, style="Side.TFrame", padding=(8, 8))
         self.filter_var = tk.StringVar()
         self.filter_entry = ttk.Entry(left, textvariable=self.filter_var)
         self.filter_entry.pack(side="top", fill="x")
-        self.tree = ttk.Treeview(left, show="tree", selectmode="browse",
-                                 style="Side.Treeview")
-        self.tree.pack(side="top", fill="both", expand=True, pady=(8, 0))
-        self.tree.bind("<<TreeviewSelect>>", self._on_tree_select)
-        body.add(left, weight=1)
-        # Wire the live filter only after the tree exists (the placeholder's
-        # own insert would otherwise refill the tree before it's built).
-        _Placeholder(self.filter_entry, "Filter commands  (Ctrl+K)")
-        self.filter_var.trace_add("write", lambda *_: self._refill_tree())
 
-        # --- right: form + output ---
-        right = ttk.Frame(body, style="Main.TFrame", padding=12)
+        navhost = tk.Frame(left, highlightthickness=0, bd=0)
+        navhost.pack(side="top", fill="both", expand=True, pady=(8, 0))
+        self.navcanvas = tk.Canvas(navhost, highlightthickness=0, bd=0)
+        navscroll = ttk.Scrollbar(navhost, orient="vertical",
+                                  command=self.navcanvas.yview)
+        self.navcanvas.configure(yscrollcommand=navscroll.set)
+        navscroll.pack(side="right", fill="y")
+        self.navcanvas.pack(side="left", fill="both", expand=True)
+        self.nav_inner = tk.Frame(self.navcanvas, highlightthickness=0, bd=0)
+        self._nav_win = self.navcanvas.create_window((0, 0), window=self.nav_inner,
+                                                     anchor="nw")
+        self.nav_inner.bind(
+            "<Configure>",
+            lambda _e: self.navcanvas.configure(
+                scrollregion=self.navcanvas.bbox("all")))
+        self.navcanvas.bind(
+            "<Configure>",
+            lambda e: self.navcanvas.itemconfigure(self._nav_win, width=e.width))
+        self._bind_wheel(self.navcanvas)
+        body.add(left, weight=1)
+
+        _Placeholder(self.filter_entry, "Filter commands  (Ctrl+K)")
+        self.filter_var.trace_add("write", lambda *_: self._refill_nav())
+
+        # --- right: command header, form, results ---
+        right = ttk.Frame(body, style="Main.TFrame", padding=14)
         self.cmd_title = ttk.Label(right, text="", style="Title.TLabel")
         self.cmd_title.pack(side="top", anchor="w")
         self.cmd_help = ttk.Label(right, text="", style="Muted.TLabel",
-                                  wraplength=640, justify="left")
-        self.cmd_help.pack(side="top", anchor="w", pady=(2, 10))
+                                  wraplength=680, justify="left")
+        self.cmd_help.pack(side="top", anchor="w", pady=(2, 12))
 
         self.form = ttk.Frame(right, style="Main.TFrame")
         self.form.pack(side="top", fill="x")
 
         runbar = ttk.Frame(right, style="Main.TFrame")
-        runbar.pack(side="top", fill="x", pady=(10, 8))
-        self.run_btn = ttk.Button(runbar, text="Run  (Ctrl+Enter)",
+        runbar.pack(side="top", fill="x", pady=(12, 8))
+        self.run_btn = ttk.Button(runbar, text="▶  Run   (Ctrl+Enter)",
                                   style="Accent.TButton", command=self.run_current)
         self.run_btn.pack(side="left")
+        self.spinner = tk.Canvas(runbar, width=22, height=22,
+                                 highlightthickness=0, bd=0)
+        self.spinner.pack(side="left", padx=(10, 0))
         ttk.Button(runbar, text="Copy output", style="Tool.TButton",
-                   command=self._copy_output).pack(side="left", padx=(8, 0))
+                   command=self._copy_output).pack(side="right")
 
-        # Results: a Text "Output" tab plus a sortable "Table" tab that fills
-        # from the command's --json output when available.
         self.results = ttk.Notebook(right)
         self.results.pack(side="top", fill="both", expand=True)
 
         outwrap = ttk.Frame(self.results, style="Main.TFrame")
-        self.output = tk.Text(outwrap, wrap="none", height=14, borderwidth=0,
+        self.output = tk.Text(outwrap, wrap="none", height=13, borderwidth=0,
                               font=("Consolas", 10), state="disabled")
         yscroll = ttk.Scrollbar(outwrap, orient="vertical",
                                 command=self.output.yview)
@@ -368,29 +499,41 @@ class LedgerlingGUI:
         tabwrap.columnconfigure(0, weight=1)
         self.results.add(tabwrap, text="Table")
         self._table_tab = tabwrap
-        self._table_rows = []        # current rows, for re-sorting
-        self._table_cols = []
-        self._table_mode = "rows"
+        self._table_rows, self._table_cols, self._table_mode = [], [], "rows"
         self._sort_state = {}
-        self.results.hide(self._table_tab)   # shown only when there's a table
+        self.results.hide(self._table_tab)
 
         body.add(right, weight=3)
-        self._refill_tree()
+        self._refill_nav()
+
+    def _bind_wheel(self, widget):
+        def on_wheel(e):
+            try:
+                self.navcanvas.yview_scroll(int(-e.delta / 120), "units")
+            except Exception:
+                pass
+        widget.bind("<MouseWheel>", on_wheel)
 
     def _build_statusbar(self):
         ttk = self.ttk
         self.status = ttk.Label(
             self.root, style="Status.TLabel", anchor="w",
-            text=f"Ledgerling {self.schema['version']}   •   "
-                 f"currency {self.currency}   •   ready")
+            text=f"Ready  •  currency {self.currency}")
         self.status.pack(side="bottom", fill="x")
 
-    # ----- tree ------------------------------------------------------------ #
-    def _refill_tree(self):
+    # ----- nav (icon buttons) --------------------------------------------- #
+    def _refill_nav(self):
+        tk = self.tk
         q = (self.filter_var.get() or "").strip().lower()
-        if q == "filter commands  (ctrl+k)":   # placeholder text, treat as empty
+        if q == "filter commands  (ctrl+k)":
             q = ""
-        self.tree.delete(*self.tree.get_children())
+        for child in self.nav_inner.winfo_children():
+            child.destroy()
+        self._nav = {}
+        c = self.colors
+        self.navcanvas.configure(background=c["panel"])
+        self.nav_inner.configure(background=c["panel"])
+
         present = set(self.commands)
         groups = [(g, names) for g, names in GROUP_DEFS]
         more = sorted(n for n in present if _group_of(n) == "More")
@@ -401,17 +544,83 @@ class LedgerlingGUI:
                       (not q or q in n or q in self.commands[n]["help"].lower())]
             if not listed:
                 continue
-            gid = self.tree.insert("", "end", text=group, open=True,
-                                   tags=("group",))
+            hdr = tk.Label(self.nav_inner, text=f"{GROUP_ICONS.get(group, '')}  "
+                           f"{group.upper()}", bg=c["panel"], fg=c["muted"],
+                           font=("Segoe UI", 8, "bold"), anchor="w")
+            hdr.pack(fill="x", padx=8, pady=(10, 2))
+            self._bind_wheel(hdr)
             for n in listed:
-                self.tree.insert(gid, "end", iid=n, text="   " + n,
-                                 tags=("cmd",))
-        self.tree.tag_configure("group", font=("Segoe UI", 9, "bold"))
+                self._make_nav_button(n)
+        if self.current:
+            self._highlight_nav(self.current)
 
-    def _on_tree_select(self, _ev):
-        sel = self.tree.selection()
-        if sel and sel[0] in self.commands:
-            self.open_command(sel[0])
+    def _make_nav_button(self, name):
+        tk, c = self.tk, self.colors
+        row = tk.Frame(self.nav_inner, bg=c["panel"], cursor="hand2")
+        bar = tk.Frame(row, bg=c["panel"], width=3)
+        bar.pack(side="left", fill="y")
+        gl = tk.Label(row, text=_icon_for(name), bg=c["panel"], fg=c["ink"],
+                      font=("Segoe UI Emoji", 12), width=2)
+        gl.pack(side="left", padx=(6, 4), pady=5)
+        tx = tk.Label(row, text=name, bg=c["panel"], fg=c["ink"],
+                      font=("Segoe UI", 10), anchor="w")
+        tx.pack(side="left", fill="x", expand=True)
+        row.pack(fill="x", padx=6, pady=1)
+        btn = {"row": row, "bar": bar, "gl": gl, "tx": tx, "base": c["panel"]}
+        self._nav[name] = btn
+        for w in (row, bar, gl, tx):
+            w.bind("<Button-1>", lambda _e, n=name: self.open_command(n))
+            w.bind("<Enter>", lambda _e, n=name: self._hover_nav(n, True))
+            w.bind("<Leave>", lambda _e, n=name: self._hover_nav(n, False))
+            self._bind_wheel(w)
+        tip = self.commands[name].get("help", "")
+        if tip:
+            _Tooltip(row, tip)
+
+    def _nav_set_bg(self, btn, color):
+        for key in ("row", "gl", "tx"):
+            try:
+                btn[key].configure(bg=color)
+            except Exception:
+                pass
+
+    def _hover_nav(self, name, entering):
+        if name == self.current:
+            return
+        btn = self._nav.get(name)
+        if not btn:
+            return
+        target = _lerp(self.colors["panel"], self.colors["accent"],
+                       0.16) if entering else self.colors["panel"]
+        self._animate_nav_bg(btn, target)
+
+    def _animate_nav_bg(self, btn, target, step=0):
+        start = btn.get("_bg", btn["base"])
+        if step == 0:
+            btn["_from"] = start
+        frm = btn["_from"]
+        t = min(1.0, (step + 1) / 5)
+        cur = _lerp(frm, target, t)
+        btn["_bg"] = cur
+        self._nav_set_bg(btn, cur)
+        if step + 1 < 5:
+            self._after(16, lambda: self._animate_nav_bg(btn, target, step + 1))
+
+    def _highlight_nav(self, name):
+        for n, btn in self._nav.items():
+            active = n == name
+            bg = _lerp(self.colors["panel"], self.colors["accent"],
+                       0.22) if active else self.colors["panel"]
+            btn["_bg"] = bg
+            self._nav_set_bg(btn, bg)
+            try:
+                btn["bar"].configure(bg=self.colors["accent"] if active
+                                     else self.colors["panel"])
+                btn["tx"].configure(
+                    fg=self.colors["accent"] if active else self.colors["ink"],
+                    font=("Segoe UI", 10, "bold" if active else "normal"))
+            except Exception:
+                pass
 
     # ----- command form ---------------------------------------------------- #
     def open_command(self, name):
@@ -419,16 +628,13 @@ class LedgerlingGUI:
             return
         self.current = name
         cmd = self.commands[name]
-        self.cmd_title.config(text=name)
+        self.cmd_title.config(text=f"{_icon_for(name)}  {name}")
         self.cmd_help.config(text=cmd.get("help", ""))
-        if self.tree.exists(name) and self.tree.selection() != (name,):
-            self.tree.selection_set(name)
-            self.tree.see(name)
+        self._highlight_nav(name)
 
         for child in self.form.winfo_children():
             child.destroy()
         self.fields = {}
-
         row = 0
         for a in cmd["args"]:
             w = self._build_field(self.form, a, row)
@@ -437,10 +643,8 @@ class LedgerlingGUI:
                 row += 1
         if not cmd["args"]:
             self.ttk.Label(self.form, text="No options — just run it.",
-                           style="Muted.TLabel").grid(row=0, column=0,
-                                                      sticky="w")
+                           style="Muted.TLabel").grid(row=0, column=0, sticky="w")
         self.form.columnconfigure(1, weight=1)
-        # Focus the first editable field for immediate typing.
         for _dest, (w, a) in self.fields.items():
             if a.get("type") != "bool":
                 try:
@@ -453,30 +657,29 @@ class LedgerlingGUI:
         tk, ttk = self.tk, self.ttk
         label = _humanize(a["dest"])
         req = a["kind"] == "positional" and not a.get("optional")
-        lbl = ttk.Label(parent, style="Field.TLabel",
-                        text=label + (" *" if req else ""))
-        lbl.grid(row=row, column=0, sticky="w", padx=(0, 10), pady=4)
+        ttk.Label(parent, style="Field.TLabel",
+                  text=label + (" *" if req else "")).grid(
+            row=row, column=0, sticky="w", padx=(0, 12), pady=5)
 
         if a.get("type") == "bool":
             var = tk.BooleanVar(value=False)
             chk = ttk.Checkbutton(parent, variable=var, style="Field.TCheckbutton")
-            chk.grid(row=row, column=1, sticky="w", pady=4)
+            chk.grid(row=row, column=1, sticky="w", pady=5)
             chk._var = var
             return chk
         if a.get("type") == "choice":
             var = tk.StringVar(value="")
             combo = ttk.Combobox(parent, textvariable=var, state="readonly",
                                  values=[""] + [str(c) for c in a["choices"]])
-            combo.grid(row=row, column=1, sticky="ew", pady=4)
+            combo.grid(row=row, column=1, sticky="ew", pady=5)
             combo._var = var
             return combo
         var = tk.StringVar(value="")
         ent = ttk.Entry(parent, textvariable=var)
-        ent.grid(row=row, column=1, sticky="ew", pady=4)
+        ent.grid(row=row, column=1, sticky="ew", pady=5)
         ent._var = var
         if a.get("help"):
             _Tooltip(ent, a["help"])
-        # Enter in any field runs the command.
         ent.bind("<Return>", lambda _e: self.run_current())
         return ent
 
@@ -512,6 +715,7 @@ class LedgerlingGUI:
         argv = self._collect_argv()
         cmd = self.commands[self.current]
         self.run_btn.config(state="disabled", text="Running…")
+        self._start_spinner()
         self._set_status(f"running: {' '.join(argv)}")
         self._set_output("running…", err=False)
 
@@ -536,15 +740,14 @@ class LedgerlingGUI:
                 self._show_result(argv, res, data)
         except queue.Empty:
             pass
-        self.root.after(80, self._poll_results)
+        self._after(80, self._poll_results)
 
     def _show_result(self, argv, res, data=None):
-        self.run_btn.config(state="normal", text="Run  (Ctrl+Enter)")
+        self._stop_spinner()
+        self.run_btn.config(state="normal", text="▶  Run   (Ctrl+Enter)")
         ok = res["code"] == 0
-        if ok:
-            text = res["stdout"] or "(no output)"
-        else:
-            text = res["stderr"] or res["stdout"] or "error"
+        text = (res["stdout"] or "(no output)") if ok else \
+            (res["stderr"] or res["stdout"] or "error")
         self._set_output(text, err=not ok)
         self._populate_table(data if ok else None)
         verb = "done" if ok else f"failed (exit {res['code']})"
@@ -565,6 +768,32 @@ class LedgerlingGUI:
         self.root.clipboard_append(text)
         self._set_status("output copied to clipboard")
 
+    # ----- run spinner ----------------------------------------------------- #
+    def _start_spinner(self):
+        self._spinning = True
+        self._spin_tick()
+
+    def _stop_spinner(self):
+        self._spinning = False
+        try:
+            self.spinner.delete("all")
+        except Exception:
+            pass
+
+    def _spin_tick(self):
+        if not self._spinning or not self._alive:
+            return
+        c = self.colors
+        try:
+            self.spinner.delete("all")
+            self.spinner.configure(background=self.colors["bg"])
+            self._spin = (self._spin + 24) % 360
+            self.spinner.create_arc(3, 3, 19, 19, start=self._spin, extent=270,
+                                    style="arc", outline=c["accent"], width=3)
+        except Exception:
+            pass
+        self._after(45, self._spin_tick)
+
     # ----- table view ------------------------------------------------------ #
     def _populate_table(self, data):
         shaped = _tabular(data) if data is not None else None
@@ -577,12 +806,13 @@ class LedgerlingGUI:
         self._table_mode, self._table_cols, self._table_rows = mode, cols, rows
         self._sort_state = {}
         self.table["columns"] = cols
-        for c in cols:
-            base = c if _MONTHCOL_RE.match(c) else _humanize(c)
-            self.table.heading(c, text=base,
-                               command=lambda c=c: self._sort_table(c))
-            numeric = mode != "fields" and (_is_money_key(c) or _PCT_RE.search(c))
-            self.table.column(c, anchor="e" if numeric else "w",
+        for col in cols:
+            base = col if _MONTHCOL_RE.match(col) else _humanize(col)
+            self.table.heading(col, text=base,
+                               command=lambda col=col: self._sort_table(col))
+            numeric = mode != "fields" and (_is_money_key(col)
+                                            or _PCT_RE.search(col))
+            self.table.column(col, anchor="e" if numeric else "w",
                               width=max(80, min(240, len(base) * 9 + 48)),
                               stretch=True)
         self._fill_rows(rows)
@@ -597,7 +827,7 @@ class LedgerlingGUI:
                 key = r["field"]
                 vals = [_humanize(key), _fmt_cell(key, r["value"], cur, after)]
             else:
-                vals = [_fmt_cell(c, r.get(c), cur, after) for c in cols]
+                vals = [_fmt_cell(col, r.get(col), cur, after) for col in cols]
             self.table.insert("", "end", values=vals)
 
     def _sort_table(self, col):
@@ -620,23 +850,39 @@ class LedgerlingGUI:
                 return (1, s.lower())
 
         self._fill_rows(sorted(self._table_rows, key=sortkey, reverse=desc))
-        for c in self._table_cols:
-            base = c if _MONTHCOL_RE.match(c) else _humanize(c)
-            arrow = (" ▼" if desc else " ▲") if c == col else ""
-            self.table.heading(c, text=base + arrow)
+        for col2 in self._table_cols:
+            base = col2 if _MONTHCOL_RE.match(col2) else _humanize(col2)
+            arrow = (" ▼" if desc else " ▲") if col2 == col else ""
+            self.table.heading(col2, text=base + arrow)
 
     def _set_status(self, msg):
-        self.status.config(text=f"Ledgerling {self.schema['version']}   "
-                                f"•   {msg}")
+        self.status.config(text=f"{msg}")
 
-    # ----- theme / shortcuts / misc ---------------------------------------- #
-    def apply_theme(self, name):
-        tk, ttk = self.tk, self.ttk
-        c = THEMES.get(name, THEMES["dark"])
+    # ----- theme ----------------------------------------------------------- #
+    def apply_theme(self, name, animate=False):
+        target = THEMES.get(name, THEMES["dark"])
         self.theme_name = name
+        if animate and getattr(self, "colors", None):
+            self._crossfade(dict(self.colors), target, 0)
+        else:
+            self.colors = dict(target)
+            self._apply_colors()
+
+    def _crossfade(self, start, target, step, frames=7):
+        t = (step + 1) / frames
+        self.colors = {k: _lerp(start[k], target[k], t) if isinstance(v, str)
+                       and v.startswith("#") else v for k, v in target.items()}
+        self._apply_colors()
+        if step + 1 < frames:
+            self._after(18, lambda: self._crossfade(start, target, step + 1,
+                                                    frames))
+
+    def _apply_colors(self):
+        ttk = self.ttk
+        c = self.colors
         style = ttk.Style()
         try:
-            style.theme_use("clam")   # the most themable built-in ttk theme
+            style.theme_use("clam")
         except Exception:
             pass
         self.root.configure(background=c["bg"])
@@ -646,42 +892,48 @@ class LedgerlingGUI:
         style.configure("Side.TFrame", background=c["panel"])
         style.configure("Main.TFrame", background=c["bg"])
         style.configure("Title.TLabel", background=c["bg"], foreground=c["ink"],
-                        font=("Segoe UI Semibold", 15))
+                        font=("Segoe UI Semibold", 16))
         style.configure("Muted.TLabel", background=c["bg"], foreground=c["muted"])
         style.configure("Field.TLabel", background=c["bg"], foreground=c["ink"])
         style.configure("Field.TCheckbutton", background=c["bg"])
         style.configure("Status.TLabel", background=c["panel"],
-                        foreground=c["muted"], padding=(10, 4))
-        style.configure("Tool.TButton", padding=(10, 5))
-        style.configure("Accent.TButton", padding=(14, 6),
-                        background=c["accent"], foreground=c["accent_ink"])
+                        foreground=c["muted"], padding=(12, 5))
+        style.configure("Tool.TButton", padding=(10, 5), relief="flat",
+                        background=c["panel"], foreground=c["ink"])
+        style.map("Tool.TButton",
+                  background=[("active", _lerp(c["panel"], c["accent"], 0.2))])
+        style.configure("Accent.TButton", padding=(16, 7), relief="flat",
+                        background=c["accent"], foreground=c["accent_ink"],
+                        font=("Segoe UI Semibold", 10))
         style.map("Accent.TButton",
-                  background=[("active", c["accent"])])
-        style.configure("Side.Treeview", background=c["panel"],
-                        fieldbackground=c["panel"], foreground=c["ink"],
-                        borderwidth=0, rowheight=24)
-        style.map("Side.Treeview", background=[("selected", c["sel"])],
-                  foreground=[("selected", c["ink"])])
+                  background=[("active", c["accent2"]),
+                             ("disabled", c["line"])])
         style.configure("Data.Treeview", background=c["field"],
                         fieldbackground=c["field"], foreground=c["ink"],
-                        borderwidth=0, rowheight=24)
+                        borderwidth=0, rowheight=25)
         style.configure("Data.Treeview.Heading", background=c["panel"],
-                        foreground=c["muted"], relief="flat")
+                        foreground=c["muted"], relief="flat",
+                        font=("Segoe UI Semibold", 9))
         style.map("Data.Treeview", background=[("selected", c["sel"])],
                   foreground=[("selected", c["ink"])])
         style.configure("TNotebook", background=c["bg"], borderwidth=0)
         style.configure("TNotebook.Tab", background=c["panel"],
-                        foreground=c["muted"], padding=(14, 6))
+                        foreground=c["muted"], padding=(16, 7))
         style.map("TNotebook.Tab", background=[("selected", c["bg"])],
-                  foreground=[("selected", c["ink"])])
+                  foreground=[("selected", c["accent"])])
         if hasattr(self, "output"):
             self.output.configure(background=c["field"], foreground=c["ink"],
                                   insertbackground=c["ink"],
                                   selectbackground=c["sel"])
             self.output.tag_configure("err", foreground=c["err"])
+        if hasattr(self, "header"):
+            self._draw_header_static()
+        if hasattr(self, "nav_inner"):
+            self._refill_nav()
 
     def toggle_theme(self):
-        self.apply_theme("light" if self.theme_name == "dark" else "dark")
+        self.apply_theme("light" if self.theme_name == "dark" else "dark",
+                         animate=True)
         _save_state({"theme": self.theme_name,
                      "geometry": self._current_geometry()})
 
@@ -692,6 +944,7 @@ class LedgerlingGUI:
             return None
 
     def _on_close(self):
+        self._alive = False
         _save_state({"theme": self.theme_name,
                      "geometry": self._current_geometry()})
         self.root.destroy()
@@ -700,8 +953,7 @@ class LedgerlingGUI:
         self.root.bind("<Control-Return>", lambda _e: self.run_current())
         self.root.bind("<Control-q>", lambda _e: self._on_close())
         self.root.bind("<Control-t>", lambda _e: self.toggle_theme())
-        self.root.bind("<Control-k>",
-                       lambda _e: self.filter_entry.focus_set())
+        self.root.bind("<Control-k>", lambda _e: self.filter_entry.focus_set())
 
     def _open_web(self):
         import webbrowser
@@ -731,21 +983,21 @@ class _Tooltip:
 
     def __init__(self, widget, text):
         self.widget, self.text, self.tip = widget, text, None
-        widget.bind("<Enter>", self._show)
-        widget.bind("<Leave>", self._hide)
+        widget.bind("<Enter>", self._show, add="+")
+        widget.bind("<Leave>", self._hide, add="+")
 
     def _show(self, _e):
         if self.tip or not self.text:
             return
         import tkinter as tk
-        x = self.widget.winfo_rootx() + 12
+        x = self.widget.winfo_rootx() + 16
         y = self.widget.winfo_rooty() + self.widget.winfo_height() + 4
         self.tip = tk.Toplevel(self.widget)
         self.tip.wm_overrideredirect(True)
         self.tip.wm_geometry(f"+{x}+{y}")
-        tk.Label(self.tip, text=self.text, justify="left", background="#222a35",
-                 foreground="#e7e9ee", relief="solid", borderwidth=1,
-                 font=("Segoe UI", 9), padx=6, pady=3).pack()
+        tk.Label(self.tip, text=self.text, justify="left", background="#0d2117",
+                 foreground="#e8f3ec", relief="solid", borderwidth=1,
+                 font=("Segoe UI", 9), padx=7, pady=4, wraplength=320).pack()
 
     def _hide(self, _e):
         if self.tip:

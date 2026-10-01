@@ -98,6 +98,10 @@ Commands:
     completion  Print a bash/zsh tab-completion script
     web       Launch a local web UI covering every command
     gui       Launch the native desktop app covering every command
+    fortune   A fortune cookie with lucky numbers (offline, for fun)
+    horoscope  A playful finance-flavoured daily horoscope (offline)
+    weather   A whimsical offline weather forecast - no network (for fun)
+    eightball  Magic 8-Ball: ask a yes/no question (offline, for fun)
 
 Run `python ledgerling.py --help` or `<command> --help` for details.
 """
@@ -116,7 +120,7 @@ import tempfile
 import time
 from datetime import datetime, date, timedelta
 
-__version__ = "1.129.0"
+__version__ = "1.130.0"
 
 # --------------------------------------------------------------------------- #
 # Sandbox + storage
@@ -4090,6 +4094,165 @@ def cmd_gui(args):
     gui.launch(theme=getattr(args, "theme", "dark"))
 
 
+# --------------------------------------------------------------------------- #
+# Fun modes - playful, fully offline extras (no network, no stored data
+# touched). Deterministic given a --seed (and, for the daily ones, the date),
+# so they are testable and stable within a day.
+# --------------------------------------------------------------------------- #
+_FORTUNES = [
+    "A penny saved today buys peace of mind tomorrow.",
+    "Your budget smiles upon you; reward it with restraint.",
+    "An unexpected refund brightens the week ahead.",
+    "Small leaks sink great ships - check your subscriptions.",
+    "Fortune favours the frugal, but not the stingy.",
+    "The coin you do not spend is the coin that works for you.",
+    "A surprising expense is merely an adventure in disguise.",
+    "Today is a fine day to cancel something you forgot you pay for.",
+    "Your future self thanks you for this month's discipline.",
+    "Abundance follows those who track where it goes.",
+    "Spend on what you love; trim what you tolerate.",
+    "A balanced ledger is a balanced mind.",
+    "The best time to start saving was last year; the second best is now.",
+    "Wealth whispers; debt shouts. Listen to the quiet one.",
+    "Treat yourself - then treat your savings account too.",
+]
+_SIGNS = ["aries", "taurus", "gemini", "cancer", "leo", "virgo", "libra",
+          "scorpio", "sagittarius", "capricorn", "aquarius", "pisces"]
+_HORO_OUTLOOK = [
+    "The stars align for a surplus - a quiet, steady day for your wallet.",
+    "Mercury favours second thoughts; sleep on that big purchase.",
+    "A generous mood meets a thin margin - spend with intention.",
+    "Momentum builds: a small habit today compounds handsomely.",
+    "Temptation circles like a comet. Hold your orbit.",
+    "Clarity arrives - a good day to reconcile and plan.",
+    "Fortune nudges you toward a forgotten subscription. Investigate.",
+]
+_HORO_MOOD = ["thrifty", "optimistic", "cautious", "bold", "content",
+              "restless", "generous"]
+_HORO_CATS = ["groceries", "coffee", "books", "transit", "dining", "savings",
+              "gifts", "hobbies", "home", "health"]
+_WEATHER = [
+    ("☀️", "Sunny"), ("\U0001f324️", "Mostly sunny"),
+    ("⛅", "Partly cloudy"), ("☁️", "Overcast"),
+    ("\U0001f327️", "Rain"), ("⛈️", "Thundery"),
+    ("\U0001f328️", "Snow"), ("\U0001f32b️", "Foggy"),
+    ("\U0001f308", "Clearing"),
+]
+_WEATHER_QUIPS = [
+    "Perfect weather to stay in and update your ledger.",
+    "A good day to carry both an umbrella and a budget.",
+    "Clear skies, clear finances - may they match.",
+    "Cozy indoors; your savings stay dry.",
+    "Forecast uncertain, but your spreadsheet needn't be.",
+    "Bring a jacket and maybe skip the impulse buy.",
+]
+_EIGHTBALL = [
+    "It is certain.", "Without a doubt.", "Yes - definitely.",
+    "You may rely on it.", "Most likely.", "Outlook good.", "Signs point to yes.",
+    "Reply hazy, try again.", "Ask again later.", "Better not tell you now.",
+    "Cannot predict now.", "Concentrate and ask again.",
+    "Don't count on it.", "My reply is no.", "My sources say no.",
+    "Outlook not so good.", "Very doubtful.",
+]
+
+
+def _fun_rng(seed, *parts):
+    """A random.Random seeded for reproducibility. If seed is None the result
+    is truly random; otherwise the seed plus any extra parts form a stable key."""
+    import random
+    if seed is None and not parts:
+        return random.Random()
+    return random.Random("|".join(str(p) for p in ((seed,) + parts)))
+
+
+def cmd_fortune(args):
+    """A fortune cookie, with lucky numbers. Offline and for fun."""
+    rng = _fun_rng(args.seed) if args.seed is not None else _fun_rng(None)
+    msg = rng.choice(_FORTUNES)
+    lucky = sorted(rng.sample(range(1, 50), 6))
+    if getattr(args, "json", False):
+        print(json.dumps({"fortune": msg, "lucky_numbers": lucky}, indent=2))
+        return
+    print("     _.-\"\"-._")
+    print("   .'  .--.  '.      crack!")
+    print("   \\  (    )  /")
+    print("    '._'--'_.'")
+    print()
+    print(f"  “{msg}”")
+    print()
+    print("  Lucky numbers: " + "  ".join(str(n) for n in lucky))
+
+
+def cmd_horoscope(args):
+    """A playful, finance-flavoured daily horoscope. Offline; stable per day."""
+    sign = (args.sign or "").strip().lower()
+    if sign and sign not in _SIGNS:
+        sys.exit(f"error: unknown sign '{sign}' (try one of: "
+                 f"{', '.join(_SIGNS)})")
+    day = date.today().isoformat()
+    base = args.seed if args.seed is not None else day
+    rng = _fun_rng(base, sign or "stars")
+    outlook = rng.choice(_HORO_OUTLOOK)
+    mood = rng.choice(_HORO_MOOD)
+    favoured = rng.choice(_HORO_CATS)
+    avoid = rng.choice([c for c in _HORO_CATS if c != favoured])
+    number = rng.randint(1, 49)
+    label = sign.capitalize() if sign else "The stars"
+
+    if getattr(args, "json", False):
+        print(json.dumps({"sign": sign or None, "date": day, "outlook": outlook,
+                          "money_mood": mood, "favoured": favoured,
+                          "avoid": avoid, "lucky_number": number}, indent=2))
+        return
+    print(f"Horoscope — {label} ({day})")
+    print("=" * 48)
+    print(f"  {outlook}")
+    print(f"  Money mood: {mood}")
+    print(f"  Favoured: {favoured}    Go easy on: {avoid}")
+    print(f"  Lucky number: {number}")
+
+
+def cmd_weather(args):
+    """A whimsical, OFFLINE weather forecast (no network - it's for fun)."""
+    where = (args.where or "here").strip() or "here"
+    day = date.today().isoformat()
+    base = args.seed if args.seed is not None else day
+    rng = _fun_rng(base, where.lower())
+    glyph, cond = rng.choice(_WEATHER)
+    high = rng.randint(4, 33)
+    low = high - rng.randint(3, 10)
+    wind = rng.randint(1, 28)
+    humidity = rng.randint(30, 95)
+    quip = rng.choice(_WEATHER_QUIPS)
+
+    if getattr(args, "json", False):
+        print(json.dumps({"location": where, "date": day, "condition": cond,
+                          "high_c": high, "low_c": low, "wind_mph": wind,
+                          "humidity_pct": humidity, "quip": quip,
+                          "offline": True}, indent=2))
+        return
+    print(f"Weather for “{where}” ({day})   [offline, for fun]")
+    print("=" * 52)
+    print(f"  {glyph}  {cond},  {high}° / {low}°C")
+    print(f"  wind {wind} mph  ·  humidity {humidity}%")
+    print(f"  “{quip}”")
+
+
+def cmd_eightball(args):
+    """Magic 8-Ball: ask a yes/no question, give it a shake. Offline."""
+    question = " ".join(args.question).strip() if args.question else ""
+    rng = _fun_rng(args.seed) if args.seed is not None else _fun_rng(None)
+    answer = rng.choice(_EIGHTBALL)
+    if getattr(args, "json", False):
+        print(json.dumps({"question": question or None, "answer": answer},
+                         indent=2))
+        return
+    print("\U0001f3b1  The Magic 8-Ball says…")
+    if question:
+        print(f"   you asked: “{question}”")
+    print(f"   “{answer}”")
+
+
 def cmd_version(args):
     print(f"ledgerling {__version__}")
 
@@ -5340,6 +5503,37 @@ def build_parser():
                     help="initial colour theme (default dark)")
     gu.set_defaults(func=cmd_gui)
 
+    fo = sub.add_parser("fortune", help="a fortune cookie with lucky numbers (fun)")
+    fo.add_argument("--seed", type=int, default=None,
+                    help="seed for a reproducible result")
+    fo.add_argument("--json", action="store_true", help="output JSON instead of text")
+    fo.set_defaults(func=cmd_fortune)
+
+    ho = sub.add_parser("horoscope",
+                        help="a playful, finance-flavoured daily horoscope (fun)")
+    ho.add_argument("sign", nargs="?", default=None,
+                    help="your star sign (optional, e.g. leo)")
+    ho.add_argument("--seed", type=int, default=None,
+                    help="seed for a reproducible result (else varies by day)")
+    ho.add_argument("--json", action="store_true", help="output JSON instead of text")
+    ho.set_defaults(func=cmd_horoscope)
+
+    we = sub.add_parser("weather",
+                        help="a whimsical offline weather forecast - no network (fun)")
+    we.add_argument("--where", default="here", help="a place name (just for flavour)")
+    we.add_argument("--seed", type=int, default=None,
+                    help="seed for a reproducible result (else varies by day)")
+    we.add_argument("--json", action="store_true", help="output JSON instead of text")
+    we.set_defaults(func=cmd_weather)
+
+    eb = sub.add_parser("eightball",
+                        help="Magic 8-Ball: ask a yes/no question (fun)")
+    eb.add_argument("question", nargs="*", help="your yes/no question")
+    eb.add_argument("--seed", type=int, default=None,
+                    help="seed for a reproducible result")
+    eb.add_argument("--json", action="store_true", help="output JSON instead of text")
+    eb.set_defaults(func=cmd_eightball)
+
     cp = sub.add_parser("completion",
                         help="print a shell completion script (bash or zsh)")
     cp.add_argument("shell", nargs="?", choices=["bash", "zsh"], default="bash",
@@ -5476,6 +5670,7 @@ MUTATING_COMMANDS = frozenset({
     "import", "restore", "backup", "dedupe", "undo", "config", "recur",
     "completion", "version", "web", "gui", "where", "tip", "split", "fx",
     "check", "interest", "loan",
+    "fortune", "horoscope", "weather", "eightball",   # offline fun modes
 })
 
 
