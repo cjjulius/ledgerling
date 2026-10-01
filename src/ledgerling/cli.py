@@ -69,6 +69,7 @@ Commands:
     suggest   Suggest per-category budgets from recent average spending
     autobudget  Apply suggested budgets from recent spending (undoable)
     categories  List categories with counts and totals
+    payees    Rank spending by payee (merchant), from the note
     tags      List #tags with counts and totals
     untagged  List expenses that have no #tags
     recategorize  Rename a category across all records
@@ -113,7 +114,7 @@ import tempfile
 import time
 from datetime import datetime, date, timedelta
 
-__version__ = "1.125.0"
+__version__ = "1.126.0"
 
 # --------------------------------------------------------------------------- #
 # Sandbox + storage
@@ -2274,6 +2275,62 @@ def cmd_top(args):
               f"[{e['category']}]{note}{mark}")
     print("-" * 56)
     print(f"shown total {money(sum(e['amount'] for e in rows))}")
+
+
+def cmd_payees(args):
+    """Rank spending by payee -- the note with #tags stripped (falling back to
+    the category when a note is blank), the same merchant key `subscriptions`
+    uses. Complements `categories`/`top`, which group by category."""
+    check_month(args.month)
+    data = load()
+    rows = expenses_only(data["expenses"])
+    if args.month:
+        rows = [e for e in rows if month_of(e["date"]) == args.month]
+
+    agg = {}
+    for e in rows:
+        p = _normalize_payee(e)
+        a = agg.setdefault(p, {"count": 0, "total": 0.0,
+                               "first": e["date"], "last": e["date"]})
+        a["count"] += 1
+        a["total"] = round(a["total"] + e["amount"], 2)
+        if e["date"] < a["first"]:
+            a["first"] = e["date"]
+        if e["date"] > a["last"]:
+            a["last"] = e["date"]
+
+    ranked = sorted(agg.items(), key=lambda kv: (-kv[1]["total"], kv[0]))
+    limit = args.limit if args.limit and args.limit > 0 else 20
+    payees = [{"payee": p, "count": v["count"], "total": v["total"],
+               "average": round(v["total"] / v["count"], 2) if v["count"] else 0.0,
+               "first": v["first"], "last": v["last"]}
+              for p, v in ranked[:limit]]
+
+    if getattr(args, "json", False):
+        print(json.dumps({
+            "payees": payees,
+            "shown": len(payees),
+            "count": len(ranked),
+            "total": round(sum(v["total"] for _, v in ranked), 2),
+        }, indent=2))
+        return
+
+    if not payees:
+        print(f"no spending{f' in {args.month}' if args.month else ''} yet")
+        return
+
+    peak = max(p["total"] for p in payees) or 1.0
+    print("Spending by payee" + (f" ({args.month})" if args.month else ""))
+    print("=" * 62)
+    for p in payees:
+        print(f"{money(p['total']):>12}  {p['payee'][:22]:<22} "
+              f"x{p['count']:<4} avg {money(p['average']):>10}  "
+              f"{bar(p['total'] / peak, 12)}")
+    print("-" * 62)
+    if len(ranked) > len(payees):
+        print(f"showing top {len(payees)} of {len(ranked)} payees")
+    else:
+        print(f"{len(ranked)} payee(s)")
 
 
 def cmd_trend(args):
@@ -5097,6 +5154,14 @@ def build_parser():
     tp.add_argument("--json", action="store_true", help="output JSON instead of text")
     tp.set_defaults(func=cmd_top)
 
+    pay = sub.add_parser("payees",
+                         help="rank spending by payee (merchant), from the note")
+    pay.add_argument("--month", help="restrict to a month, YYYY-MM")
+    pay.add_argument("--limit", type=int, default=20,
+                     help="show the top N payees (default 20)")
+    pay.add_argument("--json", action="store_true", help="output JSON instead of text")
+    pay.set_defaults(func=cmd_payees)
+
     tr = sub.add_parser("trend", help="monthly spending trend for one category")
     tr.add_argument("category", help="category to chart")
     tr.add_argument("--months", type=int, default=6,
@@ -5337,7 +5402,7 @@ CATCHUP_COMMANDS = frozenset({
     "balance", "commitments", "savings", "heatmap", "suggest", "insights",
     "tagtrend", "range", "matrix", "cumulative", "allowance", "tagmatrix",
     "weekly", "years", "anomalies", "roundup", "cashflow", "target", "runway",
-    "net", "subscriptions",
+    "net", "subscriptions", "payees",
 })
 MUTATING_COMMANDS = frozenset({
     "add", "income", "edit", "delete", "clone", "refund", "note", "tag",

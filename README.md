@@ -341,6 +341,12 @@ ledgerling tags
 ledgerling tags --month 2026-09
 ledgerling recategorize food dining
 
+# Rank spending by payee/merchant (the note, #tags stripped; category when the
+# note is blank) with count, total, average and first/last seen -- the merchant
+# complement to the category-based `categories`/`top`.
+ledgerling payees
+ledgerling payees --month 2026-09 --limit 10
+
 # Rename a #tag everywhere; find expenses that still need tags
 ledgerling retag work business
 ledgerling untagged
