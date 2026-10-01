@@ -222,6 +222,10 @@ ledgerling anomalies                        # > 2 SD above the category mean
 ledgerling anomalies --z 1.5 --month 2026-09
 ledgerling anomalies --category groceries --min-count 6
 
+# Simulate round-up savings (how much you'd set aside rounding each expense up)
+ledgerling roundup                          # to the nearest $1.00
+ledgerling roundup --to 5 --month 2026-09   # to the nearest $5.00
+
 # Monthly spending trend for one category
 ledgerling trend food --months 6
 

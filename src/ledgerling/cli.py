@@ -53,6 +53,7 @@ Commands:
     average   Average spending per day / week / month
     distribution  Histogram of expense sizes
     anomalies  Flag unusually large expenses within each category
+    roundup   Simulate round-up savings (round each expense up to $N)
     upcoming  Forecast recurring charges/income due in the next N days
     commitments  Recurring rules normalized to monthly/annual cost
     suggest   Suggest per-category budgets from recent average spending
@@ -98,7 +99,7 @@ import sys
 import tempfile
 from datetime import datetime, date, timedelta
 
-__version__ = "1.81.0"
+__version__ = "1.82.0"
 
 # --------------------------------------------------------------------------- #
 # Sandbox + storage
@@ -1484,6 +1485,55 @@ def cmd_anomalies(args):
     print(f"{len(flagged)} anomal{'y' if len(flagged) == 1 else 'ies'} "
           f"across {len(cats)} categor{'y' if len(cats) == 1 else 'ies'} "
           f"(category mean +/- SD shown in --json)")
+
+
+def cmd_roundup(args):
+    """Simulate a round-up savings rule: how much you'd set aside if every
+    expense were rounded up to the nearest --to dollars.
+
+    Uses integer-cents arithmetic so the bump per expense is exact.
+    """
+    check_month(args.month)
+    step = args.to if args.to and args.to > 0 else 1.0
+    step_cents = round(step * 100)
+    if step_cents <= 0:
+        sys.exit("error: --to must be greater than 0")
+
+    data = load()
+    rows = expenses_only(data["expenses"])
+    if args.month:
+        rows = [e for e in rows if month_of(e["date"]) == args.month]
+
+    count = len(rows)
+    total_cents = 0
+    largest_cents = 0
+    for e in rows:
+        cents = round(e["amount"] * 100)
+        bump = (-cents) % step_cents  # 0 when already on a step boundary
+        total_cents += bump
+        if bump > largest_cents:
+            largest_cents = bump
+    total = round(total_cents / 100, 2)
+    average = round((total_cents / count) / 100, 2) if count else 0.0
+    largest = round(largest_cents / 100, 2)
+
+    if getattr(args, "json", False):
+        print(json.dumps({
+            "to": step, "expenses": count, "total_saved": total,
+            "average": average, "largest": largest,
+        }, indent=2))
+        return
+
+    scope = args.month or "all time"
+    print(f"Round-up savings ({scope}, to nearest {money(step)})")
+    print("=" * 48)
+    if not count:
+        print("no expenses in range")
+        return
+    print(f"{'expenses':<16} {count}")
+    print(f"{'total saved':<16} {money(total)}")
+    print(f"{'average / item':<16} {money(average)}")
+    print(f"{'largest bump':<16} {money(largest)}")
 
 
 def cmd_average(args):
@@ -3681,6 +3731,15 @@ def build_parser():
     an.add_argument("--json", action="store_true", help="output JSON instead of text")
     an.set_defaults(func=cmd_anomalies)
 
+    ru2 = sub.add_parser("roundup",
+                         help="simulate round-up savings (round each expense up)")
+    ru2.add_argument("--to", type=float, default=1.0,
+                     help="round each expense up to the nearest this many "
+                          "dollars (default 1.0)")
+    ru2.add_argument("--month", help="restrict to a month, YYYY-MM")
+    ru2.add_argument("--json", action="store_true", help="output JSON instead of text")
+    ru2.set_defaults(func=cmd_roundup)
+
     av = sub.add_parser("average", help="average spending per day/week/month")
     av.add_argument("--json", action="store_true", help="output JSON instead of text")
     av.set_defaults(func=cmd_average)
@@ -3894,7 +3953,7 @@ def main(argv=None):
                         "commitments", "savings", "heatmap", "suggest",
                         "insights", "tagtrend", "range", "matrix",
                         "cumulative", "allowance", "tagmatrix", "weekly",
-                        "years", "anomalies"):
+                        "years", "anomalies", "roundup"):
         data = load()
         if apply_recurring(data):
             save(data)
