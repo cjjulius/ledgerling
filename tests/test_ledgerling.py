@@ -614,6 +614,22 @@ class WebUI(TempAppCase):
         self.assertEqual((mode, cols), ("scalars", ["value"]))
         self.assertIsNone(gui._tabular(None))
 
+    def test_gui_ordered_commands(self):
+        from ledgerling import gui, web
+        commands = {c["name"]: c for c in web.describe()["commands"]}
+        full = gui.ordered_commands(commands)
+        self.assertEqual(set(full), set(commands))        # every command listed
+        # ordering follows the sidebar groups: a Record command precedes an
+        # Analyze one precedes a Settings one
+        self.assertLess(full.index("add"), full.index("summary"))
+        self.assertLess(full.index("summary"), full.index("config"))
+        # filtering matches name or help text, preserving order
+        pay = gui.ordered_commands(commands, "pay")
+        self.assertIn("payees", pay)                      # name match
+        self.assertTrue(all("pay" in n or "pay" in commands[n]["help"].lower()
+                            for n in pay))
+        self.assertEqual(gui.ordered_commands(commands, "zzzznope"), [])
+
     def test_gui_build_argv(self):
         from ledgerling import gui, web
         cmds = {c["name"]: c for c in web.describe()["commands"]}

@@ -119,6 +119,25 @@ def _icon_for(name):
     return ICONS.get(name) or GROUP_ICONS.get(_group_of(name), "•")
 
 
+def ordered_commands(commands, query=""):
+    """Command names in sidebar order (by GROUP_DEFS, then a 'More' catch-all),
+    filtered by a query that matches the name or its help text. Pure - powers
+    both the sidebar fill and the filter box's keyboard navigation."""
+    q = (query or "").strip().lower()
+    present = set(commands)
+    groups = list(GROUP_DEFS)
+    more = sorted(n for n in present if _group_of(n) == "More")
+    if more:
+        groups = groups + [("More", more)]
+    out = []
+    for _g, names in groups:
+        for n in names:
+            if n in present and (not q or q in n
+                                 or q in commands[n].get("help", "").lower()):
+                out.append(n)
+    return out
+
+
 def _humanize(dest):
     return dest.replace("_", " ").strip().capitalize()
 
@@ -287,6 +306,7 @@ class LedgerlingGUI:
         self.fields = {}          # dest -> (widget, arg-spec)
         self._results = queue.Queue()
         self._nav = {}            # command -> {row, bar, gl, tx}
+        self._nav_order = []      # flat, filtered command order (keyboard nav)
         self._alive = True
         self._comet = 0.0
         self._spin = 0
@@ -376,7 +396,7 @@ class LedgerlingGUI:
         viewm.add_command(label="Toggle light / dark", accelerator="Ctrl+T",
                           command=self.toggle_theme)
         viewm.add_command(label="Focus command search", accelerator="Ctrl+K",
-                          command=lambda: self.filter_entry.focus_set())
+                          command=self._focus_filter)
         bar.add_cascade(label="View", menu=viewm)
 
         helpm = tk.Menu(bar, tearoff=0)
@@ -495,6 +515,12 @@ class LedgerlingGUI:
 
         _Placeholder(self.filter_entry, "Filter commands  (Ctrl+K)")
         self.filter_var.trace_add("write", lambda *_: self._refill_nav())
+        # Keyboard-first flow: Enter opens the first match, Up/Down step through
+        # matches, Esc clears the filter.
+        self.filter_entry.bind("<Return>", lambda _e: self._filter_open(0))
+        self.filter_entry.bind("<Down>", lambda _e: self._filter_step(1))
+        self.filter_entry.bind("<Up>", lambda _e: self._filter_step(-1))
+        self.filter_entry.bind("<Escape>", lambda _e: self._filter_clear())
 
         # --- right: command header, form, results ---
         right = ttk.Frame(body, style="Main.TFrame", padding=14)
@@ -576,11 +602,13 @@ class LedgerlingGUI:
         self.status.pack(side="bottom", fill="x")
 
     # ----- nav (icon buttons) --------------------------------------------- #
+    def _filter_query(self):
+        q = (self.filter_var.get() or "").strip()
+        return "" if q.lower() == "filter commands  (ctrl+k)" else q
+
     def _refill_nav(self):
         tk = self.tk
-        q = (self.filter_var.get() or "").strip().lower()
-        if q == "filter commands  (ctrl+k)":
-            q = ""
+        q = self._filter_query().lower()
         for child in self.nav_inner.winfo_children():
             child.destroy()
         self._nav = {}
@@ -588,14 +616,17 @@ class LedgerlingGUI:
         self.navcanvas.configure(background=c["panel"])
         self.nav_inner.configure(background=c["panel"])
 
+        # The flat, ordered list of currently-shown commands drives keyboard
+        # navigation from the filter box; the grouped layout below shows them.
+        self._nav_order = ordered_commands(self.commands, q)
+        shown = set(self._nav_order)
         present = set(self.commands)
         groups = [(g, names) for g, names in GROUP_DEFS]
         more = sorted(n for n in present if _group_of(n) == "More")
         if more:
             groups.append(("More", more))
         for group, names in groups:
-            listed = [n for n in names if n in present and
-                      (not q or q in n or q in self.commands[n]["help"].lower())]
+            listed = [n for n in names if n in shown]
             if not listed:
                 continue
             hdr = tk.Label(self.nav_inner, text=f"{GROUP_ICONS.get(group, '')}  "
@@ -607,6 +638,36 @@ class LedgerlingGUI:
                 self._make_nav_button(n)
         if self.current:
             self._highlight_nav(self.current)
+
+    def _filter_open(self, index):
+        order = getattr(self, "_nav_order", [])
+        if order:
+            self.open_command(order[index])
+        return "break"
+
+    def _filter_step(self, delta):
+        order = getattr(self, "_nav_order", [])
+        if not order:
+            return "break"
+        try:
+            i = order.index(self.current)
+        except ValueError:
+            i = -1 if delta > 0 else 0
+        self.open_command(order[(i + delta) % len(order)])
+        self.filter_entry.focus_set()   # keep typing/stepping
+        return "break"
+
+    def _filter_clear(self):
+        self.filter_var.set("")
+        self._refill_nav()
+        return "break"
+
+    def _focus_filter(self):
+        self.filter_entry.focus_set()
+        try:
+            self.filter_entry.selection_range(0, "end")   # ready to retype
+        except Exception:
+            pass
 
     def _make_nav_button(self, name):
         tk, c = self.tk, self.colors
@@ -996,7 +1057,7 @@ class LedgerlingGUI:
         self.root.bind("<Control-Return>", lambda _e: self.run_current())
         self.root.bind("<Control-q>", lambda _e: self._on_close())
         self.root.bind("<Control-t>", lambda _e: self.toggle_theme())
-        self.root.bind("<Control-k>", lambda _e: self.filter_entry.focus_set())
+        self.root.bind("<Control-k>", lambda _e: self._focus_filter())
         self.root.bind("<Control-n>", lambda _e: self.new_window())
 
     # ----- pinned favourites (drag & drop) -------------------------------- #
@@ -1460,9 +1521,11 @@ class _Placeholder:
         entry.bind("<FocusOut>", self._restore)
 
     def _clear(self, _e):
-        if self.on:
+        # Only wipe the field when it's actually still showing the placeholder,
+        # so a real value (e.g. set programmatically) is never clobbered.
+        if self.on and self.entry.get() == self.text:
             self.entry.delete(0, "end")
-            self.on = False
+        self.on = False
 
     def _restore(self, _e):
         if not self.entry.get():
