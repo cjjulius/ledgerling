@@ -752,6 +752,25 @@ class CLI(TempAppCase):
         self.assertIsNone(d["negative_on"])
         self.assertEqual(d["end_balance"], 50.0)
 
+    def test_interest_no_rate_is_linear(self):
+        d = json.loads(self._main(["interest", "1000", "--rate", "0",
+                                   "--monthly", "100", "--years", "1", "--json"]))
+        self.assertEqual(d["periods"], 12)
+        self.assertEqual(d["contributed"], 2200.0)
+        self.assertEqual(d["future_value"], 2200.0)
+        self.assertEqual(d["interest"], 0.0)
+
+    def test_interest_compounds(self):
+        # 1000 at 12%/yr (1%/mo) for 1 year = 1000 * 1.01^12 = 1126.83
+        d = json.loads(self._main(["interest", "1000", "--rate", "12",
+                                   "--years", "1", "--json"]))
+        self.assertEqual(d["future_value"], 1126.83)
+        self.assertEqual(d["interest"], 126.83)
+
+    def test_interest_rejects_negative_principal(self):
+        with self.assertRaises(SystemExit):
+            self._main(["interest", "-5"])
+
     def test_tip_basic_math(self):
         d = json.loads(self._main(["tip", "84.50", "--pct", "20", "--json"]))
         self.assertEqual(d["bill"], 84.50)

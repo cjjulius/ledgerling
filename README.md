@@ -282,6 +282,10 @@ ledgerling cashflow --days 60 --start-balance 2500
 ledgerling target 10000
 ledgerling target 10000 --monthly 750 --start 2500
 
+# Compound-growth / future-value calculator (pure math; not investment advice)
+ledgerling interest 10000 --rate 6 --years 20
+ledgerling interest 10000 --rate 6 --years 20 --monthly 200
+
 # Recurring rules normalized to monthly / annual cost (your fixed obligations)
 ledgerling commitments
 
