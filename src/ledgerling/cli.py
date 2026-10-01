@@ -54,6 +54,7 @@ Commands:
     distribution  Histogram of expense sizes
     anomalies  Flag unusually large expenses within each category
     roundup   Simulate round-up savings (round each expense up to $N)
+    tip       Tip calculator and even bill splitter
     upcoming  Forecast recurring charges/income due in the next N days
     cashflow  Project a running balance forward (flags if it goes negative)
     commitments  Recurring rules normalized to monthly/annual cost
@@ -100,7 +101,7 @@ import sys
 import tempfile
 from datetime import datetime, date, timedelta
 
-__version__ = "1.85.0"
+__version__ = "1.86.0"
 
 # --------------------------------------------------------------------------- #
 # Sandbox + storage
@@ -1535,6 +1536,62 @@ def cmd_roundup(args):
     print(f"{'total saved':<16} {money(total)}")
     print(f"{'average / item':<16} {money(average)}")
     print(f"{'largest bump':<16} {money(largest)}")
+
+
+def cmd_tip(args):
+    """Tip calculator and even bill splitter. Pure arithmetic -- touches no
+    stored data. Works in integer cents so a split always sums back to the
+    total: if it doesn't divide evenly, the leftover cents are spread one each
+    across the first few people.
+    """
+    if args.amount < 0:
+        sys.exit("error: amount cannot be negative")
+    pct = args.pct
+    if pct < 0:
+        sys.exit("error: --pct cannot be negative")
+    split = args.split
+    if split < 1:
+        sys.exit("error: --split must be at least 1")
+
+    bill_cents = round(args.amount * 100)
+    tip_cents = round(bill_cents * pct / 100)
+    total_cents = bill_cents + tip_cents
+
+    base = total_cents // split
+    extra = total_cents % split           # this many people pay one cent more
+    low_share = round(base / 100, 2)
+    high_share = round((base + (1 if extra else 0)) / 100, 2)
+    uneven = extra > 0
+
+    bill = round(bill_cents / 100, 2)
+    tip = round(tip_cents / 100, 2)
+    total = round(total_cents / 100, 2)
+
+    if getattr(args, "json", False):
+        print(json.dumps({
+            "bill": bill, "pct": pct, "tip": tip, "total": total,
+            "split": split, "per_person": high_share,
+            "uneven": uneven, "low_share": low_share,
+            "high_share": high_share, "high_count": extra,
+        }, indent=2))
+        return
+
+    pct_str = f"{pct:g}"
+    print("Tip calculator")
+    print("=" * 40)
+    print(f"{'bill':<14} {money(bill):>14}")
+    print(f"{'tip (' + pct_str + '%)':<14} {money(tip):>14}")
+    print(f"{'total':<14} {money(total):>14}")
+    if split > 1:
+        if uneven:
+            others = split - extra
+            who = "person pays" if extra == 1 else "people pay"
+            print(f"split {split} ways  {money(low_share)} each "
+                  f"({extra} {who} {money(high_share)} to cover the cents)")
+            print(f"{'':<14} {others} x {money(low_share)} + "
+                  f"{extra} x {money(high_share)}")
+        else:
+            print(f"split {split} ways  {money(high_share)} each")
 
 
 def cmd_average(args):
@@ -3835,6 +3892,16 @@ def build_parser():
     ru2.add_argument("--json", action="store_true", help="output JSON instead of text")
     ru2.set_defaults(func=cmd_roundup)
 
+    tip = sub.add_parser("tip",
+                         help="tip calculator and even bill splitter")
+    tip.add_argument("amount", type=float, help="the bill amount (before tip)")
+    tip.add_argument("--pct", type=float, default=18.0,
+                     help="tip percentage (default 18)")
+    tip.add_argument("--split", type=int, default=1,
+                     help="split the total between this many people (default 1)")
+    tip.add_argument("--json", action="store_true", help="output JSON instead of text")
+    tip.set_defaults(func=cmd_tip)
+
     av = sub.add_parser("average", help="average spending per day/week/month")
     av.add_argument("--json", action="store_true", help="output JSON instead of text")
     av.set_defaults(func=cmd_average)
@@ -4046,7 +4113,7 @@ MUTATING_COMMANDS = frozenset({
     "add", "income", "edit", "delete", "clone", "refund", "note", "tag",
     "untag", "retag", "recategorize", "unbudget", "goal", "autobudget",
     "import", "restore", "backup", "dedupe", "undo", "config", "recur",
-    "completion", "version", "web", "where",
+    "completion", "version", "web", "where", "tip",
 })
 
 

@@ -4,6 +4,17 @@ All notable changes to Ledgerling are documented here. The format is based on
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and this project
 adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.86.0] - 2026-09-30
+
+### Added
+
+- `tip` — a tip calculator and even bill splitter. Give a bill amount and an
+  optional `--pct` (default 18) and `--split` N; it reports the tip, total, and
+  per-person share. Pure arithmetic (touches no stored data) done in integer
+  cents, so an uneven split always sums back to the total — the leftover cents
+  are spread one each across the first few people, and the breakdown is shown.
+  Supports `--json`, and the self-generating web UI picks it up automatically.
+
 ## [1.85.0] - 2026-09-30
 
 ### Added
@@ -855,6 +866,7 @@ file, standard library only, strictly confined to its own folder.
   guard (`_within_app`) that refuses any path escaping the app folder; imports
   and restores are reduced to a basename and looked up only within the folder.
 
+[1.86.0]: #1860---2026-09-30
 [1.85.0]: #1850---2026-09-30
 [1.84.0]: #1840---2026-09-30
 [1.83.0]: #1830---2026-09-30
