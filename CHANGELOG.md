@@ -4,6 +4,18 @@ All notable changes to Ledgerling are documented here. The format is based on
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and this project
 adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.83.0] - 2026-09-30
+
+### Changed
+
+- Internal: the recurring catch-up in `main()` no longer relies on an inline
+  command list that had to be hand-edited for every new read command. Commands
+  are now classified in two explicit module-level sets, `CATCHUP_COMMANDS` and
+  `MUTATING_COMMANDS`, and a new guard test asserts the two together cover
+  exactly the parser's top-level commands (and never overlap). Adding a command
+  without classifying it now fails the test suite instead of silently skipping
+  or mis-applying catch-up. No behaviour change for users.
+
 ## [1.82.0] - 2026-09-30
 
 ### Added
@@ -820,6 +832,7 @@ file, standard library only, strictly confined to its own folder.
   guard (`_within_app`) that refuses any path escaping the app folder; imports
   and restores are reduced to a basename and looked up only within the folder.
 
+[1.83.0]: #1830---2026-09-30
 [1.82.0]: #1820---2026-09-30
 [1.81.0]: #1810---2026-09-30
 [1.80.0]: #1800---2026-09-30

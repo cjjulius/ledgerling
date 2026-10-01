@@ -332,6 +332,12 @@ runs the suite and a CLI install smoke-test on Linux and Windows across
 Python 3.9 / 3.11 / 3.13. It activates automatically once the project is pushed
 to GitHub.
 
+Every top-level command is classified in `cli.py` as either a read command
+(`CATCHUP_COMMANDS`) or a mutating/meta one (`MUTATING_COMMANDS`), and a guard
+test asserts the two sets together cover exactly the parser's commands — so
+adding a new command without classifying it fails the suite rather than quietly
+changing the recurring catch-up behaviour.
+
 ## How things behave
 
 - **Recurring rules** auto-catch-up: whenever you `add`, `list`, `summary`,

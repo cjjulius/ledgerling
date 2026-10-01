@@ -99,7 +99,7 @@ import sys
 import tempfile
 from datetime import datetime, date, timedelta
 
-__version__ = "1.82.0"
+__version__ = "1.83.0"
 
 # --------------------------------------------------------------------------- #
 # Sandbox + storage
@@ -3932,6 +3932,29 @@ def build_parser():
     return p
 
 
+# Every top-level command is classified as either a read command (safe to run a
+# recurring catch-up before it, so views reflect what's due) or a mutating/meta
+# command (no implicit catch-up). Keeping these as explicit, exhaustive sets --
+# rather than an inline list -- lets test_commands_are_all_classified() fail
+# loudly if a newly added command is left out of both, so the catch-up behaviour
+# can never silently drift out of sync with the parser.
+CATCHUP_COMMANDS = frozenset({
+    "list", "summary", "budget", "export", "report", "stats", "search",
+    "categories", "tags", "month", "upcoming", "compare", "trend", "top",
+    "pace", "duplicates", "week", "streak", "weekday", "day", "year",
+    "untagged", "average", "distribution", "sources", "quarter", "forecast",
+    "balance", "commitments", "savings", "heatmap", "suggest", "insights",
+    "tagtrend", "range", "matrix", "cumulative", "allowance", "tagmatrix",
+    "weekly", "years", "anomalies", "roundup",
+})
+MUTATING_COMMANDS = frozenset({
+    "add", "income", "edit", "delete", "clone", "refund", "note", "tag",
+    "untag", "retag", "recategorize", "unbudget", "goal", "autobudget",
+    "import", "restore", "backup", "dedupe", "undo", "config", "recur",
+    "completion", "version", "web", "where",
+})
+
+
 def main(argv=None):
     parser = build_parser()
     args = parser.parse_args(argv)
@@ -3944,16 +3967,7 @@ def main(argv=None):
     # Auto catch-up on recurring rules for read/report commands, so lists,
     # summaries, budgets and exports always reflect what's due. (Purely local
     # file writes, inside the data folder.)
-    if args.command in ("list", "summary", "budget", "export", "report",
-                        "stats", "search", "categories", "tags", "month",
-                        "upcoming", "compare", "trend", "top", "pace",
-                        "duplicates", "week", "streak", "weekday", "day",
-                        "year", "untagged", "average", "distribution",
-                        "sources", "quarter", "forecast", "balance",
-                        "commitments", "savings", "heatmap", "suggest",
-                        "insights", "tagtrend", "range", "matrix",
-                        "cumulative", "allowance", "tagmatrix", "weekly",
-                        "years", "anomalies", "roundup"):
+    if args.command in CATCHUP_COMMANDS:
         data = load()
         if apply_recurring(data):
             save(data)
