@@ -4,6 +4,22 @@ All notable changes to Ledgerling are documented here. The format is based on
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and this project
 adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.131.0] - 2026-10-01
+
+### Added
+
+- `today` command: a daily briefing that pulls together this month's income /
+  spending / net, your all-time balance, the next few days of scheduled
+  recurring items (`--days`, default 7), any budgets already over for the
+  month, and a fortune for the day — tying the (now core) fun modes to real
+  data. `--json` supported; grouped under Analyze in both UIs.
+
+### Changed
+
+- Internal: factored the recurring-occurrence forecast shared by `upcoming`
+  and `today` into a reusable `upcoming_items(data, days)` helper (no behaviour
+  change to `upcoming`; covered by its existing tests).
+
 ## [1.130.0] - 2026-10-01
 
 ### Added
@@ -1490,6 +1506,7 @@ file, standard library only, strictly confined to its own folder.
   guard (`_within_app`) that refuses any path escaping the app folder; imports
   and restores are reduced to a basename and looked up only within the folder.
 
+[1.131.0]: #11310---2026-10-01
 [1.130.0]: #11300---2026-10-01
 [1.129.0]: #11290---2026-10-01
 [1.128.0]: #11280---2026-10-01

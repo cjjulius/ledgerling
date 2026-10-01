@@ -444,6 +444,12 @@ ledgerling list --json
 ledgerling search --tag work --json
 ledgerling stats --json
 
+# Daily briefing: this month so far, what's due in the next few days, any
+# budgets already over, and a fortune for the day (ties the fun modes to real
+# data). --days sets the look-ahead window (default 7).
+ledgerling today
+ledgerling today --days 14 --json
+
 # Version
 ledgerling version
 ledgerling --version
