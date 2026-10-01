@@ -4,6 +4,18 @@ All notable changes to Ledgerling are documented here. The format is based on
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and this project
 adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.134.0] - 2026-10-01
+
+### Added
+
+- Net-worth history: `networth --snapshot` records the day's assets / debts /
+  net worth (and ledger cash) to a new `networth_history` section — one entry
+  per day, a same-day re-snapshot replacing the earlier one. The `networth`
+  summary now notes how many snapshots are on record.
+- `worthtrend` command: shows the recorded net-worth snapshots over time with a
+  bar per entry and the change since the previous snapshot (and the total change
+  since the first). `--json` supported; grouped under Analyze in both UIs.
+
 ## [1.133.0] - 2026-10-01
 
 ### Added
@@ -1554,6 +1566,7 @@ file, standard library only, strictly confined to its own folder.
   guard (`_within_app`) that refuses any path escaping the app folder; imports
   and restores are reduced to a basename and looked up only within the folder.
 
+[1.134.0]: #11340---2026-10-01
 [1.133.0]: #11330---2026-10-01
 [1.132.1]: #11321---2026-10-01
 [1.132.0]: #11320---2026-10-01

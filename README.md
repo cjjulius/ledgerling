@@ -250,6 +250,11 @@ ledgerling networth                                          # the summary
 ledgerling networth --remove "car loan"
 ledgerling networth --json
 
+# Record today's net worth to build a history, then chart it over time
+ledgerling networth --snapshot      # one per day (same-day re-snapshots replace)
+ledgerling worthtrend               # net worth per snapshot, with the change
+ledgerling worthtrend --json
+
 # Export to CSV or JSON (saved in exports/; a path is reduced to its file name)
 ledgerling export
 ledgerling export --file august.csv --month 2026-08
