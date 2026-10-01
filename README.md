@@ -321,6 +321,7 @@ ledgerling where
 
 # Scan your data for integrity problems (duplicate ids, bad dates, orphans, ...)
 ledgerling check          # in the web UI this renders as a grouped Health panel
+ledgerling check --fix    # repair the safe ones (undoable); leaves judgment calls
 
 # Settings (currency symbol, default list size)
 ledgerling config
@@ -400,7 +401,7 @@ they can't be aliased and changed process-wide.
   number of occurrences (`--count`, e.g. 12 loan payments); `recur list` marks a
   finished rule `ENDED`. Already-generated expenses are left as-is.
 - **Undo** reverts the last change to your data (add/edit/delete/split/import/
-  budget/recategorize/restore/recurring catch-up). Running `undo` again redoes it — it's
+  budget/recategorize/restore/`check --fix`/recurring catch-up). Running `undo` again redoes it — it's
   a one-step toggle, stored in the data folder.
 - **Recategorize** renames a category across expenses, recurring rules, and the
   budget; if both the old and new categories already have budgets, the new one's

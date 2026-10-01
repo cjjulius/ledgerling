@@ -873,6 +873,46 @@ class CLI(TempAppCase):
                          "empty_category", "orphan_recur_id", "bad_budget"):
             self.assertIn(expected, kinds)
 
+    def test_check_fix_repairs_safe_issues(self):
+        L.save({"expenses": [
+            {"id": 1, "amount": 5.0, "category": "food", "note": "",
+             "date": "2026-01-01", "tags": [], "kind": "expense"},
+            {"id": 1, "amount": 10.0, "category": "", "note": "",
+             "date": "2026-01-02", "tags": [], "kind": "expense",
+             "recur_id": 99},
+        ], "budgets": {"rent": -100}, "recurring": [], "goal": None})
+        d = json.loads(self._main(["check", "--fix", "--json"]))
+        self.assertTrue(d["ok"])                 # all auto-fixable issues gone
+        self.assertEqual(d["issues"], [])
+        self.assertTrue(len(d["fixed"]) >= 4)
+        data = L.load()
+        ids = [e["id"] for e in data["expenses"]]
+        self.assertEqual(len(ids), len(set(ids)))        # ids now unique
+        self.assertNotIn("recur_id", data["expenses"][1])  # orphan unlinked
+        self.assertEqual(data["expenses"][1]["category"], "uncategorized")
+        self.assertEqual(data["budgets"], {})            # invalid budget removed
+
+    def test_check_fix_leaves_unfixable(self):
+        L.save({"expenses": [
+            {"id": 1, "amount": -5.0, "category": "food", "note": "",
+             "date": "nope", "tags": [], "kind": "expense"},
+        ], "budgets": {}, "recurring": [], "goal": None})
+        d = json.loads(self._main(["check", "--fix", "--json"]))
+        kinds = {i["kind"] for i in d["issues"]}
+        self.assertIn("bad_amount", kinds)       # not auto-fixable -> remains
+        self.assertIn("bad_date", kinds)
+        self.assertFalse(d["ok"])
+
+    def test_check_fix_is_undoable(self):
+        L.save({"expenses": [
+            {"id": 1, "amount": 5.0, "category": "", "note": "",
+             "date": "2026-01-01", "tags": [], "kind": "expense"},
+        ], "budgets": {}, "recurring": [], "goal": None})
+        self._main(["check", "--fix"])
+        self.assertEqual(L.load()["expenses"][0]["category"], "uncategorized")
+        self._main(["undo"])
+        self.assertEqual(L.load()["expenses"][0]["category"], "")  # restored
+
     def test_check_flags_invalid_rule(self):
         L.save({"expenses": [], "budgets": {}, "recurring": [
             {"id": 1, "amount": 10.0, "category": "x", "note": "",

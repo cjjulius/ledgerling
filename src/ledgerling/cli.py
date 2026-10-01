@@ -107,7 +107,7 @@ import sys
 import tempfile
 from datetime import datetime, date, timedelta
 
-__version__ = "1.100.0"
+__version__ = "1.101.0"
 
 # --------------------------------------------------------------------------- #
 # Sandbox + storage
@@ -3484,15 +3484,14 @@ def _valid_iso(s):
         return False
 
 
-def cmd_check(args):
-    """Scan the stored data for integrity problems and report them.
+# Issue kinds that _autofix can safely repair on its own.
+_FIXABLE_KINDS = frozenset({
+    "duplicate_id", "orphan_recur_id", "empty_category", "bad_budget",
+})
 
-    Read-only (no recurring catch-up runs first, so it inspects the data as
-    stored). Reports duplicate ids, non-positive amounts, malformed dates,
-    empty categories, expenses pointing at a missing recurring rule, and
-    invalid recurring rules or budgets.
-    """
-    data = load()
+
+def _scan_issues(data):
+    """Return a list of integrity problems found in `data` (read-only)."""
     issues = []
 
     counts = {}
@@ -3543,23 +3542,87 @@ def cmd_check(args):
             issues.append({"kind": "bad_budget", "id": None,
                            "detail": f"budget [{cat}] is {lim!r}"})
 
+    return issues
+
+
+def _autofix(data):
+    """Repair the safe, unambiguous problems in-place. Returns a list of the
+    repairs made (each a short human-readable string)."""
+    fixed = []
+    rule_ids = {r.get("id") for r in data["recurring"]}
+    for e in data["expenses"]:
+        rid = e.get("recur_id")
+        if rid is not None and rid not in rule_ids:
+            del e["recur_id"]
+            fixed.append(f"unlinked #{e.get('id')} from missing rule #{rid}")
+        if not str(e.get("category") or "").strip():
+            e["category"] = "uncategorized"
+            fixed.append(f"set #{e.get('id')} category to 'uncategorized'")
+
+    # Reassign duplicate or non-integer ids (keep the first use of each).
+    seen = set()
+    next_free = next_id(data["expenses"])
+    for e in data["expenses"]:
+        eid = e.get("id")
+        if not isinstance(eid, int) or isinstance(eid, bool) or eid in seen:
+            e["id"] = next_free
+            fixed.append(f"reassigned a duplicate/invalid id to #{next_free}")
+            next_free += 1
+        seen.add(e["id"])
+
+    for cat in [c for c, lim in list(data["budgets"].items())
+                if isinstance(lim, bool) or not isinstance(lim, (int, float))
+                or lim <= 0]:
+        del data["budgets"][cat]
+        fixed.append(f"removed invalid budget [{cat}]")
+
+    return fixed
+
+
+def cmd_check(args):
+    """Scan the stored data for integrity problems and report them.
+
+    Read-only by default (no recurring catch-up runs first, so it inspects the
+    data as stored). With --fix, repairs the safe, unambiguous problems
+    (orphan recurring links, empty categories, duplicate ids, invalid budgets)
+    and reports what remains for you to handle manually.
+    """
+    data = load()
+    repaired = []
+    if getattr(args, "fix", False):
+        repaired = _autofix(data)
+        if repaired:
+            save(data)
+    issues = _scan_issues(data)
+
     if getattr(args, "json", False):
         print(json.dumps({"ok": not issues, "count": len(issues),
-                          "issues": issues}, indent=2))
+                          "issues": issues, "fixed": repaired}, indent=2))
         return
+
+    if repaired:
+        print(f"Fixed {len(repaired)} problem(s)")
+        for f in repaired:
+            print(f"  - {f}")
+        print("-" * 52)
 
     n_exp = len(data["expenses"])
     n_rules = len(data["recurring"])
     if not issues:
+        tail = "now look healthy" if repaired else "look healthy"
         print(f"No problems found - {n_exp} entr{'y' if n_exp == 1 else 'ies'}, "
-              f"{n_rules} recurring rule(s) look healthy.")
+              f"{n_rules} recurring rule(s) {tail}.")
         return
-    print(f"Found {len(issues)} problem(s)")
+    print(f"Found {len(issues)} problem(s)"
+          + (" still needing a manual fix" if repaired else ""))
     print("=" * 52)
     for i in issues:
         print(f"  [{i['kind']}] {i['detail']}")
     print("-" * 52)
-    print("Tip: fix with edit/delete/recategorize, or restore a backup.")
+    if any(i["kind"] in _FIXABLE_KINDS for i in issues):
+        print("Tip: run `check --fix` to repair the auto-fixable ones.")
+    else:
+        print("Tip: fix with edit/delete/recategorize, or restore a backup.")
 
 
 def cmd_where(args):
@@ -4482,6 +4545,8 @@ def build_parser():
 
     ck = sub.add_parser("check",
                         help="scan your data for integrity problems")
+    ck.add_argument("--fix", action="store_true",
+                    help="repair the safe, unambiguous problems (undoable)")
     ck.add_argument("--json", action="store_true", help="output JSON instead of text")
     ck.set_defaults(func=cmd_check)
 
