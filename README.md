@@ -377,7 +377,9 @@ Every top-level command is classified in `cli.py` as either a read command
 (`CATCHUP_COMMANDS`) or a mutating/meta one (`MUTATING_COMMANDS`), and a guard
 test asserts the two sets together cover exactly the parser's commands — so
 adding a new command without classifying it fails the suite rather than quietly
-changing the recurring catch-up behaviour.
+changing the recurring catch-up behaviour. A second guard checks every
+top-level command is listed in the module's `--help` command summary, so the
+docs can't silently drift from the parser either.
 
 The recurring-occurrence generator takes an optional `since` lower bound so
 projections and catch-up don't iterate over years of history for long-running
