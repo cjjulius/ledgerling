@@ -9,7 +9,10 @@ no shell, no network - and all data stays in the app's own folder.
 Launch it with ``ledgerling gui`` (or the windowed ``ledgerling-gui`` exe).
 """
 
+import json
+import os
 import queue
+import re
 import threading
 
 from . import cli as L
@@ -78,6 +81,119 @@ def _humanize(dest):
     return dest.replace("_", " ").strip().capitalize()
 
 
+# --- JSON -> table formatting (mirrors the web UI's column heuristics) ------- #
+_MONEY_RE = re.compile(
+    r"total|amount|spend|income|\bnet\b|balance|budget|spent|limit|remaining|"
+    r"average|cumulative|projected|annual|monthly|per_?(day|week|month)|value|"
+    r"^over$|_over$", re.I)
+_NOTMONEY_RE = re.compile(r"count|rate|share|days|year|\bid\b|day\b", re.I)
+_PCT_RE = re.compile(r"rate|share|percent|_pct|^pct", re.I)
+_MONTHCOL_RE = re.compile(r"^\d{4}-\d{2}$")
+
+
+def _is_money_key(k):
+    if _MONTHCOL_RE.match(k):
+        return True
+    return bool(_MONEY_RE.search(k)) and not _NOTMONEY_RE.search(k)
+
+
+def _money(v, currency="$", after=False):
+    neg = v < 0
+    s = f"{abs(v):,.2f}"
+    body = (f"{s} {currency}" if after else f"{currency}{s}")
+    return ("-" + body) if neg else body
+
+
+def _fmt_cell(key, v, currency="$", after=False):
+    """Format one cell value given its column name (money/percent/plain)."""
+    if v is None:
+        return ""
+    if isinstance(v, bool):
+        return "yes" if v else "no"
+    if isinstance(v, (int, float)):
+        if _PCT_RE.search(key):
+            return f"{v}%"
+        if _is_money_key(key):
+            return _money(v, currency, after)
+        return str(v)
+    if isinstance(v, (dict, list)):
+        return json.dumps(v)
+    return str(v)
+
+
+def _cmd_has_json(cmd):
+    """True if the command exposes a --json flag (so we can render a table)."""
+    return any(a.get("flag") == "--json" for a in cmd.get("args", []))
+
+
+def _safe_json(text):
+    try:
+        return json.loads(text)
+    except Exception:
+        return None
+
+
+# --- UI state persistence (theme + window geometry), kept in the data folder - #
+def _state_path():
+    return os.path.join(L.HOME_DIR, "gui_state.json")
+
+
+def _load_state():
+    try:
+        with open(_state_path(), encoding="utf-8") as fh:
+            data = json.load(fh)
+        return data if isinstance(data, dict) else {}
+    except Exception:
+        return {}
+
+
+def _save_state(state):
+    try:
+        os.makedirs(L.HOME_DIR, exist_ok=True)
+        with open(_state_path(), "w", encoding="utf-8") as fh:
+            json.dump(state, fh)
+    except Exception:
+        pass   # UI convenience only; never let a save failure crash the app
+
+
+_GEOMETRY_RE = re.compile(r"^\d+x\d+([+-]\d+[+-]\d+)?$")
+
+
+def _valid_geometry(geo):
+    return isinstance(geo, str) and bool(_GEOMETRY_RE.match(geo))
+
+
+def _tabular(data):
+    """Shape parsed JSON into (mode, columns, rows) for a table, or None.
+
+    mode 'rows'    -> a list of record dicts (columns = union of keys)
+    mode 'fields'  -> a flat dict shown as field/value pairs
+    mode 'scalars' -> a list of plain values in one 'value' column
+    """
+    def cols_of(records):
+        cols = []
+        for r in records:
+            if isinstance(r, dict):
+                for k in r:
+                    if k not in cols:
+                        cols.append(k)
+        return cols
+
+    if isinstance(data, list):
+        if data and isinstance(data[0], dict):
+            return ("rows", cols_of(data), data)
+        return ("scalars", ["value"], [{"value": v} for v in data])
+    if isinstance(data, dict):
+        arrkey = next((k for k, v in data.items()
+                       if isinstance(v, list) and v and isinstance(v[0], dict)),
+                      None)
+        if arrkey:
+            return ("rows", cols_of(data[arrkey]), data[arrkey])
+        return ("fields", ["field", "value"],
+                [{"field": k, "value": v} for k, v in data.items()])
+    return None
+
+
 class LedgerlingGUI:
     def __init__(self, root, theme="dark"):
         import tkinter as tk  # local imports so importing this module is cheap
@@ -87,15 +203,20 @@ class LedgerlingGUI:
         self.schema = web.describe()
         self.commands = {c["name"]: c for c in self.schema["commands"]}
         self.currency = self.schema.get("currency", "$")
-        self.theme_name = theme
+        self.symbol_after = self.schema.get("symbol_position") == "after"
         self.current = None       # selected command name
         self.fields = {}          # dest -> (widget, arg-spec)
         self._results = queue.Queue()
 
+        # Restore theme + window size/position from last session (if saved).
+        state = _load_state()
+        self.theme_name = state.get("theme") or theme
+
         root.title("Ledgerling")
         root.minsize(900, 560)
+        geo = state.get("geometry")
         try:
-            root.geometry("1040x660")
+            root.geometry(geo if _valid_geometry(geo) else "1040x660")
         except Exception:
             pass
 
@@ -106,6 +227,7 @@ class LedgerlingGUI:
         self.apply_theme(self.theme_name)
         self._bind_shortcuts()
         self._poll_results()
+        root.protocol("WM_DELETE_WINDOW", self._on_close)
 
         # Open a friendly default command.
         self.open_command("summary" if "summary" in self.commands else
@@ -209,8 +331,12 @@ class LedgerlingGUI:
         ttk.Button(runbar, text="Copy output", style="Tool.TButton",
                    command=self._copy_output).pack(side="left", padx=(8, 0))
 
-        outwrap = ttk.Frame(right, style="Main.TFrame")
-        outwrap.pack(side="top", fill="both", expand=True)
+        # Results: a Text "Output" tab plus a sortable "Table" tab that fills
+        # from the command's --json output when available.
+        self.results = ttk.Notebook(right)
+        self.results.pack(side="top", fill="both", expand=True)
+
+        outwrap = ttk.Frame(self.results, style="Main.TFrame")
         self.output = tk.Text(outwrap, wrap="none", height=14, borderwidth=0,
                               font=("Consolas", 10), state="disabled")
         yscroll = ttk.Scrollbar(outwrap, orient="vertical",
@@ -224,6 +350,29 @@ class LedgerlingGUI:
         xscroll.grid(row=1, column=0, sticky="ew")
         outwrap.rowconfigure(0, weight=1)
         outwrap.columnconfigure(0, weight=1)
+        self.results.add(outwrap, text="Output")
+
+        tabwrap = ttk.Frame(self.results, style="Main.TFrame")
+        self.table = ttk.Treeview(tabwrap, show="headings", selectmode="browse",
+                                  style="Data.Treeview")
+        tyscroll = ttk.Scrollbar(tabwrap, orient="vertical",
+                                 command=self.table.yview)
+        txscroll = ttk.Scrollbar(tabwrap, orient="horizontal",
+                                 command=self.table.xview)
+        self.table.configure(yscrollcommand=tyscroll.set,
+                             xscrollcommand=txscroll.set)
+        self.table.grid(row=0, column=0, sticky="nsew")
+        tyscroll.grid(row=0, column=1, sticky="ns")
+        txscroll.grid(row=1, column=0, sticky="ew")
+        tabwrap.rowconfigure(0, weight=1)
+        tabwrap.columnconfigure(0, weight=1)
+        self.results.add(tabwrap, text="Table")
+        self._table_tab = tabwrap
+        self._table_rows = []        # current rows, for re-sorting
+        self._table_cols = []
+        self._table_mode = "rows"
+        self._sort_state = {}
+        self.results.hide(self._table_tab)   # shown only when there's a table
 
         body.add(right, weight=3)
         self._refill_tree()
@@ -361,26 +510,35 @@ class LedgerlingGUI:
         if not self.current:
             return
         argv = self._collect_argv()
+        cmd = self.commands[self.current]
         self.run_btn.config(state="disabled", text="Running…")
         self._set_status(f"running: {' '.join(argv)}")
         self._set_output("running…", err=False)
 
         def work():
             res = web.run_cli(argv)
-            self._results.put((argv, res))
+            data = None
+            if res["code"] == 0:
+                if "--json" in argv:
+                    data = _safe_json(res["stdout"])
+                elif _cmd_has_json(cmd):
+                    jr = web.run_cli(argv + ["--json"])
+                    if jr["code"] == 0:
+                        data = _safe_json(jr["stdout"])
+            self._results.put((argv, res, data))
 
         threading.Thread(target=work, daemon=True).start()
 
     def _poll_results(self):
         try:
             while True:
-                argv, res = self._results.get_nowait()
-                self._show_result(argv, res)
+                argv, res, data = self._results.get_nowait()
+                self._show_result(argv, res, data)
         except queue.Empty:
             pass
         self.root.after(80, self._poll_results)
 
-    def _show_result(self, argv, res):
+    def _show_result(self, argv, res, data=None):
         self.run_btn.config(state="normal", text="Run  (Ctrl+Enter)")
         ok = res["code"] == 0
         if ok:
@@ -388,6 +546,7 @@ class LedgerlingGUI:
         else:
             text = res["stderr"] or res["stdout"] or "error"
         self._set_output(text, err=not ok)
+        self._populate_table(data if ok else None)
         verb = "done" if ok else f"failed (exit {res['code']})"
         self._set_status(f"{' '.join(argv)}  —  {verb}")
 
@@ -405,6 +564,66 @@ class LedgerlingGUI:
         self.root.clipboard_clear()
         self.root.clipboard_append(text)
         self._set_status("output copied to clipboard")
+
+    # ----- table view ------------------------------------------------------ #
+    def _populate_table(self, data):
+        shaped = _tabular(data) if data is not None else None
+        if not shaped or not shaped[2]:
+            self.table.delete(*self.table.get_children())
+            self._table_rows = []
+            self.results.tab(self._table_tab, state="hidden")
+            return
+        mode, cols, rows = shaped
+        self._table_mode, self._table_cols, self._table_rows = mode, cols, rows
+        self._sort_state = {}
+        self.table["columns"] = cols
+        for c in cols:
+            base = c if _MONTHCOL_RE.match(c) else _humanize(c)
+            self.table.heading(c, text=base,
+                               command=lambda c=c: self._sort_table(c))
+            numeric = mode != "fields" and (_is_money_key(c) or _PCT_RE.search(c))
+            self.table.column(c, anchor="e" if numeric else "w",
+                              width=max(80, min(240, len(base) * 9 + 48)),
+                              stretch=True)
+        self._fill_rows(rows)
+        self.results.tab(self._table_tab, state="normal")
+
+    def _fill_rows(self, rows):
+        self.table.delete(*self.table.get_children())
+        mode, cols = self._table_mode, self._table_cols
+        cur, after = self.currency, self.symbol_after
+        for r in rows:
+            if mode == "fields":
+                key = r["field"]
+                vals = [_humanize(key), _fmt_cell(key, r["value"], cur, after)]
+            else:
+                vals = [_fmt_cell(c, r.get(c), cur, after) for c in cols]
+            self.table.insert("", "end", values=vals)
+
+    def _sort_table(self, col):
+        desc = not self._sort_state.get(col, False)
+        self._sort_state = {col: desc}
+
+        def sortkey(r):
+            v = r.get(col)
+            if isinstance(v, bool):
+                return (0, int(v))
+            if isinstance(v, (int, float)):
+                return (0, float(v))
+            if v is None:
+                return (2, "")
+            s = str(v)
+            try:
+                return (0, float(s.replace(",", "").replace("$", "")
+                                 .replace("%", "")))
+            except ValueError:
+                return (1, s.lower())
+
+        self._fill_rows(sorted(self._table_rows, key=sortkey, reverse=desc))
+        for c in self._table_cols:
+            base = c if _MONTHCOL_RE.match(c) else _humanize(c)
+            arrow = (" ▼" if desc else " ▲") if c == col else ""
+            self.table.heading(c, text=base + arrow)
 
     def _set_status(self, msg):
         self.status.config(text=f"Ledgerling {self.schema['version']}   "
@@ -443,6 +662,18 @@ class LedgerlingGUI:
                         borderwidth=0, rowheight=24)
         style.map("Side.Treeview", background=[("selected", c["sel"])],
                   foreground=[("selected", c["ink"])])
+        style.configure("Data.Treeview", background=c["field"],
+                        fieldbackground=c["field"], foreground=c["ink"],
+                        borderwidth=0, rowheight=24)
+        style.configure("Data.Treeview.Heading", background=c["panel"],
+                        foreground=c["muted"], relief="flat")
+        style.map("Data.Treeview", background=[("selected", c["sel"])],
+                  foreground=[("selected", c["ink"])])
+        style.configure("TNotebook", background=c["bg"], borderwidth=0)
+        style.configure("TNotebook.Tab", background=c["panel"],
+                        foreground=c["muted"], padding=(14, 6))
+        style.map("TNotebook.Tab", background=[("selected", c["bg"])],
+                  foreground=[("selected", c["ink"])])
         if hasattr(self, "output"):
             self.output.configure(background=c["field"], foreground=c["ink"],
                                   insertbackground=c["ink"],
@@ -451,10 +682,23 @@ class LedgerlingGUI:
 
     def toggle_theme(self):
         self.apply_theme("light" if self.theme_name == "dark" else "dark")
+        _save_state({"theme": self.theme_name,
+                     "geometry": self._current_geometry()})
+
+    def _current_geometry(self):
+        try:
+            return self.root.winfo_geometry()
+        except Exception:
+            return None
+
+    def _on_close(self):
+        _save_state({"theme": self.theme_name,
+                     "geometry": self._current_geometry()})
+        self.root.destroy()
 
     def _bind_shortcuts(self):
         self.root.bind("<Control-Return>", lambda _e: self.run_current())
-        self.root.bind("<Control-q>", lambda _e: self.root.destroy())
+        self.root.bind("<Control-q>", lambda _e: self._on_close())
         self.root.bind("<Control-t>", lambda _e: self.toggle_theme())
         self.root.bind("<Control-k>",
                        lambda _e: self.filter_entry.focus_set())

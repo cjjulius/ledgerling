@@ -4,6 +4,20 @@ All notable changes to Ledgerling are documented here. The format is based on
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and this project
 adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.129.0] - 2026-10-01
+
+### Added
+
+- Desktop app: the results area is now a two-tab notebook — an **Output** tab
+  (the text result, with Copy) and a **Table** tab. For any command that
+  supports `--json`, the Table tab fills from its structured output with
+  money/percent-aware column formatting and **click-to-sort** headers
+  (numeric-aware, with a direction arrow); the tab hides itself when a result
+  isn't tabular.
+- Desktop app now **remembers your theme and window size/position** between
+  launches, stored in `gui_state.json` inside the app's own data folder
+  (a best-effort UI convenience — a missing or unreadable file is ignored).
+
 ## [1.128.0] - 2026-10-01
 
 ### Added
@@ -1453,6 +1467,7 @@ file, standard library only, strictly confined to its own folder.
   guard (`_within_app`) that refuses any path escaping the app folder; imports
   and restores are reduced to a basename and looked up only within the folder.
 
+[1.129.0]: #11290---2026-10-01
 [1.128.0]: #11280---2026-10-01
 [1.127.1]: #11271---2026-10-01
 [1.127.0]: #11270---2026-10-01

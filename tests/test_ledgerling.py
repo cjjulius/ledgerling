@@ -590,6 +590,49 @@ class WebUI(TempAppCase):
         self.assertEqual(missing, set(),
                          "commands not in any GUI group: %s" % sorted(missing))
 
+    def test_gui_table_helpers(self):
+        from ledgerling import gui
+        # money vs percent vs plain-count column classification
+        self.assertTrue(gui._is_money_key("total"))
+        self.assertTrue(gui._is_money_key("over"))
+        self.assertTrue(gui._is_money_key("2026-01"))   # month columns
+        self.assertFalse(gui._is_money_key("count"))
+        self.assertFalse(gui._is_money_key("rate"))
+        self.assertEqual(gui._fmt_cell("total", 31.98), "$31.98")
+        self.assertEqual(gui._fmt_cell("pct", 260.0), "260.0%")
+        self.assertEqual(gui._fmt_cell("count", 2), "2")
+        self.assertEqual(gui._fmt_cell("note", None), "")
+        # JSON shaping: nested array-of-objects, flat dict, scalar list
+        mode, cols, rows = gui._tabular(
+            {"payees": [{"payee": "a", "total": 5.0}], "count": 1})
+        self.assertEqual((mode, cols), ("rows", ["payee", "total"]))
+        self.assertEqual(len(rows), 1)
+        mode, cols, rows = gui._tabular({"income": 10.0, "spending": 4.0})
+        self.assertEqual((mode, cols), ("fields", ["field", "value"]))
+        self.assertEqual(len(rows), 2)
+        mode, cols, _ = gui._tabular(["a", "b"])
+        self.assertEqual((mode, cols), ("scalars", ["value"]))
+        self.assertIsNone(gui._tabular(None))
+
+    def test_gui_cmd_has_json(self):
+        from ledgerling import gui, web
+        cmds = {c["name"]: c for c in web.describe()["commands"]}
+        self.assertTrue(gui._cmd_has_json(cmds["summary"]))   # read command
+        self.assertFalse(gui._cmd_has_json(cmds["backup"]))   # no --json
+
+    def test_gui_state_roundtrip_and_geometry(self):
+        from ledgerling import gui
+        self.assertTrue(gui._valid_geometry("1040x660+12+34"))
+        self.assertTrue(gui._valid_geometry("800x600"))
+        self.assertFalse(gui._valid_geometry("nonsense"))
+        self.assertFalse(gui._valid_geometry(None))
+        # state saves into the (temp) data folder and reads back
+        self.assertEqual(gui._load_state(), {})               # none yet
+        gui._save_state({"theme": "light", "geometry": "900x700+0+0"})
+        self.assertEqual(gui._load_state(),
+                         {"theme": "light", "geometry": "900x700+0+0"})
+        self.assertTrue(os.path.exists(gui._state_path()))
+
     def test_run_cli_bridge(self):
         from ledgerling import web
         web.run_cli(["add", "12.50", "food", "lunch #x"])
