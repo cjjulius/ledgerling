@@ -177,6 +177,31 @@ def _cmd_has_json(cmd):
     return any(a.get("flag") == "--json" for a in cmd.get("args", []))
 
 
+def build_argv(cmd, values):
+    """Assemble a command's argv from a {dest: value} mapping, mirroring the web
+    UI's buildArgv. A bool value drives a store-true flag; a string fills a
+    positional (split when variadic) or an option. Empty strings are omitted,
+    and a dest absent from `values` is skipped. Pure - shared by the main window
+    and pop-out command windows, and unit-tested without Tk."""
+    positionals, options = [], []
+    for a in cmd["args"]:
+        dest = a["dest"]
+        if dest not in values:
+            continue
+        if a.get("type") == "bool":
+            if values[dest]:
+                options += [a["flag"]]
+            continue
+        val = str(values[dest] or "").strip()
+        if a["kind"] == "positional":
+            if not val:
+                continue
+            positionals += val.split() if a.get("variadic") else [val]
+        elif val:
+            options += [a["flag"], val]
+    return list(cmd["argv"]) + positionals + options
+
+
 def _safe_json(text):
     try:
         return json.loads(text)
@@ -713,29 +738,10 @@ class LedgerlingGUI:
         return ent
 
     def _collect_argv(self):
-        """Build argv from the form, mirroring the web UI's buildArgv."""
+        """Build argv from the form via the shared, pure build_argv()."""
         cmd = self.commands[self.current]
-        positionals, options = [], []
-        for a in cmd["args"]:
-            w, _ = self.fields.get(a["dest"], (None, None))
-            if w is None:
-                continue
-            if a.get("type") == "bool":
-                if bool(w._var.get()):
-                    options += [a["flag"]]
-                continue
-            val = str(w._var.get()).strip()
-            if a["kind"] == "positional":
-                if not val:
-                    continue
-                if a.get("variadic"):
-                    positionals += val.split()
-                else:
-                    positionals.append(val)
-            else:
-                if val:
-                    options += [a["flag"], val]
-        return list(cmd["argv"]) + positionals + options
+        values = {d: w._var.get() for d, (w, _a) in self.fields.items()}
+        return build_argv(cmd, values)
 
     # ----- running --------------------------------------------------------- #
     def run_current(self):
@@ -1275,22 +1281,8 @@ class _CommandWindow:
 
     def _collect(self):
         cmd = self.commands[self.var.get()]
-        pos, opt = [], []
-        for a in cmd["args"]:
-            w, _ = self.fields.get(a["dest"], (None, None))
-            if w is None:
-                continue
-            if a.get("type") == "bool":
-                if bool(w._var.get()):
-                    opt += [a["flag"]]
-                continue
-            val = str(w._var.get()).strip()
-            if a["kind"] == "positional":
-                if val:
-                    pos += val.split() if a.get("variadic") else [val]
-            elif val:
-                opt += [a["flag"], val]
-        return list(cmd["argv"]) + pos + opt
+        values = {d: w._var.get() for d, (w, _a) in self.fields.items()}
+        return build_argv(cmd, values)
 
     def _run(self):
         argv = self._collect()
