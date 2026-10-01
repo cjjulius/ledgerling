@@ -99,10 +99,10 @@ Commands:
     completion  Print a bash/zsh tab-completion script
     web       Launch a local web UI covering every command
     gui       Launch the native desktop app covering every command
-    fortune   A fortune cookie with lucky numbers (offline, for fun)
-    horoscope  A playful finance-flavoured daily horoscope (offline)
-    weather   A whimsical offline weather forecast - no network (for fun)
-    eightball  Magic 8-Ball: ask a yes/no question (offline, for fun)
+    fortune   A daily fortune with lucky numbers
+    horoscope  A finance-flavoured daily horoscope
+    weather   Current weather for a place (live via Open-Meteo; offline fallback)
+    eightball  A yes/no decision helper (Magic 8-Ball)
 
 Run `python ledgerling.py --help` or `<command> --help` for details.
 """
@@ -121,7 +121,7 @@ import tempfile
 import time
 from datetime import datetime, date, timedelta
 
-__version__ = "1.131.0"
+__version__ = "1.132.0"
 
 # --------------------------------------------------------------------------- #
 # Sandbox + storage
@@ -4176,9 +4176,10 @@ def cmd_gui(args):
 
 
 # --------------------------------------------------------------------------- #
-# Fun modes - playful, fully offline extras (no network, no stored data
-# touched). Deterministic given a --seed (and, for the daily ones, the date),
-# so they are testable and stable within a day.
+# Almanac - daily companion readings. All are deterministic given a --seed
+# (and, for the daily ones, the date). `weather` is the one command that may
+# reach the network (Open-Meteo, free/keyless) and falls back to a local
+# estimate offline; the rest touch neither the network nor stored data.
 # --------------------------------------------------------------------------- #
 _FORTUNES = [
     "A penny saved today buys peace of mind tomorrow.",
@@ -4227,6 +4228,81 @@ _WEATHER_QUIPS = [
     "Forecast uncertain, but your spreadsheet needn't be.",
     "Bring a jacket and maybe skip the impulse buy.",
 ]
+# WMO weather-interpretation codes (Open-Meteo) -> (glyph, label).
+_WMO = {
+    0: ("☀️", "Clear sky"), 1: ("\U0001f324️", "Mainly clear"),
+    2: ("⛅", "Partly cloudy"), 3: ("☁️", "Overcast"),
+    45: ("\U0001f32b️", "Fog"), 48: ("\U0001f32b️", "Rime fog"),
+    51: ("\U0001f326️", "Light drizzle"), 53: ("\U0001f326️", "Drizzle"),
+    55: ("\U0001f327️", "Dense drizzle"),
+    56: ("\U0001f327️", "Freezing drizzle"),
+    57: ("\U0001f327️", "Freezing drizzle"),
+    61: ("\U0001f326️", "Light rain"), 63: ("\U0001f327️", "Rain"),
+    65: ("\U0001f327️", "Heavy rain"),
+    66: ("\U0001f327️", "Freezing rain"),
+    67: ("\U0001f327️", "Freezing rain"),
+    71: ("\U0001f328️", "Light snow"), 73: ("\U0001f328️", "Snow"),
+    75: ("\U0001f328️", "Heavy snow"), 77: ("\U0001f328️", "Snow grains"),
+    80: ("\U0001f326️", "Rain showers"),
+    81: ("\U0001f327️", "Rain showers"),
+    82: ("\U0001f327️", "Violent showers"),
+    85: ("\U0001f328️", "Snow showers"),
+    86: ("\U0001f328️", "Snow showers"),
+    95: ("⛈️", "Thunderstorm"),
+    96: ("⛈️", "Thunderstorm, hail"),
+    99: ("⛈️", "Thunderstorm, hail"),
+}
+
+
+def _http_get_json(url, timeout=6):
+    """Minimal stdlib JSON GET. Raises on any network/parse failure (callers
+    catch and fall back). Only used by `weather`, the one network-touching
+    command, and only against Open-Meteo's free, keyless, query-friendly API."""
+    import urllib.request
+    req = urllib.request.Request(
+        url, headers={"User-Agent": f"Ledgerling/{__version__} (personal ledger)"})
+    with urllib.request.urlopen(req, timeout=timeout) as resp:
+        return json.loads(resp.read().decode("utf-8"))
+
+
+def fetch_weather(where, timeout=6):
+    """Look up current weather for a place name via Open-Meteo (geocode +
+    forecast). Returns a result dict, or None if anything goes wrong (so the
+    caller can fall back to the offline estimate). Network only; no key."""
+    import urllib.parse
+    try:
+        geo = _http_get_json(
+            "https://geocoding-api.open-meteo.com/v1/search?"
+            + urllib.parse.urlencode({"name": where, "count": 1,
+                                      "language": "en", "format": "json"}),
+            timeout)
+        hits = geo.get("results") or []
+        if not hits:
+            return None
+        g = hits[0]
+        lat, lon = g["latitude"], g["longitude"]
+        place = ", ".join(x for x in (g.get("name"), g.get("country_code"))
+                          if x)
+        fc = _http_get_json(
+            "https://api.open-meteo.com/v1/forecast?"
+            + urllib.parse.urlencode({
+                "latitude": lat, "longitude": lon,
+                "current": "temperature_2m,relative_humidity_2m,"
+                           "wind_speed_10m,weather_code",
+                "wind_speed_unit": "mph", "temperature_unit": "celsius"}),
+            timeout)
+        cur = fc.get("current") or {}
+        code = int(cur.get("weather_code", -1))
+        glyph, cond = _WMO.get(code, ("\U0001f321️", "Unknown"))
+        return {
+            "location": place or where, "condition": cond, "glyph": glyph,
+            "temp_c": cur.get("temperature_2m"),
+            "wind_mph": cur.get("wind_speed_10m"),
+            "humidity_pct": cur.get("relative_humidity_2m"),
+            "source": "open-meteo",
+        }
+    except Exception:
+        return None
 _EIGHTBALL = [
     "It is certain.", "Without a doubt.", "Yes - definitely.",
     "You may rely on it.", "Most likely.", "Outlook good.", "Signs point to yes.",
@@ -4247,7 +4323,7 @@ def _fun_rng(seed, *parts):
 
 
 def cmd_fortune(args):
-    """A fortune cookie, with lucky numbers. Offline and for fun."""
+    """A daily fortune with lucky numbers. Deterministic given --seed."""
     rng = _fun_rng(args.seed) if args.seed is not None else _fun_rng(None)
     msg = rng.choice(_FORTUNES)
     lucky = sorted(rng.sample(range(1, 50), 6))
@@ -4265,7 +4341,7 @@ def cmd_fortune(args):
 
 
 def cmd_horoscope(args):
-    """A playful, finance-flavoured daily horoscope. Offline; stable per day."""
+    """A finance-flavoured daily horoscope. Stable per day (or per --seed)."""
     sign = (args.sign or "").strip().lower()
     if sign and sign not in _SIGNS:
         sys.exit(f"error: unknown sign '{sign}' (try one of: "
@@ -4294,33 +4370,58 @@ def cmd_horoscope(args):
 
 
 def cmd_weather(args):
-    """A whimsical, OFFLINE weather forecast (no network - it's for fun)."""
-    where = (args.where or "here").strip() or "here"
+    """Current weather for a place. With a location and a network connection it
+    fetches live data from Open-Meteo (free, no key); otherwise it falls back to
+    a deterministic local estimate. Use --offline to force the estimate."""
+    where = (args.where or "").strip()
     day = date.today().isoformat()
+    offline = getattr(args, "offline", False) or not where
+
+    live = None if offline else fetch_weather(where)
+    if live:
+        if getattr(args, "json", False):
+            print(json.dumps({"location": live["location"], "date": day,
+                              "condition": live["condition"],
+                              "temp_c": live["temp_c"],
+                              "wind_mph": live["wind_mph"],
+                              "humidity_pct": live["humidity_pct"],
+                              "offline": False, "source": live["source"]},
+                             indent=2))
+            return
+        print(f"Weather for {live['location']} ({day})")
+        print("=" * 52)
+        print(f"  {live['glyph']}  {live['condition']},  {live['temp_c']}°C")
+        print(f"  wind {live['wind_mph']} mph  ·  "
+              f"humidity {live['humidity_pct']}%")
+        print("  source: Open-Meteo")
+        return
+
+    # Offline estimate (deterministic). Reached when --offline, no location, or
+    # the network lookup failed.
+    label = where or "your area"
     base = args.seed if args.seed is not None else day
-    rng = _fun_rng(base, where.lower())
+    rng = _fun_rng(base, label.lower())
     glyph, cond = rng.choice(_WEATHER)
     high = rng.randint(4, 33)
     low = high - rng.randint(3, 10)
     wind = rng.randint(1, 28)
     humidity = rng.randint(30, 95)
-    quip = rng.choice(_WEATHER_QUIPS)
+    note = "offline estimate" if offline else "live data unavailable — estimate"
 
     if getattr(args, "json", False):
-        print(json.dumps({"location": where, "date": day, "condition": cond,
+        print(json.dumps({"location": label, "date": day, "condition": cond,
                           "high_c": high, "low_c": low, "wind_mph": wind,
-                          "humidity_pct": humidity, "quip": quip,
-                          "offline": True}, indent=2))
+                          "humidity_pct": humidity, "offline": True,
+                          "note": note}, indent=2))
         return
-    print(f"Weather for “{where}” ({day})   [offline, for fun]")
+    print(f"Weather for {label} ({day})   [{note}]")
     print("=" * 52)
     print(f"  {glyph}  {cond},  {high}° / {low}°C")
     print(f"  wind {wind} mph  ·  humidity {humidity}%")
-    print(f"  “{quip}”")
 
 
 def cmd_eightball(args):
-    """Magic 8-Ball: ask a yes/no question, give it a shake. Offline."""
+    """A yes/no decision helper (Magic 8-Ball). Deterministic given --seed."""
     question = " ".join(args.question).strip() if args.question else ""
     rng = _fun_rng(args.seed) if args.seed is not None else _fun_rng(None)
     answer = rng.choice(_EIGHTBALL)
@@ -5591,14 +5692,14 @@ def build_parser():
                     help="initial colour theme (default dark)")
     gu.set_defaults(func=cmd_gui)
 
-    fo = sub.add_parser("fortune", help="a fortune cookie with lucky numbers (fun)")
+    fo = sub.add_parser("fortune", help="a daily fortune with lucky numbers")
     fo.add_argument("--seed", type=int, default=None,
                     help="seed for a reproducible result")
     fo.add_argument("--json", action="store_true", help="output JSON instead of text")
     fo.set_defaults(func=cmd_fortune)
 
     ho = sub.add_parser("horoscope",
-                        help="a playful, finance-flavoured daily horoscope (fun)")
+                        help="a finance-flavoured daily horoscope")
     ho.add_argument("sign", nargs="?", default=None,
                     help="your star sign (optional, e.g. leo)")
     ho.add_argument("--seed", type=int, default=None,
@@ -5607,15 +5708,18 @@ def build_parser():
     ho.set_defaults(func=cmd_horoscope)
 
     we = sub.add_parser("weather",
-                        help="a whimsical offline weather forecast - no network (fun)")
-    we.add_argument("--where", default="here", help="a place name (just for flavour)")
+                        help="current weather for a place (live via Open-Meteo; "
+                             "offline fallback)")
+    we.add_argument("--where", default="", help="place name, e.g. 'Dublin'")
+    we.add_argument("--offline", action="store_true",
+                    help="skip the network and give a local estimate")
     we.add_argument("--seed", type=int, default=None,
-                    help="seed for a reproducible result (else varies by day)")
+                    help="seed for a reproducible offline estimate")
     we.add_argument("--json", action="store_true", help="output JSON instead of text")
     we.set_defaults(func=cmd_weather)
 
     eb = sub.add_parser("eightball",
-                        help="Magic 8-Ball: ask a yes/no question (fun)")
+                        help="a yes/no decision helper (Magic 8-Ball)")
     eb.add_argument("question", nargs="*", help="your yes/no question")
     eb.add_argument("--seed", type=int, default=None,
                     help="seed for a reproducible result")
@@ -5758,7 +5862,7 @@ MUTATING_COMMANDS = frozenset({
     "import", "restore", "backup", "dedupe", "undo", "config", "recur",
     "completion", "version", "web", "gui", "where", "tip", "split", "fx",
     "check", "interest", "loan",
-    "fortune", "horoscope", "weather", "eightball",   # offline fun modes
+    "fortune", "horoscope", "weather", "eightball",   # almanac modes
 })
 
 

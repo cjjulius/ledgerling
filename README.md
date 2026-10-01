@@ -39,9 +39,18 @@ standard library only — no extra dependencies). It opens a real OS window with
   Help;
 - a **toolbar** of quick-access buttons for the common actions;
 - a **sidebar** of **icon buttons** — every command, grouped (Record / Analyze /
-  Budgets & goals / Calculators / Recurring / Data / Settings / Fun), each with
-  an icon, a hover animation, and a tooltip of its help — with a live **filter**
-  box and an active-command highlight;
+  Budgets & goals / Calculators / Recurring / Data / Settings / Almanac), each
+  with an icon, a hover animation, and a tooltip of its help — with a live
+  **filter** box and a pulsing active-command highlight;
+- a **Pinned bar** with **drag-and-drop**: drag any command from the sidebar
+  onto it to pin a favourite, drag the chips to reorder, right-click to unpin;
+  your pins persist between launches;
+- **multiple windows** — File → New window (Ctrl+N) opens another command
+  window so you can run things side by side, and "Pop out current command"
+  detaches the one you're viewing;
+- a **getting-started assistant** — a short guided tour that greets new users on
+  first launch and is reopenable any time from Help → Getting started (or the
+  toolbar's **? guide**);
 - a **schema-driven form** for the selected command (it generates itself from
   the CLI, so every current and future command appears automatically), a
   results area with an **Output** tab (text, with a Copy button) and a
@@ -142,12 +151,19 @@ Then start a new shell and press Tab after `ledgerling`.
 ## Sandbox rule
 
 Ledgerling only ever reads and writes files **inside one data folder that it
-owns**. It never posts, uploads, or pushes anything anywhere. Every write goes
+owns**. It never posts, uploads, or pushes your data anywhere. Every write goes
 through a guard that refuses any path outside that folder.
 
 - Location: `~/.ledgerling` by default, or `$LEDGERLING_HOME` if you set it.
-- Contents: `ledgerling_data.json`, `ledgerling_config.json`, `exports/`,
-  `backups/` — all created and owned by the app.
+- Contents: `ledgerling_data.json`, `ledgerling_config.json`, `gui_state.json`,
+  `exports/`, `backups/` — all created and owned by the app.
+
+**One network exception:** the `weather` command, when given a place name,
+makes an outbound request to [Open-Meteo](https://open-meteo.com/) (a free,
+keyless, public weather API) to fetch current conditions — it sends only the
+place name you type, never any ledger data, and falls back to an offline
+estimate if the network is unavailable or you pass `--offline`. No other command
+touches the network.
 
 ## Requirements
 
@@ -496,13 +512,20 @@ ledgerling recur unskip 1 --all               # clear all skips on the rule
 ledgerling recur pause 1              # stop a rule until resumed
 ledgerling recur resume 1             # resume (no backfill of the paused gap)
 
-# Fun modes — playful, fully offline extras (no network, no stored data touched).
-# Deterministic given --seed; the daily ones otherwise vary by date.
-ledgerling fortune                    # a fortune cookie + lucky numbers
+# Almanac — daily companion readings. The fortune/horoscope/eightball modes are
+# self-contained (no network, no stored data touched) and deterministic given
+# --seed; the daily ones otherwise vary by date.
+ledgerling fortune                    # a daily fortune + lucky numbers
 ledgerling horoscope leo              # finance-flavoured daily horoscope
-ledgerling weather --where Dublin     # whimsical OFFLINE forecast (for fun)
-ledgerling eightball "will I save money this month"   # Magic 8-Ball
+ledgerling eightball "will I save money this month"   # yes/no decision helper
 ledgerling fortune --seed 42 --json   # reproducible; all support --json
+
+# weather is the one command that may use the network: with a place name it
+# fetches live current conditions from Open-Meteo (free, no API key); with
+# --offline (or no place) it gives a local deterministic estimate instead.
+ledgerling weather --where "Dublin"
+ledgerling weather --where "Tokyo" --json
+ledgerling weather --offline          # never touches the network
 ```
 
 ## Tests

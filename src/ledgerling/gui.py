@@ -41,7 +41,7 @@ GROUP_DEFS = [
     ("Data", ["export", "import", "backup", "restore", "dedupe", "duplicates",
               "retag", "tag", "untag", "recategorize", "check", "undo"]),
     ("Settings", ["config", "where", "version", "completion", "web", "gui"]),
-    ("Fun", ["fortune", "horoscope", "weather", "eightball"]),
+    ("Almanac", ["fortune", "horoscope", "weather", "eightball"]),
 ]
 
 # A glyph per group (fallback) and per command (when a specific one reads well).
@@ -49,7 +49,7 @@ GROUP_ICONS = {
     "Record": "✍️", "Analyze": "\U0001f4ca",
     "Budgets & goals": "\U0001f3af", "Calculators": "\U0001f9ee",
     "Recurring": "\U0001f501", "Data": "\U0001f5c4️",
-    "Settings": "⚙️", "Fun": "\U0001f389", "More": "•",
+    "Settings": "⚙️", "Almanac": "\U0001f4d6", "More": "•",
 }
 ICONS = {
     "add": "➕", "income": "\U0001f4b0", "edit": "✏️",
@@ -263,10 +263,16 @@ class LedgerlingGUI:
         self._comet = 0.0
         self._spin = 0
         self._spinning = False
+        self._windows = []        # secondary command windows
+        self._drag = None         # in-flight drag {name, ghost, kind}
+        self._pulse = 0.0
 
         state = _load_state()
         self.theme_name = state.get("theme") or theme
         self.colors = dict(THEMES.get(self.theme_name, THEMES["dark"]))
+        self.pinned = [n for n in (state.get("pinned") or [])
+                       if n in self.commands]
+        self.onboarded = bool(state.get("onboarded"))
 
         root.title("Ledgerling")
         root.minsize(940, 580)
@@ -279,16 +285,20 @@ class LedgerlingGUI:
         self._build_menu()
         self._build_header()
         self._build_toolbar()
+        self._build_pinbar()
         self._build_body()
         self._build_statusbar()
         self.apply_theme(self.theme_name, animate=False)
         self._bind_shortcuts()
         self._poll_results()
         self._animate_header()
+        self._animate_pulse()
         root.protocol("WM_DELETE_WINDOW", self._on_close)
 
         self.open_command("summary" if "summary" in self.commands else
                           next(iter(self.commands)))
+        if not self.onboarded:
+            self._after(350, self.show_assistant)
 
     # ----- scheduling helpers --------------------------------------------- #
     def _after(self, ms, fn):
@@ -307,6 +317,11 @@ class LedgerlingGUI:
         filem = tk.Menu(bar, tearoff=0)
         filem.add_command(label="Run command", accelerator="Ctrl+Enter",
                           command=self.run_current)
+        filem.add_separator()
+        filem.add_command(label="New window", accelerator="Ctrl+N",
+                          command=self.new_window)
+        filem.add_command(label="Pop out current command",
+                          command=lambda: self.new_window(self.current))
         filem.add_separator()
         filem.add_command(label="Open web UI", command=self._open_web)
         filem.add_separator()
@@ -337,6 +352,7 @@ class LedgerlingGUI:
         bar.add_cascade(label="View", menu=viewm)
 
         helpm = tk.Menu(bar, tearoff=0)
+        helpm.add_command(label="Getting started…", command=self.show_assistant)
         helpm.add_command(label="About Ledgerling", command=self._about)
         bar.add_cascade(label="Help", menu=helpm)
 
@@ -407,6 +423,14 @@ class LedgerlingGUI:
                                     style="Tool.TButton", command=self.toggle_theme)
         self.theme_btn.pack(side="right")
         _Tooltip(self.theme_btn, "Toggle light / dark  (Ctrl+T)")
+        gbtn = ttk.Button(self.toolbar, text="❓  guide",
+                          style="Tool.TButton", command=self.show_assistant)
+        gbtn.pack(side="right", padx=(0, 6))
+        _Tooltip(gbtn, "Getting-started guide")
+        nbtn = ttk.Button(self.toolbar, text="\U0001f5d7  new window",
+                          style="Tool.TButton", command=self.new_window)
+        nbtn.pack(side="right", padx=(0, 6))
+        _Tooltip(nbtn, "Open another command window  (Ctrl+N)")
 
     # ----- body ------------------------------------------------------------ #
     def _build_body(self):
@@ -571,7 +595,10 @@ class LedgerlingGUI:
         btn = {"row": row, "bar": bar, "gl": gl, "tx": tx, "base": c["panel"]}
         self._nav[name] = btn
         for w in (row, bar, gl, tx):
-            w.bind("<Button-1>", lambda _e, n=name: self.open_command(n))
+            w.bind("<ButtonPress-1>",
+                   lambda e, n=name: self._drag_start(n, e, "nav"))
+            w.bind("<B1-Motion>", self._drag_motion)
+            w.bind("<ButtonRelease-1>", self._drag_release)
             w.bind("<Enter>", lambda _e, n=name: self._hover_nav(n, True))
             w.bind("<Leave>", lambda _e, n=name: self._hover_nav(n, False))
             self._bind_wheel(w)
@@ -932,12 +959,13 @@ class LedgerlingGUI:
             self._draw_header_static()
         if hasattr(self, "nav_inner"):
             self._refill_nav()
+        if hasattr(self, "pinbar"):
+            self._render_pins()
 
     def toggle_theme(self):
         self.apply_theme("light" if self.theme_name == "dark" else "dark",
                          animate=True)
-        _save_state({"theme": self.theme_name,
-                     "geometry": self._current_geometry()})
+        self._persist()
 
     def _current_geometry(self):
         try:
@@ -945,10 +973,14 @@ class LedgerlingGUI:
         except Exception:
             return None
 
+    def _persist(self):
+        _save_state({"theme": self.theme_name,
+                     "geometry": self._current_geometry(),
+                     "pinned": self.pinned, "onboarded": self.onboarded})
+
     def _on_close(self):
         self._alive = False
-        _save_state({"theme": self.theme_name,
-                     "geometry": self._current_geometry()})
+        self._persist()
         self.root.destroy()
 
     def _bind_shortcuts(self):
@@ -956,6 +988,182 @@ class LedgerlingGUI:
         self.root.bind("<Control-q>", lambda _e: self._on_close())
         self.root.bind("<Control-t>", lambda _e: self.toggle_theme())
         self.root.bind("<Control-k>", lambda _e: self.filter_entry.focus_set())
+        self.root.bind("<Control-n>", lambda _e: self.new_window())
+
+    # ----- pinned favourites (drag & drop) -------------------------------- #
+    def _build_pinbar(self):
+        self.pinbar = self.tk.Frame(self.root, highlightthickness=0, bd=0)
+        self.pinbar.pack(side="top", fill="x")
+        self._pin_chips = {}
+        self._render_pins()
+
+    def _render_pins(self):
+        tk, c = self.tk, self.colors
+        for ch in self.pinbar.winfo_children():
+            ch.destroy()
+        self._pin_chips = {}
+        self.pinbar.configure(background=c["panel"])
+        tk.Label(self.pinbar, text="\U0001f4cc Pinned", background=c["panel"],
+                 foreground=c["muted"], font=("Segoe UI", 8, "bold")).pack(
+            side="left", padx=(12, 8), pady=5)
+        if not self.pinned:
+            tk.Label(self.pinbar, text="drag a command here to pin it",
+                     background=c["panel"], foreground=c["muted"],
+                     font=("Segoe UI", 8, "italic")).pack(side="left", pady=5)
+            return
+        for name in self.pinned:
+            self._make_pin_chip(name)
+
+    def _make_pin_chip(self, name):
+        tk, c = self.tk, self.colors
+        chip = tk.Frame(self.pinbar, background=_lerp(c["panel"], c["accent"], .14),
+                        cursor="hand2")
+        gl = tk.Label(chip, text=_icon_for(name),
+                      background=chip["background"], foreground=c["ink"],
+                      font=("Segoe UI Emoji", 10))
+        gl.pack(side="left", padx=(8, 2), pady=2)
+        tx = tk.Label(chip, text=name, background=chip["background"],
+                      foreground=c["ink"], font=("Segoe UI", 9))
+        tx.pack(side="left", padx=(0, 8), pady=2)
+        chip.pack(side="left", padx=3, pady=4)
+        self._pin_chips[name] = chip
+        for w in (chip, gl, tx):
+            w.bind("<ButtonPress-1>",
+                   lambda e, n=name: self._drag_start(n, e, "pin"))
+            w.bind("<B1-Motion>", self._drag_motion)
+            w.bind("<ButtonRelease-1>", self._drag_release)
+            w.bind("<Button-3>", lambda _e, n=name: self.unpin(n))
+            _Tooltip(w, self.commands[name].get("help", "") +
+                     "  •  drag to reorder, right-click to unpin")
+        return chip
+
+    def pin(self, name):
+        if name in self.commands and name not in self.pinned:
+            self.pinned.append(name)
+            self._render_pins()
+            self._persist()
+            self._set_status(f"pinned {name}")
+
+    def unpin(self, name):
+        if name in self.pinned:
+            self.pinned.remove(name)
+            self._render_pins()
+            self._persist()
+
+    def _reorder_pin(self, name, x_root):
+        if name not in self.pinned:
+            return
+        centers = []
+        for n, chip in self._pin_chips.items():
+            if n == name:
+                continue
+            try:
+                cx = chip.winfo_rootx() + chip.winfo_width() / 2
+            except Exception:
+                cx = 0
+            centers.append((cx, n))
+        idx = sum(1 for cx, _ in centers if cx < x_root)
+        order = [n for n in self.pinned if n != name]
+        order.insert(idx, name)
+        if order != self.pinned:
+            self.pinned = order
+            self._render_pins()
+            self._persist()
+
+    # ----- generic drag (nav button -> pin, or pin reorder) --------------- #
+    def _drag_start(self, name, e, kind):
+        self._drag = {"name": name, "x": e.x_root, "y": e.y_root,
+                      "ghost": None, "moved": False, "kind": kind}
+
+    def _drag_motion(self, e):
+        d = self._drag
+        if not d:
+            return
+        if not d["moved"] and max(abs(e.x_root - d["x"]),
+                                  abs(e.y_root - d["y"])) > 6:
+            d["moved"] = True
+            d["ghost"] = self._make_ghost(d["name"])
+        if d["moved"] and d["ghost"]:
+            try:
+                d["ghost"].geometry(f"+{e.x_root + 12}+{e.y_root + 12}")
+            except Exception:
+                pass
+
+    def _drag_release(self, e):
+        d = self._drag
+        self._drag = None
+        if not d:
+            return
+        if d["ghost"]:
+            try:
+                d["ghost"].destroy()
+            except Exception:
+                pass
+        if not d["moved"]:
+            self.open_command(d["name"])      # a plain click opens
+            return
+        if d["kind"] == "nav" and self._over_pinbar(e):
+            self.pin(d["name"])
+        elif d["kind"] == "pin":
+            if self._over_pinbar(e):
+                self._reorder_pin(d["name"], e.x_root)
+            else:
+                self.unpin(d["name"])         # dragged off the bar -> remove
+
+    def _make_ghost(self, name):
+        tk, c = self.tk, self.colors
+        g = tk.Toplevel(self.root)
+        g.overrideredirect(True)
+        try:
+            g.attributes("-alpha", 0.9)
+            g.attributes("-topmost", True)
+        except Exception:
+            pass
+        tk.Label(g, text=f"{_icon_for(name)}  {name}", background=c["accent"],
+                 foreground=c["accent_ink"], font=("Segoe UI Semibold", 10),
+                 padx=10, pady=5).pack()
+        return g
+
+    def _over_pinbar(self, e):
+        w = getattr(self, "pinbar", None)
+        if not w:
+            return False
+        try:
+            x, y = w.winfo_rootx(), w.winfo_rooty()
+            return (x <= e.x_root <= x + w.winfo_width()
+                    and y <= e.y_root <= y + w.winfo_height())
+        except Exception:
+            return False
+
+    # ----- pulse animation on the active command -------------------------- #
+    def _animate_pulse(self):
+        if not self._alive:
+            return
+        import math
+        self._pulse = (self._pulse + 0.07) % 1.0
+        mix = 0.5 - 0.5 * math.cos(self._pulse * 2 * math.pi)
+        btn = self._nav.get(self.current)
+        if btn:
+            try:
+                btn["bar"].configure(
+                    background=_lerp(self.colors["accent"],
+                                     self.colors["accent2"], mix))
+            except Exception:
+                pass
+        self._after(90, self._animate_pulse)
+
+    # ----- multiple windows + onboarding ---------------------------------- #
+    def new_window(self, name=None):
+        win = _CommandWindow(self, name if name in self.commands else None)
+        self._windows.append(win)
+        return win
+
+    def show_assistant(self):
+        _Assistant(self)
+
+    def mark_onboarded(self):
+        self.onboarded = True
+        self._persist()
 
     def _open_web(self):
         import webbrowser
@@ -978,6 +1186,246 @@ class LedgerlingGUI:
             "A local, private expense & income ledger.\n"
             "Native desktop UI (Tkinter) over the same commands as the CLI.\n"
             "All data stays in the app's own folder.")
+
+
+class _CommandWindow:
+    """A standalone Toplevel for running one command - lets you work in several
+    windows at once (File -> New window, or pop out the current command)."""
+
+    def __init__(self, app, name=None):
+        import tkinter as tk
+        from tkinter import ttk
+        self.app, self.tk, self.ttk = app, tk, ttk
+        self.commands = app.commands
+        self.currency, self.symbol_after = app.currency, app.symbol_after
+        c = app.colors
+        self.top = tk.Toplevel(app.root)
+        self.top.title("Ledgerling — command")
+        self.top.configure(background=c["bg"])
+        self.top.minsize(540, 440)
+        self.fields = {}
+        self._q = queue.Queue()
+        self._alive = True
+
+        names = sorted(self.commands)
+        self.var = tk.StringVar(value=name if name in self.commands else names[0])
+        wrap = ttk.Frame(self.top, style="Main.TFrame", padding=12)
+        wrap.pack(fill="both", expand=True)
+        bar = ttk.Frame(wrap, style="Main.TFrame")
+        bar.pack(fill="x")
+        ttk.Label(bar, text="Command:", style="Field.TLabel").pack(side="left")
+        combo = ttk.Combobox(bar, textvariable=self.var, state="readonly",
+                             values=names, width=26)
+        combo.pack(side="left", padx=8)
+        combo.bind("<<ComboboxSelected>>", lambda _e: self._load())
+        self.help = ttk.Label(wrap, text="", style="Muted.TLabel",
+                              wraplength=640, justify="left")
+        self.help.pack(fill="x", anchor="w", pady=(8, 4))
+        self.form = ttk.Frame(wrap, style="Main.TFrame")
+        self.form.pack(fill="x", pady=(2, 8))
+        rb = ttk.Frame(wrap, style="Main.TFrame")
+        rb.pack(fill="x")
+        self.run_btn = ttk.Button(rb, text="▶  Run", style="Accent.TButton",
+                                  command=self._run)
+        self.run_btn.pack(side="left")
+        self.out = tk.Text(wrap, height=12, font=("Consolas", 10),
+                           state="disabled", background=c["field"],
+                           foreground=c["ink"], bd=0, wrap="none")
+        self.out.pack(fill="both", expand=True, pady=(10, 0))
+        self.top.protocol("WM_DELETE_WINDOW", self._close)
+        self._load()
+        self._poll()
+
+    def _load(self):
+        ttk = self.ttk
+        for ch in self.form.winfo_children():
+            ch.destroy()
+        self.fields = {}
+        cmd = self.commands[self.var.get()]
+        self.help.config(text=cmd.get("help", ""))
+        row = 0
+        for a in cmd["args"]:
+            w = self._field(a, row)
+            if w is not None:
+                self.fields[a["dest"]] = (w, a)
+                row += 1
+        self.form.columnconfigure(1, weight=1)
+
+    def _field(self, a, row):
+        tk, ttk = self.tk, self.ttk
+        req = a["kind"] == "positional" and not a.get("optional")
+        ttk.Label(self.form, style="Field.TLabel",
+                  text=_humanize(a["dest"]) + (" *" if req else "")).grid(
+            row=row, column=0, sticky="w", padx=(0, 10), pady=4)
+        if a.get("type") == "bool":
+            var = tk.BooleanVar(value=False)
+            w = ttk.Checkbutton(self.form, variable=var,
+                                style="Field.TCheckbutton")
+        elif a.get("type") == "choice":
+            var = tk.StringVar(value="")
+            w = ttk.Combobox(self.form, textvariable=var, state="readonly",
+                             values=[""] + [str(x) for x in a["choices"]])
+        else:
+            var = tk.StringVar(value="")
+            w = ttk.Entry(self.form, textvariable=var)
+            w.bind("<Return>", lambda _e: self._run())
+        w.grid(row=row, column=1, sticky="ew", pady=4)
+        w._var = var
+        return w
+
+    def _collect(self):
+        cmd = self.commands[self.var.get()]
+        pos, opt = [], []
+        for a in cmd["args"]:
+            w, _ = self.fields.get(a["dest"], (None, None))
+            if w is None:
+                continue
+            if a.get("type") == "bool":
+                if bool(w._var.get()):
+                    opt += [a["flag"]]
+                continue
+            val = str(w._var.get()).strip()
+            if a["kind"] == "positional":
+                if val:
+                    pos += val.split() if a.get("variadic") else [val]
+            elif val:
+                opt += [a["flag"], val]
+        return list(cmd["argv"]) + pos + opt
+
+    def _run(self):
+        argv = self._collect()
+        self.run_btn.config(state="disabled", text="Running…")
+        self._set("running…")
+
+        def work():
+            self._q.put(web.run_cli(argv))
+        threading.Thread(target=work, daemon=True).start()
+
+    def _poll(self):
+        if not self._alive:
+            return
+        try:
+            res = self._q.get_nowait()
+            self.run_btn.config(state="normal", text="▶  Run")
+            ok = res["code"] == 0
+            self._set((res["stdout"] or "(no output)") if ok
+                      else (res["stderr"] or res["stdout"] or "error"))
+        except queue.Empty:
+            pass
+        try:
+            self.top.after(90, self._poll)
+        except Exception:
+            self._alive = False
+
+    def _set(self, text):
+        self.out.config(state="normal")
+        self.out.delete("1.0", "end")
+        self.out.insert("1.0", text)
+        self.out.config(state="disabled")
+
+    def _close(self):
+        self._alive = False
+        if self in self.app._windows:
+            self.app._windows.remove(self)
+        self.top.destroy()
+
+
+class _Assistant:
+    """A short, friendly guided tour for new users (Help -> Getting started)."""
+
+    STEPS = [
+        ("Welcome to Ledgerling",
+         "Your private, local money ledger. Nothing leaves your computer "
+         "(except live weather, if you ask for it).\n\nThis quick tour points "
+         "out the essentials - you can reopen it any time from Help → "
+         "Getting started."),
+        ("Find any command",
+         "The left sidebar lists every command as an icon button, grouped by "
+         "purpose. Type in the filter box (or press Ctrl+K) to narrow the list, "
+         "and click a command to open its form."),
+        ("Run it",
+         "Fill in the fields on the right and press Run (or Ctrl+Enter). Results "
+         "appear below as text, and - when the command supports it - as a "
+         "sortable Table you can click to re-sort."),
+        ("Pin your favourites",
+         "Drag a command from the sidebar onto the Pinned bar at the top to keep "
+         "it handy. Drag pinned items to reorder them; right-click to unpin."),
+        ("Work in several windows",
+         "File → New window (Ctrl+N) opens another command window, so you "
+         "can run things side by side. 'Pop out current command' detaches the "
+         "one you're viewing."),
+        ("Make it yours",
+         "Toggle the light / green and dark-green themes with Ctrl+T. Explore "
+         "the Almanac group - today's briefing, a fortune, a horoscope, and live "
+         "weather. Enjoy!"),
+    ]
+
+    def __init__(self, app):
+        import tkinter as tk
+        from tkinter import ttk
+        self.app, self.tk, self.ttk = app, tk, ttk
+        self.i = 0
+        c = app.colors
+        self.top = tk.Toplevel(app.root)
+        self.top.title("Getting started")
+        self.top.configure(background=c["panel"])
+        self.top.minsize(440, 300)
+        self.top.transient(app.root)
+        try:
+            self.top.grab_set()
+        except Exception:
+            pass
+        self.title = tk.Label(self.top, background=c["panel"],
+                              foreground=c["accent"],
+                              font=("Segoe UI Semibold", 15), anchor="w",
+                              justify="left")
+        self.title.pack(fill="x", padx=20, pady=(18, 6))
+        self.body = tk.Label(self.top, background=c["panel"],
+                             foreground=c["ink"], font=("Segoe UI", 10),
+                             wraplength=400, justify="left", anchor="nw")
+        self.body.pack(fill="both", expand=True, padx=20)
+        self.dots = tk.Label(self.top, background=c["panel"],
+                             foreground=c["muted"], font=("Segoe UI", 11))
+        self.dots.pack(pady=(4, 2))
+        navb = ttk.Frame(self.top, style="Toolbar.TFrame", padding=(12, 10))
+        navb.pack(fill="x")
+        self.skip = ttk.Button(navb, text="Don't show again", style="Tool.TButton",
+                               command=self._dismiss)
+        self.skip.pack(side="left")
+        self.next_btn = ttk.Button(navb, text="Next →",
+                                   style="Accent.TButton", command=self._next)
+        self.next_btn.pack(side="right")
+        self.back_btn = ttk.Button(navb, text="← Back", style="Tool.TButton",
+                                   command=self._back)
+        self.back_btn.pack(side="right", padx=(0, 6))
+        self.top.protocol("WM_DELETE_WINDOW", self.top.destroy)
+        self._render()
+
+    def _render(self):
+        title, body = self.STEPS[self.i]
+        self.title.config(text=title)
+        self.body.config(text=body)
+        self.dots.config(text="  ".join("●" if j == self.i else "○"
+                                        for j in range(len(self.STEPS))))
+        self.back_btn.state(["!disabled"] if self.i else ["disabled"])
+        self.next_btn.config(text="Finish" if self.i == len(self.STEPS) - 1
+                             else "Next →")
+
+    def _next(self):
+        if self.i < len(self.STEPS) - 1:
+            self.i += 1
+            self._render()
+        else:
+            self._dismiss()
+
+    def _back(self):
+        if self.i:
+            self.i -= 1
+            self._render()
+
+    def _dismiss(self):
+        self.app.mark_onboarded()
+        self.top.destroy()
 
 
 class _Tooltip:
