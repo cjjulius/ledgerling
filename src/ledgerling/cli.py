@@ -87,6 +87,7 @@ Commands:
     allowance  How much you can still spend per day to stay on budget
     overbudget  Budget breaches across every month of history
     goal      Set / view a monthly savings goal
+    networth  Track account balances (assets/debts) and net worth
     recur     Recurring rules (add/from/edit/list/remove/run/skip/unskip/pause/resume)
     export    Write entries to CSV/JSON (filter by month/range/category/kind)
     import    Read entries back from a CSV or JSON file (deduped)
@@ -121,7 +122,7 @@ import tempfile
 import time
 from datetime import datetime, date, timedelta
 
-__version__ = "1.132.1"
+__version__ = "1.133.0"
 
 # --------------------------------------------------------------------------- #
 # Sandbox + storage
@@ -173,7 +174,8 @@ def _within_home(path):
 
 def load():
     if not os.path.exists(DATA_FILE):
-        return {"expenses": [], "budgets": {}, "recurring": [], "goal": None}
+        return {"expenses": [], "budgets": {}, "recurring": [], "goal": None,
+                "accounts": {}}
     try:
         with open(DATA_FILE, "r", encoding="utf-8") as fh:
             data = json.load(fh)
@@ -183,6 +185,7 @@ def load():
     data.setdefault("budgets", {})
     data.setdefault("recurring", [])
     data.setdefault("goal", None)
+    data.setdefault("accounts", {})
     return data
 
 
@@ -328,6 +331,16 @@ def all_time_net(data):
     inc = sum(e["amount"] for e in income_only(data["expenses"]))
     exp = sum(e["amount"] for e in expenses_only(data["expenses"]))
     return round(inc - exp, 2)
+
+
+def networth_totals(accounts):
+    """(assets, debts, net) from an accounts dict {label: {amount, debt}}.
+    Debts are summed as positive magnitudes; net = assets - debts. Pure."""
+    assets = round(sum(a["amount"] for a in accounts.values()
+                       if not a.get("debt")), 2)
+    debts = round(sum(a["amount"] for a in accounts.values()
+                      if a.get("debt")), 2)
+    return assets, debts, round(assets - debts, 2)
 
 
 def group_totals(rows, key_fn):
@@ -4097,6 +4110,70 @@ def cmd_goal(args):
         print(f"{money(goal - net)} to go")
 
 
+def cmd_networth(args):
+    """Track manual account balances (assets and debts) and your net worth,
+    alongside the ledger's cash position. --set/--remove edit accounts; with
+    neither, it shows the summary."""
+    data = load()
+    accounts = data["accounts"]
+
+    if getattr(args, "set", None) and getattr(args, "remove", None):
+        sys.exit("error: use --set or --remove, not both")
+
+    if getattr(args, "set", None):
+        label = args.set.strip().lower()
+        if not label:
+            sys.exit("error: account label cannot be empty")
+        if args.amount is None:
+            sys.exit("error: --set needs --amount")
+        if args.amount < 0:
+            sys.exit("error: amount cannot be negative "
+                     "(mark liabilities with --debt)")
+        accounts[label] = {"amount": round(args.amount, 2),
+                           "debt": bool(args.debt),
+                           "updated": date.today().isoformat()}
+        save(data)
+        kind = "debt" if args.debt else "asset"
+        print(f"set {kind} '{label}' to {money(accounts[label]['amount'])}")
+        if not getattr(args, "json", False):
+            return
+    elif getattr(args, "remove", None):
+        label = args.remove.strip().lower()
+        if label not in accounts:
+            sys.exit(f"error: no account '{label}'")
+        del accounts[label]
+        save(data)
+        print(f"removed account '{label}'")
+        if not getattr(args, "json", False):
+            return
+
+    assets, debts, net = networth_totals(accounts)
+    cash = all_time_net(data)
+    rows = [{"label": k, "amount": v["amount"], "debt": bool(v.get("debt")),
+             "updated": v.get("updated")}
+            for k, v in sorted(accounts.items())]
+
+    if getattr(args, "json", False):
+        print(json.dumps({"accounts": rows, "assets": assets, "debts": debts,
+                          "net_worth": net, "cash": cash}, indent=2))
+        return
+
+    print("Net worth")
+    print("=" * 52)
+    if not rows:
+        print("no accounts yet. Try: networth --set checking --amount 2500")
+    else:
+        for r in rows:
+            tag = "  (debt)" if r["debt"] else ""
+            upd = f"   updated {r['updated']}" if r["updated"] else ""
+            print(f"  {r['label']:<18} {money(r['amount']):>12}{tag}{upd}")
+        print("-" * 52)
+        print(f"  {'assets':<18} {money(assets):>12}")
+        print(f"  {'debts':<18} {money(debts):>12}")
+        print(f"  {'net worth':<18} {money(net):>12}")
+    print(f"  {'ledger cash':<18} {money(cash):>12}   (all-time net, for context)")
+
+
 def _completion_spec():
     """Introspect the parser: top-level subcommands and each one's long options
     (plus any nested subcommand names, e.g. for `recur`)."""
@@ -5645,6 +5722,17 @@ def build_parser():
     gl.add_argument("--clear", action="store_true", help="remove the goal")
     gl.set_defaults(func=cmd_goal)
 
+    nw = sub.add_parser("networth",
+                        help="track account balances (assets/debts) and net worth")
+    nw.add_argument("--set", metavar="LABEL",
+                    help="add or update an account by label")
+    nw.add_argument("--amount", type=float, help="the account balance (with --set)")
+    nw.add_argument("--debt", action="store_true",
+                    help="mark the --set account as a liability")
+    nw.add_argument("--remove", metavar="LABEL", help="remove an account")
+    nw.add_argument("--json", action="store_true", help="output JSON instead of text")
+    nw.set_defaults(func=cmd_networth)
+
     bk = sub.add_parser("backup", help="save a timestamped copy of your data")
     bk.add_argument("--list", action="store_true", help="list existing backups")
     bk.set_defaults(func=cmd_backup)
@@ -5858,7 +5946,8 @@ CATCHUP_COMMANDS = frozenset({
 })
 MUTATING_COMMANDS = frozenset({
     "add", "income", "edit", "delete", "clone", "refund", "note", "tag",
-    "untag", "retag", "recategorize", "unbudget", "goal", "autobudget",
+    "untag", "retag", "recategorize", "unbudget", "goal", "networth",
+    "autobudget",
     "import", "restore", "backup", "dedupe", "undo", "config", "recur",
     "completion", "version", "web", "gui", "where", "tip", "split", "fx",
     "check", "interest", "loan",

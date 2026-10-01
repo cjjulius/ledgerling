@@ -2646,6 +2646,42 @@ class CLI(TempAppCase):
         d = json.loads(self._main(["stats", "--json"]))
         self.assertIsNone(d["goal"])
 
+    def test_networth_totals_pure(self):
+        acc = {"checking": {"amount": 2500.0, "debt": False},
+               "card": {"amount": 800.0, "debt": True},
+               "savings": {"amount": 1000.0}}
+        self.assertEqual(L.networth_totals(acc), (3500.0, 800.0, 2700.0))
+        self.assertEqual(L.networth_totals({}), (0.0, 0.0, 0.0))
+
+    def test_networth_set_remove_and_summary(self):
+        self._main(["networth", "--set", "Checking", "--amount", "2500"])
+        self._main(["networth", "--set", "card", "--amount", "800", "--debt"])
+        d = json.loads(self._main(["networth", "--json"]))
+        self.assertEqual(d["assets"], 2500.0)
+        self.assertEqual(d["debts"], 800.0)
+        self.assertEqual(d["net_worth"], 1700.0)
+        labels = {a["label"]: a for a in d["accounts"]}
+        self.assertTrue(labels["card"]["debt"])         # stored, lowercased
+        self.assertFalse(labels["checking"]["debt"])
+        self.assertEqual(labels["checking"]["updated"], date.today().isoformat())
+        # cash context reflects the ledger's all-time net
+        self._main(["income", "100", "salary", "x"])
+        self.assertEqual(json.loads(self._main(["networth", "--json"]))["cash"],
+                         100.0)
+        # remove
+        self._main(["networth", "--remove", "card"])
+        self.assertNotIn("card", L.load()["accounts"])
+
+    def test_networth_validation(self):
+        # --set needs --amount; negative amount rejected; removing a missing one
+        for argv in (["networth", "--set", "x"],
+                     ["networth", "--set", "x", "--amount", "-5"],
+                     ["networth", "--remove", "nope"]):
+            with self.assertRaises(SystemExit):
+                with contextlib.redirect_stdout(io.StringIO()), \
+                        contextlib.redirect_stderr(io.StringIO()):
+                    L.main(argv)
+
     def test_income_survives_csv_roundtrip(self):
         self._main(["add", "10", "food", "a"])
         self._main(["income", "50", "gift", "b"])
