@@ -592,8 +592,9 @@ being re-implemented per command — e.g. the all-time net that `cashflow`,
 `target`, and `runway` use as a default balance, a category's spend in a month
 (`budget`/`pace`/`allowance`/`report`), the date-range bounds for
 `export`/`search`, the `--in` currency conversion for `add`/`income`, the
-per-period income/spending accumulation that `savings` and `years` share, and
-the optional `--month` row filter that a dozen read commands apply.
+per-period income/spending accumulation that `savings` and `years` share, the
+optional `--month` row filter that a dozen read commands apply, and the
+month income/spending/net totals that `compare`, `today`, and `statement` share.
 
 Config loading is defensive: a stored setting is only accepted when its type
 matches the default (a corrupt or hand-edited value falls back to that default

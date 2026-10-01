@@ -124,7 +124,7 @@ import tempfile
 import time
 from datetime import datetime, date, timedelta
 
-__version__ = "1.136.0"
+__version__ = "1.136.1"
 
 # --------------------------------------------------------------------------- #
 # Sandbox + storage
@@ -3739,12 +3739,8 @@ def cmd_today(args):
     data = load()
     today = date.today()
     period = today.isoformat()[:7]
-    rows = data["expenses"]
-    income = round(sum(e["amount"] for e in rows if kind_of(e) == "income"
-                       and month_of(e["date"]) == period), 2)
-    spending = round(sum(e["amount"] for e in rows if kind_of(e) == "expense"
-                         and month_of(e["date"]) == period), 2)
-    net = round(income - spending, 2)
+    tot = _period_totals(data["expenses"], period)
+    income, spending, net = tot["income"], tot["spending"], tot["net"]
     balance = all_time_net(data)
 
     days = getattr(args, "days", 7) or 7
@@ -4100,11 +4096,8 @@ def month_statement(data, period, top_n=5):
     / savings rate, spending by category, budget adherence, and the largest
     expenses. Pure, so the text / JSON / Markdown renderers all share it."""
     rows = filter_month(data["expenses"], period)
-    income = round(sum(e["amount"] for e in rows
-                       if kind_of(e) == "income"), 2)
-    spending = round(sum(e["amount"] for e in rows
-                         if kind_of(e) == "expense"), 2)
-    net = round(income - spending, 2)
+    tot = _period_totals(rows, period)
+    income, spending, net = tot["income"], tot["spending"], tot["net"]
     rate = round(net / income * 100, 1) if income > 0 else None
 
     cats = {}
