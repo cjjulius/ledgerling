@@ -22,6 +22,7 @@ Commands:
     list      Show recent expenses (with optional filters)
     edit      Change fields on an existing expense
     delete    Remove an expense by id
+    split     Split an entry into category/amount parts that sum to it
     clone     Duplicate an entry (defaults to today's date)
     refund    Record a refund for an expense (as offsetting income)
     search    Find expenses by keyword, #tag, category, month, or amount range
@@ -101,7 +102,7 @@ import sys
 import tempfile
 from datetime import datetime, date, timedelta
 
-__version__ = "1.87.0"
+__version__ = "1.88.0"
 
 # --------------------------------------------------------------------------- #
 # Sandbox + storage
@@ -585,6 +586,62 @@ def cmd_delete(args):
     save(data)
     print(f"deleted #{e['id']}: {money(e['amount'])} [{e['category']}] "
           f"on {e['date']}")
+
+
+def cmd_split(args):
+    """Replace one entry with several category/amount parts that sum to it.
+
+    Useful for a single receipt covering multiple categories (a Costco run that
+    was groceries + household). The parts inherit the original's date, note,
+    tags and kind; the total must match the original exactly (to the cent).
+    """
+    data = load()
+    e = find(data["expenses"], args.id)
+    if not e:
+        sys.exit(f"error: no entry with id #{args.id}")
+    parts = args.parts
+    if len(parts) % 2 != 0:
+        sys.exit("error: split needs category/amount pairs, e.g. "
+                 "split 5 groceries 70 household 30")
+    pairs = []
+    i = 0
+    while i < len(parts):
+        cat = clean_category(parts[i])
+        try:
+            amt = float(parts[i + 1])
+        except ValueError:
+            sys.exit(f"error: '{parts[i + 1]}' is not a valid amount")
+        if amt <= 0:
+            sys.exit("error: split amounts must be greater than zero")
+        pairs.append((cat, round(amt, 2)))
+        i += 2
+    if len(pairs) < 2:
+        sys.exit("error: split into at least two parts")
+
+    orig_cents = round(e["amount"] * 100)
+    sum_cents = sum(round(a * 100) for _, a in pairs)
+    if sum_cents != orig_cents:
+        sys.exit(f"error: parts total {money(round(sum_cents / 100, 2))} but "
+                 f"#{e['id']} is {money(e['amount'])}")
+
+    note, kind, tags = e["note"], kind_of(e), parse_tags(e["note"])
+    date_iso = e["date"]
+    data["expenses"] = [x for x in data["expenses"] if x["id"] != args.id]
+    made = []
+    for cat, amt in pairs:
+        nid = next_id(data["expenses"])
+        data["expenses"].append({
+            "id": nid, "amount": amt, "category": cat, "note": note,
+            "date": date_iso, "tags": tags, "kind": kind,
+        })
+        made.append((nid, cat, amt))
+    save(data)
+
+    what = "income" if kind == "income" else "expense"
+    print(f"split {what} #{e['id']} ({money(e['amount'])}) into "
+          f"{len(made)} parts:")
+    for nid, cat, amt in made:
+        print(f"  #{nid:<4} {money(amt):>12}  [{cat}]")
 
 
 def cmd_summary(args):
@@ -3655,6 +3712,13 @@ def build_parser():
     d.add_argument("id", type=int, help="expense id (see `list`)")
     d.set_defaults(func=cmd_delete)
 
+    sp = sub.add_parser("split",
+                        help="split an entry into category/amount parts")
+    sp.add_argument("id", type=int, help="entry id to split (see `list`)")
+    sp.add_argument("parts", nargs="+",
+                    help="category amount pairs, e.g. groceries 70 household 30")
+    sp.set_defaults(func=cmd_split)
+
     cl = sub.add_parser("clone", help="duplicate an entry (defaults to today)")
     cl.add_argument("id", type=int, help="entry id to copy (see `list`)")
     cl.add_argument("--date", default="today",
@@ -4142,7 +4206,7 @@ MUTATING_COMMANDS = frozenset({
     "add", "income", "edit", "delete", "clone", "refund", "note", "tag",
     "untag", "retag", "recategorize", "unbudget", "goal", "autobudget",
     "import", "restore", "backup", "dedupe", "undo", "config", "recur",
-    "completion", "version", "web", "where", "tip",
+    "completion", "version", "web", "where", "tip", "split",
 })
 
 

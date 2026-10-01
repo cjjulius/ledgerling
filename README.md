@@ -85,6 +85,7 @@ ledgerling add 12.50 food "lunch burrito"
 ledgerling add 45 food "groceries" --date yesterday
 ledgerling edit 1 --amount 13.75 --note "lunch (with tip)"
 ledgerling delete 2
+ledgerling split 1 groceries 70 household 30   # one receipt -> two categories
 ledgerling clone 1                    # duplicate entry #1 dated today
 ledgerling refund 1                   # record a full refund of expense #1
 ledgerling refund 1 --amount 12.50    # a partial refund
@@ -363,8 +364,8 @@ exactly the same dates as a full scan.
   `budget`, or `export`, any occurrences due up to today are generated
   automatically (idempotent — never duplicated). `recur run` forces it.
 - Removing a recurring rule keeps the expenses it already created.
-- **Undo** reverts the last change to your data (add/edit/delete/import/budget/
-  recategorize/restore/recurring catch-up). Running `undo` again redoes it — it's
+- **Undo** reverts the last change to your data (add/edit/delete/split/import/
+  budget/recategorize/restore/recurring catch-up). Running `undo` again redoes it — it's
   a one-step toggle, stored in the data folder.
 - **Recategorize** renames a category across expenses, recurring rules, and the
   budget; if both the old and new categories already have budgets, the new one's

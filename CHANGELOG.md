@@ -4,6 +4,16 @@ All notable changes to Ledgerling are documented here. The format is based on
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and this project
 adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.88.0] - 2026-09-30
+
+### Added
+
+- `split` — replace one entry with several category/amount parts that sum back
+  to the original (e.g. a single receipt that was groceries + household). The
+  parts inherit the original's date, note, tags and kind; the total must match
+  the original to the cent or the split is rejected. Undoable like any change,
+  and exposed in the self-generating web UI.
+
 ## [1.87.0] - 2026-09-30
 
 ### Changed
@@ -878,6 +888,7 @@ file, standard library only, strictly confined to its own folder.
   guard (`_within_app`) that refuses any path escaping the app folder; imports
   and restores are reduced to a basename and looked up only within the folder.
 
+[1.88.0]: #1880---2026-09-30
 [1.87.0]: #1870---2026-09-30
 [1.86.0]: #1860---2026-09-30
 [1.85.0]: #1850---2026-09-30
