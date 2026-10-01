@@ -4,6 +4,15 @@ All notable changes to Ledgerling are documented here. The format is based on
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and this project
 adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.112.1] - 2026-10-01
+
+### Changed
+
+- Internal: added a guard test that every command returned by the web schema
+  appears in the sidebar's `GROUP_DEFS`, so a newly added command can't silently
+  fall into the catch-all "More" group (it parses the group definitions out of
+  the embedded UI and compares against `describe()`). No user-facing change.
+
 ## [1.112.0] - 2026-10-01
 
 ### Changed
@@ -1154,6 +1163,7 @@ file, standard library only, strictly confined to its own folder.
   guard (`_within_app`) that refuses any path escaping the app folder; imports
   and restores are reduced to a basename and looked up only within the folder.
 
+[1.112.1]: #11121---2026-10-01
 [1.112.0]: #11120---2026-10-01
 [1.111.0]: #11110---2026-10-01
 [1.110.0]: #11100---2026-10-01
