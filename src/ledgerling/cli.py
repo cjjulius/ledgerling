@@ -110,7 +110,7 @@ import sys
 import tempfile
 from datetime import datetime, date, timedelta
 
-__version__ = "1.117.1"
+__version__ = "1.118.0"
 
 # --------------------------------------------------------------------------- #
 # Sandbox + storage
@@ -1109,6 +1109,12 @@ def cmd_search(args):
         rows = [e for e in rows if want in e.get("tags", [])]
     if args.month:
         rows = [e for e in rows if month_of(e["date"]) == args.month]
+    if getattr(args, "since", None) or getattr(args, "until", None):
+        start = parse_date(args.since) if args.since else "0000-01-01"
+        end = parse_date(args.until) if args.until else "9999-12-31"
+        if end < start:
+            start, end = end, start
+        rows = [e for e in rows if start <= e["date"] <= end]
     if args.min is not None:
         rows = [e for e in rows if e["amount"] >= args.min]
     if args.max is not None:
@@ -4507,6 +4513,8 @@ def build_parser():
     sr.add_argument("--category", help="restrict to this exact category")
     sr.add_argument("--tag", help="restrict to a #tag (with or without the #)")
     sr.add_argument("--month", help="restrict to a month, YYYY-MM")
+    sr.add_argument("--since", help="only entries on/after this date (YYYY-MM-DD/today)")
+    sr.add_argument("--until", help="only entries on/before this date (YYYY-MM-DD/today)")
     sr.add_argument("--min", type=float, help="minimum amount")
     sr.add_argument("--max", type=float, help="maximum amount")
     sr.add_argument("--income", action="store_true", help="search income instead")

@@ -4,6 +4,15 @@ All notable changes to Ledgerling are documented here. The format is based on
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and this project
 adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.118.0] - 2026-10-01
+
+### Added
+
+- `search` gains `--since`/`--until` for an arbitrary date range (either side
+  optional, swapped if reversed), complementing the existing `--month`. Accepts
+  `YYYY-MM-DD` or `today`/`yesterday`, and composes with the keyword, category,
+  tag, amount, and sort options.
+
 ## [1.117.1] - 2026-10-01
 
 ### Changed
@@ -1227,6 +1236,7 @@ file, standard library only, strictly confined to its own folder.
   guard (`_within_app`) that refuses any path escaping the app folder; imports
   and restores are reduced to a basename and looked up only within the folder.
 
+[1.118.0]: #11180---2026-10-01
 [1.117.1]: #11171---2026-10-01
 [1.117.0]: #11170---2026-10-01
 [1.116.0]: #11160---2026-10-01

@@ -171,6 +171,7 @@ ledgerling search coffee
 ledgerling search lunch --month 2026-09
 ledgerling search --tag work --month 2026-09
 ledgerling search --min 50 --max 200 --category food
+ledgerling search --since 2026-08-01 --until 2026-08-15   # an arbitrary range
 ledgerling search coffee --sort amount --desc   # largest matches first
 
 # Entries for a single day (today by default)
