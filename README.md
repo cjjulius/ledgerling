@@ -48,7 +48,8 @@ zero baseline, a start/end/lowest summary strip, and a highlighted warning if
 the balance is projected to go negative.
 
 Each command's output has a **Copy** button to grab the result (text or JSON)
-in one click.
+in one click. Auto-rendered tables format columns by meaning — money as money,
+rates and `_pct` columns as percentages.
 
 It's built to be **keyboard- and screen-reader-friendly**: a skip link, labeled
 landmarks, visible focus rings, fully keyboard-operable command list and group

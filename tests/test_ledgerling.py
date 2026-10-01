@@ -1424,7 +1424,7 @@ class CLI(TempAppCase):
         allt = json.loads(self._main(["net", "--json"]))
         self.assertEqual(allt["scope"], "all time")
         self.assertEqual(allt["income"], 100.0)
-        self.assertEqual(allt["expenses"], 50.0)
+        self.assertEqual(allt["spending"], 50.0)
         self.assertEqual(allt["net"], 50.0)
         self.assertEqual(allt["savings_rate"], 50.0)
         jan = json.loads(self._main(["net", "--month", "2026-01", "--json"]))

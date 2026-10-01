@@ -1452,7 +1452,7 @@ function fmtCell(v) {
 
 // Format a numeric value for display given its field name (money / percent / plain).
 function fmtNum(key, v) {
-  if (/rate|share|percent/i.test(key)) return v + '%';
+  if (/rate|share|percent|_pct|^pct/i.test(key)) return v + '%';
   if (isMoneyKey(key)) return money(v);
   return String(v);
 }
@@ -1471,7 +1471,7 @@ function colLabel(k) {
 function fmtValue(key, v) {
   if (v === null || v === undefined) return {text: '', num: false};
   if (typeof v === 'number') {
-    if (/rate|share|percent/i.test(key)) return {text: v + '%', num: true};
+    if (/rate|share|percent|_pct|^pct/i.test(key)) return {text: v + '%', num: true};
     if (isMoneyKey(key)) return {text: money(v), num: true};
     return {text: String(v), num: true};
   }
