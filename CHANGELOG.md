@@ -4,6 +4,24 @@ All notable changes to Ledgerling are documented here. The format is based on
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and this project
 adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.124.0] - 2026-10-01
+
+### Added
+
+- Web UI accessibility pass:
+  - The whole interface now honours `prefers-reduced-motion`, dropping
+    transitions, animations and smooth scrolling for users who ask for less
+    motion.
+  - Command failures are announced immediately on a dedicated visually-hidden
+    assertive status region (`Command failed: <message>`), so screen-reader
+    users don't have to hunt the output pane to learn a run errored.
+
+### Changed
+
+- The command-output live region is marked `aria-busy` while a command runs and
+  cleared when it finishes, so assistive tech announces the completed result
+  once instead of the interim "running..." state.
+
 ## [1.123.0] - 2026-10-01
 
 ### Added
@@ -1329,6 +1347,7 @@ file, standard library only, strictly confined to its own folder.
   guard (`_within_app`) that refuses any path escaping the app folder; imports
   and restores are reduced to a basename and looked up only within the folder.
 
+[1.124.0]: #11240---2026-10-01
 [1.123.0]: #11230---2026-10-01
 [1.122.1]: #11221---2026-10-01
 [1.122.0]: #11220---2026-10-01

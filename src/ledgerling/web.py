@@ -222,6 +222,13 @@ INDEX_HTML = r"""<!doctype html>
   [tabindex]:focus-visible {
     outline:2px solid var(--accent); outline-offset:2px; border-radius:6px; }
   main#main:focus { outline:none; }
+  /* Respect users who ask for less motion: drop transitions, animations and
+     smooth scrolling (the focus ring and layout still work exactly the same). */
+  @media (prefers-reduced-motion: reduce) {
+    *, *::before, *::after {
+      animation-duration:.001ms !important; animation-iteration-count:1 !important;
+      transition-duration:.001ms !important; scroll-behavior:auto !important; }
+  }
   header { display:flex; align-items:center; gap:12px; padding:12px 20px;
     border-bottom:1px solid var(--line); background:var(--panel); position:sticky;
     top:0; z-index:5; }
@@ -722,6 +729,13 @@ function selectCmd(c) {
   };
   out.insertBefore(copyBtn, out.firstChild);
   m.appendChild(out);
+  // A separate assertive status line (outside the polite output region) so a
+  // failed command is announced to screen-reader users right away, even while
+  // focus stays on the Run button.
+  const status = document.createElement('div');
+  status.id = 'runstatus'; status.className = 'sr-only';
+  status.setAttribute('role', 'status'); status.setAttribute('aria-live', 'assertive');
+  m.appendChild(status);
 }
 
 // Open a command, optionally pre-filling fields (by dest) and running it.
@@ -1055,8 +1069,14 @@ async function runCmd(c, form) {
   const tableEl = document.getElementById('outtable');
   const tabs = document.getElementById('tabs');
   const btn = form.querySelector('button.run');
+  const out = document.getElementById('out');
+  const status = document.getElementById('runstatus');
   const btnLabel = btn ? btn.textContent : '';
   if (btn) { btn.disabled = true; btn.textContent = 'Running…'; }
+  // aria-busy holds the polite region quiet until the result is in, so the
+  // reader announces the finished output once rather than the interim state.
+  if (out) out.setAttribute('aria-busy', 'true');
+  if (status) status.textContent = '';
   pre.className = ''; pre.textContent = 'running...';
   tableEl.style.display = 'none'; tabs.innerHTML = '';
   const argv = buildArgv(c, form);
@@ -1065,6 +1085,7 @@ async function runCmd(c, form) {
     res = await postRun(argv);
   } finally {
     if (btn) { btn.disabled = false; btn.textContent = btnLabel; }
+    if (out) out.setAttribute('aria-busy', 'false');
   }
   const chartEl = document.getElementById('outchart');
   chartEl.style.display = 'none';
@@ -1072,6 +1093,10 @@ async function runCmd(c, form) {
   pre.className = res.code === 0 ? '' : 'err';
   pre.textContent = res.code === 0 ? (res.stdout || '(no output)')
     : (res.stderr || res.stdout || 'error');
+  if (status && res.code !== 0) {
+    const msg = (res.stderr || res.stdout || 'error').trim().split('\n')[0];
+    status.textContent = 'Command failed: ' + msg;
+  }
 
   let data = null;
   if (res.code === 0 && argv.includes('--json')) {

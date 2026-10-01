@@ -512,6 +512,20 @@ class WebUI(TempAppCase):
         self.assertEqual(missing, set(),
                          "commands not in any sidebar group: %s" % sorted(missing))
 
+    def test_accessibility_markup_present(self):
+        # Core a11y affordances must stay in the shipped page: skip link,
+        # screen-reader-only helper class, a reduced-motion stylesheet, the
+        # assertive error-status region, and the aria-busy wiring around runs.
+        from ledgerling import web
+        html = web.INDEX_HTML
+        self.assertIn('class="skiplink"', html)
+        self.assertIn('.sr-only', html)
+        self.assertIn('prefers-reduced-motion', html)
+        self.assertIn("id = 'runstatus'", html)
+        self.assertIn("'aria-live', 'assertive'", html)
+        self.assertIn("'aria-busy'", html)
+        self.assertIn('Command failed: ', html)
+
     def test_run_cli_bridge(self):
         from ledgerling import web
         web.run_cli(["add", "12.50", "food", "lunch #x"])
