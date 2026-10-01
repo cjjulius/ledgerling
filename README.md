@@ -41,7 +41,9 @@ standard library only — no extra dependencies). It opens a real OS window with
 - a **sidebar** of **icon buttons** — every command, grouped (Record / Analyze /
   Budgets & goals / Calculators / Recurring / Data / Settings / Almanac), each
   with an icon, a hover animation, and a tooltip of its help — with a live
-  **filter** box and a pulsing active-command highlight;
+  **filter** box and a pulsing active-command highlight. The filter is
+  keyboard-first: **Ctrl+K** focuses it, **Enter** opens the first match,
+  **↑/↓** step through matches, and **Esc** clears it;
 - a **Pinned bar** with **drag-and-drop**: drag any command from the sidebar
   onto it to pin a favourite, drag the chips to reorder, right-click to unpin;
   your pins persist between launches;

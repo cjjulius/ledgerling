@@ -4,6 +4,22 @@ All notable changes to Ledgerling are documented here. The format is based on
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and this project
 adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.135.0] - 2026-10-01
+
+### Added
+
+- Desktop app: keyboard-first command navigation from the filter box — **Enter**
+  opens the first match, **↑/↓** step through the matches (opening each),
+  **Esc** clears the filter, and **Ctrl+K** now focuses *and* selects the filter
+  text so you can retype immediately. Backed by a pure, tested
+  `ordered_commands()` helper that also drives the sidebar.
+
+### Fixed
+
+- Desktop app: the filter's placeholder no longer clobbers a value set
+  programmatically — it only clears when the field actually still shows the
+  placeholder text.
+
 ## [1.134.1] - 2026-10-01
 
 ### Changed
@@ -1577,6 +1593,7 @@ file, standard library only, strictly confined to its own folder.
   guard (`_within_app`) that refuses any path escaping the app folder; imports
   and restores are reduced to a basename and looked up only within the folder.
 
+[1.135.0]: #11350---2026-10-01
 [1.134.1]: #11341---2026-10-01
 [1.134.0]: #11340---2026-10-01
 [1.133.0]: #11330---2026-10-01
