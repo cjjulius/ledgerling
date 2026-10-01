@@ -94,6 +94,7 @@ Run `python ledgerling.py --help` or `<command> --help` for details.
 
 import argparse
 import calendar
+import copy
 import csv
 import json
 import os
@@ -103,7 +104,7 @@ import sys
 import tempfile
 from datetime import datetime, date, timedelta
 
-__version__ = "1.94.0"
+__version__ = "1.95.0"
 
 # --------------------------------------------------------------------------- #
 # Sandbox + storage
@@ -195,16 +196,32 @@ def save(data):
 
 
 def load_config():
-    """Return settings merged over defaults (unknown keys ignored)."""
-    cfg = dict(DEFAULT_CONFIG)
-    if os.path.exists(CONFIG_FILE):
-        try:
-            with open(CONFIG_FILE, "r", encoding="utf-8") as fh:
-                stored = json.load(fh)
-            if isinstance(stored, dict):
-                cfg.update({k: v for k, v in stored.items() if k in DEFAULT_CONFIG})
-        except (json.JSONDecodeError, OSError):
-            pass  # a broken config falls back to defaults rather than crashing
+    """Return settings merged over defaults.
+
+    Unknown keys are ignored, and a stored value is only accepted when its type
+    matches the default's (so a corrupt or hand-edited config -- e.g. fx set to
+    a string -- falls back to the default for that key instead of crashing a
+    command later). deepcopy keeps mutable defaults (the fx dict) from being
+    aliased and accidentally mutated process-wide.
+    """
+    cfg = copy.deepcopy(DEFAULT_CONFIG)
+    if not os.path.exists(CONFIG_FILE):
+        return cfg
+    try:
+        with open(CONFIG_FILE, "r", encoding="utf-8") as fh:
+            stored = json.load(fh)
+    except (json.JSONDecodeError, OSError):
+        return cfg  # a broken config falls back to defaults rather than crashing
+    if isinstance(stored, dict):
+        for key, default in DEFAULT_CONFIG.items():
+            if key not in stored:
+                continue
+            value = stored[key]
+            # bool is a subclass of int; don't let one masquerade as the other.
+            if isinstance(value, bool) != isinstance(default, bool):
+                continue
+            if isinstance(value, type(default)):
+                cfg[key] = copy.deepcopy(value)
     return cfg
 
 
@@ -3418,7 +3435,7 @@ def cmd_config(args):
     cfg = load_config()
 
     if args.reset:
-        save_config(dict(DEFAULT_CONFIG))
+        save_config(copy.deepcopy(DEFAULT_CONFIG))
         print("config reset to defaults")
         return
 

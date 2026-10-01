@@ -374,6 +374,11 @@ exactly the same dates as a full scan. Bulk inserts (recurring catch-up, CSV
 import) assign ids from a running counter instead of re-scanning the list per
 row, so materializing thousands of entries stays linear.
 
+Config loading is defensive: a stored setting is only accepted when its type
+matches the default (a corrupt or hand-edited value falls back to that default
+instead of crashing a later command), and mutable defaults are deep-copied so
+they can't be aliased and changed process-wide.
+
 ## How things behave
 
 - **Recurring rules** auto-catch-up: whenever you `add`, `list`, `summary`,

@@ -4,6 +4,17 @@ All notable changes to Ledgerling are documented here. The format is based on
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and this project
 adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.95.0] - 2026-10-01
+
+### Fixed
+
+- Config loading is now type-checked and alias-safe. A stored setting is only
+  applied when its JSON type matches the default's, so a corrupt or hand-edited
+  config (e.g. the `fx` rate table replaced with a string) falls back to that
+  key's default instead of crashing a later command. The defaults are also
+  deep-copied on load and on `config --reset`, so the mutable `fx` table can no
+  longer be aliased to the module-level default and mutated process-wide.
+
 ## [1.94.0] - 2026-10-01
 
 ### Added
@@ -952,6 +963,7 @@ file, standard library only, strictly confined to its own folder.
   guard (`_within_app`) that refuses any path escaping the app folder; imports
   and restores are reduced to a basename and looked up only within the folder.
 
+[1.95.0]: #1950---2026-10-01
 [1.94.0]: #1940---2026-10-01
 [1.93.0]: #1930---2026-10-01
 [1.92.0]: #1920---2026-09-30

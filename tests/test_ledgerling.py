@@ -761,6 +761,22 @@ class CLI(TempAppCase):
         self._main(["recur", "edit", "1", "--no-until"])
         self.assertNotIn("until", L.load()["recurring"][0])
 
+    def test_load_config_rejects_wrong_types(self):
+        with open(L.CONFIG_FILE, "w", encoding="utf-8") as fh:
+            json.dump({"fx": "oops", "list_limit": "lots",
+                       "currency": "EUR", "symbol_position": "after"}, fh)
+        cfg = L.load_config()
+        self.assertEqual(cfg["fx"], {})            # wrong type -> default
+        self.assertEqual(cfg["list_limit"], 20)    # wrong type -> default
+        self.assertEqual(cfg["currency"], "EUR")   # valid str kept
+        self.assertEqual(cfg["symbol_position"], "after")
+
+    def test_load_config_does_not_alias_defaults(self):
+        cfg = L.load_config()
+        cfg["fx"]["EUR"] = 1.09                     # mutate the loaded copy
+        self.assertEqual(L.DEFAULT_CONFIG["fx"], {})        # default untouched
+        self.assertEqual(L.load_config()["fx"], {})         # next load is clean
+
     def test_fx_set_list_convert(self):
         self._main(["fx", "set", "usd", "1"])
         self._main(["fx", "set", "eur", "1.09"])
