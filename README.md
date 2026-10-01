@@ -142,8 +142,9 @@ ledgerling export --start 2026-08-01 --end 2026-08-15   # an arbitrary range
 ledgerling export --income --format json                # only income entries
 ledgerling export --category rent --file rent.csv       # only one category
 
-# Import a CSV (looked up in exports/ then the data folder; dedupes automatically)
+# Import a CSV or JSON file (looked up in exports/ then the data folder; dedupes)
 ledgerling import --file august.csv
+ledgerling import --file data.json              # re-import a JSON export
 ledgerling import --file august.csv --dry-run   # preview counts, import nothing
 
 # Month-over-month trend + budget adherence

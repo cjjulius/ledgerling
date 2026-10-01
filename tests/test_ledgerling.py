@@ -883,6 +883,31 @@ class CLI(TempAppCase):
             rows = json.load(fh)
         self.assertEqual([r["category"] for r in rows], ["food"])
 
+    def test_import_json_roundtrip(self):
+        self._main(["add", "10", "food", "a", "--date", "2026-01-01"])
+        self._main(["income", "500", "salary", "b", "--date", "2026-01-02"])
+        self._main(["export", "--format", "json", "--file", "data.json"])
+        # wipe and re-import from the JSON export
+        L.save({"expenses": [], "budgets": {}, "recurring": [], "goal": None})
+        out = self._main(["import", "--file", "data.json"])
+        self.assertIn("added 2", out)
+        rows = L.load()["expenses"]
+        self.assertEqual(len(rows), 2)
+        kinds = sorted(e["kind"] for e in rows)
+        self.assertEqual(kinds, ["expense", "income"])
+        # re-importing the same JSON is fully deduped
+        out2 = self._main(["import", "--file", "data.json"])
+        self.assertIn("added 0", out2)
+        self.assertIn("skipped 2", out2)
+
+    def test_import_json_rejects_non_array(self):
+        os.makedirs(L.EXPORT_DIR, exist_ok=True)
+        with open(os.path.join(L.EXPORT_DIR, "bad.json"), "w",
+                  encoding="utf-8") as fh:
+            fh.write('{"not": "an array"}')
+        with self.assertRaises(SystemExit):
+            self._main(["import", "--file", "bad.json"])
+
     def test_export_rejects_both_kinds(self):
         self._main(["add", "10", "food", "a"])
         with self.assertRaises(SystemExit):

@@ -4,6 +4,16 @@ All notable changes to Ledgerling are documented here. The format is based on
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and this project
 adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.103.0] - 2026-10-01
+
+### Added
+
+- `import` now reads JSON as well as CSV (chosen by the `.json`/`.csv`
+  extension), so a `export --format json` file can be re-imported — closing the
+  round-trip. The same per-row validation, dedupe, and `--dry-run` apply to
+  both; a JSON file that isn't an array of entries is rejected with a clear
+  message.
+
 ## [1.102.0] - 2026-10-01
 
 ### Added
@@ -1046,6 +1056,7 @@ file, standard library only, strictly confined to its own folder.
   guard (`_within_app`) that refuses any path escaping the app folder; imports
   and restores are reduced to a basename and looked up only within the folder.
 
+[1.103.0]: #11030---2026-10-01
 [1.102.0]: #11020---2026-10-01
 [1.101.1]: #11011---2026-10-01
 [1.101.0]: #11010---2026-10-01

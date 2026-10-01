@@ -81,7 +81,7 @@ Commands:
     goal      Set / view a monthly savings goal
     recur     Recurring rules (add/from/edit/list/remove/run/skip/unskip/pause/resume)
     export    Write entries to CSV/JSON (filter by month/range/category/kind)
-    import    Read expenses back from a CSV (deduped)
+    import    Read entries back from a CSV or JSON file (deduped)
     backup    Save a timestamped copy of your data
     restore   Restore data from a backup (with a pre-restore safety copy)
     config    View or change settings (currency symbol, default list limit)
@@ -107,7 +107,7 @@ import sys
 import tempfile
 from datetime import datetime, date, timedelta
 
-__version__ = "1.102.0"
+__version__ = "1.103.0"
 
 # --------------------------------------------------------------------------- #
 # Sandbox + storage
@@ -827,6 +827,28 @@ def cmd_export(args):
           f"to {target}")
 
 
+def _normalize_import_row(row):
+    """Validate one raw record (a CSV or JSON dict) and return a normalized
+    entry (amount/category/note/date/kind), or None if it's malformed."""
+    if not isinstance(row, dict):
+        return None
+    try:
+        d = datetime.strptime(str(row["date"]).strip(),
+                              "%Y-%m-%d").date().isoformat()
+        amount = round(float(row["amount"]), 2)
+        category = str(row["category"]).strip().lower()
+        note = str(row.get("note") or "").strip()
+        kind = str(row.get("kind") or "expense").strip().lower()
+        if kind not in ("expense", "income"):
+            kind = "expense"
+        if amount <= 0 or not category:
+            return None
+    except (KeyError, ValueError, AttributeError, TypeError):
+        return None
+    return {"amount": amount, "category": category, "note": note,
+            "date": d, "kind": kind}
+
+
 def cmd_import(args):
     name = os.path.basename(args.file)  # keep the read inside the data folder
     candidates = [os.path.join(EXPORT_DIR, name), os.path.join(HOME_DIR, name)]
@@ -835,47 +857,49 @@ def cmd_import(args):
         sys.exit(f"error: '{name}' not found in exports/ or the data folder")
     _within_home(path)
 
+    # Read raw records from JSON (an exported array) or CSV, by extension.
+    try:
+        if path.lower().endswith(".json"):
+            with open(path, "r", encoding="utf-8-sig") as fh:
+                payload = json.load(fh)
+            if not isinstance(payload, list):
+                sys.exit(f"error: {path} is not a JSON array of entries")
+            raw_rows = payload
+        else:
+            # utf-8-sig tolerates a BOM (Excel / PowerShell often add one).
+            with open(path, "r", encoding="utf-8-sig", newline="") as fh:
+                raw_rows = list(csv.DictReader(fh))
+    except OSError as exc:
+        sys.exit(f"error: could not read {path}: {exc}")
+    except json.JSONDecodeError as exc:
+        sys.exit(f"error: {path} is not valid JSON: {exc}")
+
     data = load()
     seen = {(e["date"], round(e["amount"], 2), e["category"], e["note"],
              kind_of(e)) for e in data["expenses"]}
     next_free = next_id(data["expenses"])  # running id, not an O(n) rescan per row
 
     added = skipped = bad = 0
-    try:
-        # utf-8-sig tolerates a BOM (Excel / PowerShell often add one).
-        with open(path, "r", encoding="utf-8-sig", newline="") as fh:
-            reader = csv.DictReader(fh)
-            for row in reader:
-                try:
-                    d = datetime.strptime(row["date"].strip(),
-                                          "%Y-%m-%d").date().isoformat()
-                    amount = round(float(row["amount"]), 2)
-                    category = row["category"].strip().lower()
-                    note = (row.get("note") or "").strip()
-                    kind = (row.get("kind") or "expense").strip().lower()
-                    if kind not in ("expense", "income"):
-                        kind = "expense"
-                    if amount <= 0 or not category:
-                        raise ValueError
-                except (KeyError, ValueError, AttributeError):
-                    bad += 1
-                    continue
-                key = (d, amount, category, note, kind)
-                if key in seen:
-                    skipped += 1
-                    continue
-                seen.add(key)
-                if not getattr(args, "dry_run", False):
-                    data["expenses"].append({
-                        "id": next_free,
-                        "amount": amount, "category": category,
-                        "note": note, "date": d, "tags": parse_tags(note),
-                        "kind": kind,
-                    })
-                    next_free += 1
-                added += 1
-    except OSError as exc:
-        sys.exit(f"error: could not read {path}: {exc}")
+    for row in raw_rows:
+        norm = _normalize_import_row(row)
+        if norm is None:
+            bad += 1
+            continue
+        key = (norm["date"], norm["amount"], norm["category"], norm["note"],
+               norm["kind"])
+        if key in seen:
+            skipped += 1
+            continue
+        seen.add(key)
+        if not getattr(args, "dry_run", False):
+            data["expenses"].append({
+                "id": next_free, "amount": norm["amount"],
+                "category": norm["category"], "note": norm["note"],
+                "date": norm["date"], "tags": parse_tags(norm["note"]),
+                "kind": norm["kind"],
+            })
+            next_free += 1
+        added += 1
 
     if getattr(args, "dry_run", False):
         print(f"dry run of {path} (nothing imported)")
@@ -4197,9 +4221,11 @@ def build_parser():
                    help="output format (default csv)")
     x.set_defaults(func=cmd_export)
 
-    im = sub.add_parser("import", help="import expenses from a CSV in the data folder")
+    im = sub.add_parser("import",
+                        help="import entries from a CSV or JSON file in the data folder")
     im.add_argument("--file", required=True,
-                    help="file name (looked up in exports/ then the data folder)")
+                    help="file name (.csv or .json; looked up in exports/ then "
+                         "the data folder)")
     im.add_argument("--dry-run", action="store_true",
                     help="preview counts without importing anything")
     im.set_defaults(func=cmd_import)
