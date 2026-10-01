@@ -62,7 +62,10 @@ dedicated assertive status line so screen-reader users hear it immediately. The
 result views (Text / Table / Chart / …) are a proper ARIA tablist — arrow keys
 plus Home/End move between tabs with a roving focus, and each tab is wired to its
 panel. Data tables mark their header cells with `scope` (col/row) so screen
-readers announce the right header for each cell. The whole UI honours
+readers announce the right header for each cell. The calendar heatmap is a
+labeled grid whose every day cell carries its own accessible name (e.g.
+"2026-03-10: $40.00", or "no spending"), with the decorative day numbers and
+weekday headers hidden from assistive tech. The whole UI honours
 `prefers-reduced-motion`, dropping transitions and animations for users who ask
 for less motion.
 

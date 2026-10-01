@@ -1240,23 +1240,35 @@ function renderCalendar(data) {
       Math.round(18 + (amt / max) * 82) + '%, transparent)';
   };
   const grid = document.createElement('div'); grid.className = 'cgrid';
+  // The grid conveys data, so label it and let each day carry its own
+  // accessible name; the weekday headers and numeric overlays are decorative
+  // (every cell's aria-label already names its full date and amount).
+  grid.setAttribute('role', 'group');
+  grid.setAttribute('aria-label', 'Daily spending for ' + data.month);
   ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'].forEach(n => {
     const h = document.createElement('div'); h.className = 'cdow'; h.textContent = n;
+    h.setAttribute('aria-hidden', 'true');
     grid.appendChild(h);
   });
   // Monday-first offset from the first day's weekday (parse as UTC to avoid TZ drift)
   const first = new Date(data.days[0].date + 'T00:00:00Z');
   const pad = (first.getUTCDay() + 6) % 7;
   for (let i = 0; i < pad; i++) {
-    const c = document.createElement('div'); c.className = 'ccell pad'; grid.appendChild(c);
+    const c = document.createElement('div'); c.className = 'ccell pad';
+    c.setAttribute('aria-hidden', 'true'); grid.appendChild(c);
   }
   data.days.forEach(d => {
     const c = document.createElement('div'); c.className = 'ccell';
     c.style.background = shade(d.spending);
-    c.title = d.date + ': ' + d.spending;
+    const label = d.date + ': ' + (d.spending ? money(d.spending) : 'no spending');
+    c.title = label;
+    c.setAttribute('role', 'img');
+    c.setAttribute('aria-label', label);
     const n = document.createElement('div'); n.className = 'dnum';
+    n.setAttribute('aria-hidden', 'true');
     n.textContent = d.day != null ? d.day : Number(d.date.slice(8));
     const a = document.createElement('div'); a.className = 'damt';
+    a.setAttribute('aria-hidden', 'true');
     a.textContent = d.spending ? d.spending : '';
     c.appendChild(n); c.appendChild(a); grid.appendChild(c);
   });
@@ -1269,7 +1281,7 @@ function renderCalendar(data) {
     legend.appendChild(s);
   });
   legend.appendChild(document.createTextNode('more'));
-  if (max > 0) legend.appendChild(document.createTextNode('  (peak ' + max + ')'));
+  if (max > 0) legend.appendChild(document.createTextNode('  (peak ' + money(max) + ')'));
   wrap.appendChild(legend);
   return wrap;
 }
@@ -1484,7 +1496,7 @@ function fmtNum(key, v) {
 // A numeric column whose name implies a money amount (not a count/rate/date).
 function isMoneyKey(k) {
   if (/^\d{4}-\d{2}$/.test(k)) return true;   // matrix/tagmatrix month columns
-  return /total|amount|spend|income|\bnet\b|balance|budget|spent|limit|remaining|average|cumulative|projected|annual|monthly|per_?(day|week|month)|value/i.test(k)
+  return /total|amount|spend|income|\bnet\b|balance|budget|spent|limit|remaining|average|cumulative|projected|annual|monthly|per_?(day|week|month)|value|^over$|_over$/i.test(k)
     && !/count|rate|share|days|year|\bid\b|day\b/i.test(k);
 }
 // Column header label: humanize names, but leave YYYY-MM month columns alone.
