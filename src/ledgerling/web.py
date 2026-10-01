@@ -1463,7 +1463,7 @@ function objArrayTable(rows) {
   const t = document.createElement('table'); t.className = 'data';
   const thead = document.createElement('thead'); const htr = document.createElement('tr');
   cols.forEach(c => { const th = document.createElement('th');
-    th.textContent = colLabel(c); htr.appendChild(th); });
+    th.scope = 'col'; th.textContent = colLabel(c); htr.appendChild(th); });
   thead.appendChild(htr); t.appendChild(thead);
   const tb = document.createElement('tbody');
   rows.forEach(r => { const tr = document.createElement('tr');
@@ -1480,7 +1480,8 @@ function fieldTable(obj) {
   const tb = document.createElement('tbody');
   Object.entries(obj).forEach(([k, v]) => {
     const tr = document.createElement('tr');
-    const th = document.createElement('th'); th.textContent = colLabel(k);
+    const th = document.createElement('th'); th.scope = 'row';
+    th.textContent = colLabel(k);
     const td = document.createElement('td');
     const cell = fmtValue(k, v); td.textContent = cell.text;
     if (cell.num) td.className = 'num';
