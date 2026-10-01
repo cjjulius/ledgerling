@@ -4,6 +4,20 @@ All notable changes to Ledgerling are documented here. The format is based on
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and this project
 adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.81.0] - 2026-09-30
+
+### Changed
+
+- Web UI accessibility pass. Added a "Skip to main content" link, proper
+  landmark labels (`nav`, command-output live region), and a visible
+  keyboard-focus ring on every control. Command list items and group headers
+  are now real keyboard controls (focusable, Enter/Space to activate, with
+  `aria-current`/`aria-expanded`). Every generated form field now has its
+  label programmatically associated with its input, required fields expose
+  `aria-required`, and help text is linked via `aria-describedby`. The theme
+  toggle reports its state with `aria-pressed`, and command output is announced
+  politely to screen readers as it updates.
+
 ## [1.80.0] - 2026-09-30
 
 ### Added
@@ -796,6 +810,7 @@ file, standard library only, strictly confined to its own folder.
   guard (`_within_app`) that refuses any path escaping the app folder; imports
   and restores are reduced to a basename and looked up only within the folder.
 
+[1.81.0]: #1810---2026-09-30
 [1.80.0]: #1800---2026-09-30
 [1.79.0]: #1790---2026-09-30
 [1.78.0]: #1780---2026-09-30

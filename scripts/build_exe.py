@@ -52,6 +52,12 @@ def build_pyinstaller() -> Path:
     """Bundle a native one-file executable with PyInstaller."""
     import PyInstaller.__main__ as pyi
 
+    # Best-effort pre-clean of the work dir. On Windows (especially under
+    # OneDrive) a synced/locked file can make PyInstaller's own --clean raise
+    # PermissionError, so we remove it ourselves and tolerate stragglers.
+    work = BUILD / "pyinstaller"
+    if work.exists():
+        shutil.rmtree(work, ignore_errors=True)
     entry = BUILD / "_entry.py"
     BUILD.mkdir(parents=True, exist_ok=True)
     entry.write_text(
@@ -70,7 +76,6 @@ def build_pyinstaller() -> Path:
         "--workpath", str(BUILD / "pyinstaller"),
         "--specpath", str(BUILD),
         "--noconfirm",
-        "--clean",
     ])
     exe = DIST / (APP + (".exe" if os.name == "nt" else ""))
     return exe
