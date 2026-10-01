@@ -103,7 +103,7 @@ import sys
 import tempfile
 from datetime import datetime, date, timedelta
 
-__version__ = "1.90.0"
+__version__ = "1.91.0"
 
 # --------------------------------------------------------------------------- #
 # Sandbox + storage
@@ -374,12 +374,16 @@ def apply_recurring(data):
     """
     today = date.today()
     created = 0
+    # Assign ids from a running counter instead of re-scanning the list on each
+    # append -- a long-overdue daily rule can generate thousands at once.
+    next_free = next_id(data["expenses"])
     for rule in data["recurring"]:
         if rule.get("paused"):
             continue  # a paused rule generates nothing until resumed
         last = date.fromisoformat(rule["last"]) if rule.get("last") else None
         latest = last
         skips = set(rule.get("skips", []))
+        note_tags = parse_tags(rule["note"])  # constant per rule
         # Only occurrences after `last` matter; fast-forward past the history.
         since = (last + timedelta(days=1)) if last is not None else None
         for d in _occurrences(rule, today, since):
@@ -391,15 +395,16 @@ def apply_recurring(data):
                     latest = d
                 continue
             data["expenses"].append({
-                "id": next_id(data["expenses"]),
+                "id": next_free,
                 "amount": rule["amount"],
                 "category": rule["category"],
                 "note": rule["note"],
                 "date": d.isoformat(),
-                "tags": parse_tags(rule["note"]),
+                "tags": note_tags,
                 "kind": rule.get("kind", "expense"),
                 "recur_id": rule["id"],
             })
+            next_free += 1
             created += 1
             if latest is None or d > latest:
                 latest = d
@@ -784,6 +789,7 @@ def cmd_import(args):
     data = load()
     seen = {(e["date"], round(e["amount"], 2), e["category"], e["note"],
              kind_of(e)) for e in data["expenses"]}
+    next_free = next_id(data["expenses"])  # running id, not an O(n) rescan per row
 
     added = skipped = bad = 0
     try:
@@ -812,11 +818,12 @@ def cmd_import(args):
                 seen.add(key)
                 if not getattr(args, "dry_run", False):
                     data["expenses"].append({
-                        "id": next_id(data["expenses"]),
+                        "id": next_free,
                         "amount": amount, "category": category,
                         "note": note, "date": d, "tags": parse_tags(note),
                         "kind": kind,
                     })
+                    next_free += 1
                 added += 1
     except OSError as exc:
         sys.exit(f"error: could not read {path}: {exc}")
