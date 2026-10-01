@@ -107,7 +107,7 @@ import sys
 import tempfile
 from datetime import datetime, date, timedelta
 
-__version__ = "1.107.0"
+__version__ = "1.108.0"
 
 # --------------------------------------------------------------------------- #
 # Sandbox + storage
@@ -704,22 +704,32 @@ def cmd_summary(args):
     period = args.month or date.today().isoformat()[:7]
     rows = [e for e in expenses_only(data["expenses"])
             if month_of(e["date"]) == period]
+
+    totals = {}
+    for e in rows:
+        totals[e["category"]] = round(totals.get(e["category"], 0)
+                                      + e["amount"], 2)
+    grand = round(sum(totals.values()), 2)
+    cats = [{"category": c, "total": t,
+             "percent": round(t / grand * 100, 1) if grand else 0.0}
+            for c, t in sorted(totals.items(), key=lambda kv: kv[1],
+                               reverse=True)]
+
+    if getattr(args, "json", False):
+        print(json.dumps({"month": period, "total": grand,
+                          "categories": cats}, indent=2))
+        return
+
     if not rows:
         print(f"no expenses for {period}")
         return
 
-    totals = {}
-    for e in rows:
-        totals[e["category"]] = totals.get(e["category"], 0) + e["amount"]
-    grand = sum(totals.values())
     biggest = max(totals.values())
-
     print(f"Summary for {period}")
     print("=" * 50)
-    for cat, amt in sorted(totals.items(), key=lambda kv: kv[1], reverse=True):
-        share = amt / grand if grand else 0
-        print(f"{cat:<14} {money(amt):>12}  {bar(amt / biggest)} "
-              f"{share * 100:4.0f}%")
+    for r in cats:
+        print(f"{r['category']:<14} {money(r['total']):>12}  "
+              f"{bar(r['total'] / biggest)} {r['percent']:4.0f}%")
     print("=" * 50)
     print(f"{'TOTAL':<14} {money(grand):>12}")
 
@@ -4243,6 +4253,7 @@ def build_parser():
 
     s = sub.add_parser("summary", help="totals by category with a chart")
     s.add_argument("--month", help="month to summarize, YYYY-MM (default: current)")
+    s.add_argument("--json", action="store_true", help="output JSON instead of text")
     s.set_defaults(func=cmd_summary)
 
     b = sub.add_parser("budget", help="set or view monthly budgets")
