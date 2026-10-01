@@ -52,6 +52,7 @@ Commands:
     top       List your largest expenses (optionally by month/category)
     average   Average spending per day / week / month
     distribution  Histogram of expense sizes
+    anomalies  Flag unusually large expenses within each category
     upcoming  Forecast recurring charges/income due in the next N days
     commitments  Recurring rules normalized to monthly/annual cost
     suggest   Suggest per-category budgets from recent average spending
@@ -97,7 +98,7 @@ import sys
 import tempfile
 from datetime import datetime, date, timedelta
 
-__version__ = "1.79.0"
+__version__ = "1.80.0"
 
 # --------------------------------------------------------------------------- #
 # Sandbox + storage
@@ -1413,6 +1414,76 @@ def cmd_distribution(args):
     for b in buckets:
         chart = bar(b["count"] / peak, width=18) if peak else bar(0, width=18)
         print(f"{b['label']:<10} {b['count']:>4}  {money(b['total']):>12}  {chart}")
+
+
+def cmd_anomalies(args):
+    """Flag expenses that are statistical outliers within their category.
+
+    For each category with enough history, compute the mean and (population)
+    standard deviation of its expense amounts and flag any entry that sits more
+    than --z standard deviations above the mean. Purely a read/analytics view.
+    """
+    check_month(args.month)
+    z = args.z if args.z and args.z > 0 else 2.0
+    min_count = args.min_count if args.min_count and args.min_count > 1 else 4
+    data = load()
+    rows = expenses_only(data["expenses"])
+    if args.month:
+        rows = [e for e in rows if month_of(e["date"]) == args.month]
+    if args.category:
+        cat = clean_category(args.category)
+        rows = [e for e in rows if e["category"] == cat]
+
+    groups = {}
+    for e in rows:
+        groups.setdefault(e["category"], []).append(e)
+
+    flagged = []
+    for cat, items in groups.items():
+        if len(items) < min_count:
+            continue
+        amounts = [e["amount"] for e in items]
+        n = len(amounts)
+        mean = sum(amounts) / n
+        std = (sum((a - mean) ** 2 for a in amounts) / n) ** 0.5
+        if std == 0:
+            continue
+        threshold = mean + z * std
+        for e in items:
+            if e["amount"] > threshold:
+                flagged.append({
+                    "id": e["id"],
+                    "date": e["date"],
+                    "category": cat,
+                    "amount": e["amount"],
+                    "note": e.get("note", ""),
+                    "category_mean": round(mean, 2),
+                    "category_std": round(std, 2),
+                    "deviations": round((e["amount"] - mean) / std, 2),
+                })
+
+    flagged.sort(key=lambda f: f["deviations"], reverse=True)
+
+    if getattr(args, "json", False):
+        print(json.dumps({"threshold_z": z, "min_count": min_count,
+                          "anomalies": flagged}, indent=2))
+        return
+
+    scope = args.month or "all time"
+    print(f"Spending anomalies ({scope}, > {z:g} SD above category mean)")
+    print("=" * 60)
+    if not flagged:
+        print("no anomalies found")
+        return
+    for f in flagged:
+        note = f" - {f['note']}" if f["note"] else ""
+        print(f"#{f['id']:<4} {money(f['amount']):>12}  {f['date']}  "
+              f"[{f['category']}]  +{f['deviations']:.1f} SD{note}")
+    print("-" * 60)
+    cats = {f["category"] for f in flagged}
+    print(f"{len(flagged)} anomal{'y' if len(flagged) == 1 else 'ies'} "
+          f"across {len(cats)} categor{'y' if len(cats) == 1 else 'ies'} "
+          f"(category mean +/- SD shown in --json)")
 
 
 def cmd_average(args):
@@ -3597,6 +3668,19 @@ def build_parser():
     di.add_argument("--json", action="store_true", help="output JSON instead of text")
     di.set_defaults(func=cmd_distribution)
 
+    an = sub.add_parser("anomalies",
+                        help="flag unusually large expenses within each category")
+    an.add_argument("--month", help="restrict to a month, YYYY-MM")
+    an.add_argument("--category", help="restrict to a single category")
+    an.add_argument("--z", type=float, default=2.0,
+                    help="threshold in standard deviations above the mean "
+                         "(default 2.0)")
+    an.add_argument("--min-count", type=int, default=4, dest="min_count",
+                    help="minimum expenses a category needs before it is "
+                         "analyzed (default 4)")
+    an.add_argument("--json", action="store_true", help="output JSON instead of text")
+    an.set_defaults(func=cmd_anomalies)
+
     av = sub.add_parser("average", help="average spending per day/week/month")
     av.add_argument("--json", action="store_true", help="output JSON instead of text")
     av.set_defaults(func=cmd_average)
@@ -3810,7 +3894,7 @@ def main(argv=None):
                         "commitments", "savings", "heatmap", "suggest",
                         "insights", "tagtrend", "range", "matrix",
                         "cumulative", "allowance", "tagmatrix", "weekly",
-                        "years"):
+                        "years", "anomalies"):
         data = load()
         if apply_recurring(data):
             save(data)

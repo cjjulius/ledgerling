@@ -507,6 +507,29 @@ class CLI(TempAppCase):
         self.assertEqual(b["$250+"]["count"], 1)      # 500
         self.assertEqual(len(d["buckets"]), 6)
 
+    def test_anomalies_flags_outlier(self):
+        for amt in (10, 12, 11, 9, 13, 10, 11, 12):
+            self._main(["add", str(amt), "groceries", "x"])
+        self._main(["add", "60", "groceries", "big"])
+        d = json.loads(self._main(["anomalies", "--json"]))
+        self.assertEqual(len(d["anomalies"]), 1)
+        a = d["anomalies"][0]
+        self.assertEqual(a["amount"], 60.0)
+        self.assertEqual(a["category"], "groceries")
+        self.assertGreater(a["deviations"], 2.0)
+
+    def test_anomalies_respects_min_count(self):
+        # Only 3 entries in a category -> below default min-count, never flagged.
+        for amt in (5, 5, 500):
+            self._main(["add", str(amt), "coffee", "x"])
+        d = json.loads(self._main(["anomalies", "--json"]))
+        self.assertEqual(d["anomalies"], [])
+        # Lowering min-count below the group size lets it be analyzed.
+        d2 = json.loads(self._main(
+            ["anomalies", "--min-count", "3", "--z", "1", "--json"]))
+        self.assertEqual(len(d2["anomalies"]), 1)
+        self.assertEqual(d2["anomalies"][0]["amount"], 500.0)
+
     def test_average_json(self):
         self._main(["add", "100", "food", "a", "--date", "2026-01-01"])
         self._main(["add", "100", "food", "b", "--date", "2026-01-11"])  # 11-day span
