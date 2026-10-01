@@ -65,6 +65,7 @@ Commands:
     target    Estimate how long to reach a lump-sum savings target
     runway    How long a balance lasts at your average monthly net
     commitments  Recurring rules normalized to monthly/annual cost
+    subscriptions  Detect subscription-like charges from spending history
     suggest   Suggest per-category budgets from recent average spending
     autobudget  Apply suggested budgets from recent spending (undoable)
     categories  List categories with counts and totals
@@ -112,7 +113,7 @@ import tempfile
 import time
 from datetime import datetime, date, timedelta
 
-__version__ = "1.122.1"
+__version__ = "1.123.0"
 
 # --------------------------------------------------------------------------- #
 # Sandbox + storage
@@ -3031,6 +3032,122 @@ def cmd_commitments(args):
           f"net {money((m_inc - m_exp) * 12)}")
 
 
+# (name, min_gap_days, max_gap_days, charges_per_month) for cadence detection.
+# Ranges overlap nothing and are tuned to real-world billing (month-end dates
+# drift 28-31 days, so "monthly" is wide).
+_CADENCES = [
+    ("weekly", 5, 10, 52 / 12),
+    ("biweekly", 11, 18, 26 / 12),
+    ("monthly", 25, 35, 1.0),
+    ("quarterly", 80, 100, 1 / 3),
+    ("yearly", 330, 400, 1 / 12),
+]
+
+
+def _normalize_payee(entry):
+    """A stable grouping key for an entry: its note minus #tags, lowercased and
+    whitespace-collapsed; falls back to the category when the note is empty."""
+    note = _TAG_RE.sub("", entry.get("note") or "")
+    key = " ".join(note.split()).strip().lower()
+    return key if key else "(" + entry["category"] + ")"
+
+
+def _median(values):
+    s = sorted(values)
+    n = len(s)
+    if not n:
+        return 0.0
+    mid = n // 2
+    return s[mid] if n % 2 else (s[mid - 1] + s[mid]) / 2
+
+
+def detect_subscriptions(data, min_count=3, tolerance=0.25):
+    """Find subscription-like spending in the expense history: a payee charged
+    on a regular cadence (weekly..yearly) with a stable amount. Returns a list
+    of dicts sorted by estimated annual cost, each with the detected cadence,
+    representative (latest) amount and monthly/annual projections. Read-only."""
+    groups = {}
+    for e in expenses_only(data["expenses"]):
+        groups.setdefault(_normalize_payee(e), []).append(e)
+
+    found = []
+    for payee, entries in groups.items():
+        entries.sort(key=lambda e: (e["date"], e["id"]))
+        # Use unique charge dates to judge cadence (same-day double charges
+        # shouldn't read as a zero-day interval).
+        by_date = {}
+        for e in entries:
+            by_date.setdefault(e["date"], e)
+        dates = sorted(by_date)
+        if len(dates) < max(min_count, 2):
+            continue
+
+        days = [date.fromisoformat(d) for d in dates]
+        gaps = [(days[i + 1] - days[i]).days for i in range(len(days) - 1)]
+        gap = _median(gaps)
+        cadence = next((c for c in _CADENCES if c[1] <= gap <= c[2]), None)
+        if cadence is None:
+            continue
+
+        amounts = [round(e["amount"], 2) for e in by_date.values()]
+        mean = sum(amounts) / len(amounts)
+        if mean <= 0:
+            continue
+        if (max(amounts) - min(amounts)) / mean > tolerance:
+            continue  # amount too variable to be a fixed subscription
+
+        name, _lo, _hi, per_month = cadence
+        latest = round(entries[-1]["amount"], 2)
+        monthly = round(latest * per_month, 2)
+        found.append({
+            "payee": payee,
+            "category": entries[-1]["category"],
+            "cadence": name,
+            "amount": latest,
+            "count": len(entries),
+            "first": dates[0],
+            "last": dates[-1],
+            "monthly": monthly,
+            "annual": round(monthly * 12, 2),
+        })
+
+    found.sort(key=lambda s: (-s["annual"], s["payee"]))
+    return found
+
+
+def cmd_subscriptions(args):
+    """Detect recurring subscription-like charges from the expense history."""
+    data = load()
+    min_count = max(2, getattr(args, "min_count", 3))
+    subs = detect_subscriptions(data, min_count=min_count)
+    monthly = round(sum(s["monthly"] for s in subs), 2)
+
+    if getattr(args, "json", False):
+        print(json.dumps({
+            "subscriptions": subs,
+            "count": len(subs),
+            "monthly": monthly,
+            "annual": round(monthly * 12, 2),
+        }, indent=2))
+        return
+
+    if not subs:
+        print("no subscription-like charges detected"
+              f" (need {min_count}+ regular charges with a stable amount)")
+        return
+
+    print("Detected subscriptions (estimated from spending history)")
+    print("=" * 66)
+    for s in subs:
+        print(f"{money(s['amount']):>11}/{s['cadence']:<9} "
+              f"{money(s['monthly']):>11}/mo  "
+              f"{s['payee'][:24]:<24} [{s['category']}] x{s['count']}")
+    print("-" * 66)
+    print(f"{len(subs)} subscription(s): {money(monthly)}/mo, "
+          f"{money(monthly * 12)}/yr estimated.")
+    print("Tip: formalize one with `recur from <id>` or `recur add`.")
+
+
 def cmd_savings(args):
     data = load()
     agg = {}
@@ -4665,6 +4782,13 @@ def build_parser():
     cm.add_argument("--json", action="store_true", help="output JSON instead of text")
     cm.set_defaults(func=cmd_commitments)
 
+    subn = sub.add_parser("subscriptions",
+                          help="detect recurring subscription-like charges from history")
+    subn.add_argument("--min-count", type=int, default=3, dest="min_count",
+                      help="minimum regular charges to flag (default: 3)")
+    subn.add_argument("--json", action="store_true", help="output JSON instead of text")
+    subn.set_defaults(func=cmd_subscriptions)
+
     sv = sub.add_parser("savings", help="monthly savings rate (net / income) trend")
     sv.add_argument("--json", action="store_true", help="output JSON instead of text")
     sv.set_defaults(func=cmd_savings)
@@ -5148,7 +5272,7 @@ CATCHUP_COMMANDS = frozenset({
     "balance", "commitments", "savings", "heatmap", "suggest", "insights",
     "tagtrend", "range", "matrix", "cumulative", "allowance", "tagmatrix",
     "weekly", "years", "anomalies", "roundup", "cashflow", "target", "runway",
-    "net",
+    "net", "subscriptions",
 })
 MUTATING_COMMANDS = frozenset({
     "add", "income", "edit", "delete", "clone", "refund", "note", "tag",

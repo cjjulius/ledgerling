@@ -496,7 +496,7 @@ const GROUP_DEFS = [
   ['Record', ['add', 'income', 'edit', 'delete', 'split', 'clone', 'note', 'refund']],
   ['Analyze', ['month', 'insights', 'range', 'summary', 'report', 'stats', 'week', 'weekly', 'day', 'year', 'years',
     'quarter', 'weekday', 'trend', 'tagtrend', 'matrix', 'tagmatrix', 'cumulative', 'top', 'compare', 'average', 'distribution',
-    'balance', 'savings', 'heatmap', 'streak', 'pace', 'forecast', 'sources', 'anomalies', 'cashflow', 'net',
+    'balance', 'savings', 'heatmap', 'streak', 'pace', 'forecast', 'sources', 'anomalies', 'cashflow', 'net', 'subscriptions',
     'categories', 'tags', 'untagged', 'search', 'list']],
   ['Budgets & goals', ['budget', 'unbudget', 'allowance', 'goal', 'suggest', 'autobudget', 'commitments', 'upcoming']],
   ['Calculators', ['tip', 'interest', 'loan', 'target', 'runway', 'roundup',

@@ -312,6 +312,13 @@ ledgerling loan 25000 --rate 7.5 --years 6
 # Recurring rules normalized to monthly / annual cost (your fixed obligations)
 ledgerling commitments
 
+# Detect subscription-like charges from your actual spending history
+# (a payee billed on a regular cadence with a stable amount), with an
+# estimated monthly/annual cost -- surfaces recurring spend you never
+# formalized as a recurring rule.
+ledgerling subscriptions
+ledgerling subscriptions --min-count 4   # require more charges before flagging
+
 # Analytics: extremes, averages, and end-of-month projection
 ledgerling stats
 
