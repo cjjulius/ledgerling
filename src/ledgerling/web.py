@@ -512,7 +512,7 @@ const GROUP_DEFS = [
   ['Data', ['export', 'import', 'backup', 'restore', 'dedupe', 'duplicates',
     'retag', 'tag', 'untag', 'recategorize', 'check', 'undo']],
   ['Settings', ['config', 'where', 'version', 'completion', 'web', 'gui']],
-  ['Fun', ['fortune', 'horoscope', 'weather', 'eightball']],
+  ['Almanac', ['fortune', 'horoscope', 'weather', 'eightball']],
 ];
 function groupOf(name) {
   for (const [g, names] of GROUP_DEFS) if (names.includes(name)) return g;

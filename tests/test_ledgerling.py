@@ -795,12 +795,16 @@ class CLI(TempAppCase):
         self.assertEqual(
             h, json.loads(self._main(["horoscope", "leo", "--seed", "1",
                                       "--json"])))
-        # weather: offline flag + reproducible for a seed/place
-        w = json.loads(self._main(["weather", "--where", "Dublin", "--seed",
-                                   "7", "--json"]))
+        # weather: --offline stays hermetic (no network) and reproducible
+        w = json.loads(self._main(["weather", "--where", "Dublin", "--offline",
+                                   "--seed", "7", "--json"]))
         self.assertTrue(w["offline"])
         self.assertEqual(w["location"], "Dublin")
         self.assertGreaterEqual(w["high_c"], w["low_c"])
+        # no location also falls back to a local estimate (no network)
+        w2 = json.loads(self._main(["weather", "--offline", "--json"]))
+        self.assertTrue(w2["offline"])
+        self.assertEqual(w2["location"], "your area")
         # eightball: answer from the canonical set; question echoed
         e = json.loads(self._main(["eightball", "will", "I", "save",
                                    "--seed", "3", "--json"]))

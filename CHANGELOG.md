@@ -4,6 +4,32 @@ All notable changes to Ledgerling are documented here. The format is based on
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and this project
 adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.132.0] - 2026-10-01
+
+### Added
+
+- Desktop app: a **Pinned bar** with **drag-and-drop** — drag any command from
+  the sidebar onto it to pin a favourite, drag chips to reorder, right-click to
+  unpin; pins persist between launches.
+- Desktop app: **multiple windows** — File → New window (Ctrl+N) opens another
+  independent command window; "Pop out current command" detaches the current
+  one.
+- Desktop app: a **getting-started assistant** — a short guided tour shown on
+  first launch and reopenable from Help → Getting started or the toolbar's
+  "? guide" button.
+- Desktop app: more motion — a pulsing highlight on the active command, plus a
+  drag "ghost" that follows the cursor.
+- `weather` now fetches **live** current conditions from Open-Meteo (free, no
+  API key) when given a place name, falling back to a local estimate offline;
+  new `--offline` flag forces the estimate. This is the one command that uses
+  the network, and it sends only the place name — never any ledger data.
+
+### Changed
+
+- The `fortune` / `horoscope` / `weather` / `eightball` modes are regrouped
+  under **Almanac** (was "Fun") and presented as proper daily companion
+  readings; the "for fun" framing and labels are gone.
+
 ## [1.131.0] - 2026-10-01
 
 ### Added
@@ -1506,6 +1532,7 @@ file, standard library only, strictly confined to its own folder.
   guard (`_within_app`) that refuses any path escaping the app folder; imports
   and restores are reduced to a basename and looked up only within the folder.
 
+[1.132.0]: #11320---2026-10-01
 [1.131.0]: #11310---2026-10-01
 [1.130.0]: #11300---2026-10-01
 [1.129.0]: #11290---2026-10-01
