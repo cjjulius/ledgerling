@@ -721,6 +721,27 @@ class CLI(TempAppCase):
         with self.assertRaises(SystemExit):
             self._main(["tip", "20", "--split", "0"])
 
+    def test_recur_list_json_states(self):
+        # active (open-ended), ended (past until), and paused rules.
+        self._main(["recur", "add", "50", "gym", "x", "--every", "month",
+                    "--start", "2026-01-01"])
+        self._main(["recur", "add", "1200", "rent", "y", "--every", "month",
+                    "--start", "2026-01-01", "--until", "2026-03-31"])
+        self._main(["recur", "add", "15", "music", "z", "--every", "month",
+                    "--start", "2026-01-01"])
+        self._main(["recur", "pause", "3"])
+        rows = json.loads(self._main(["recur", "list", "--json"]))
+        by_id = {r["id"]: r for r in rows}
+        self.assertEqual(by_id[1]["status"], "active")
+        self.assertIsNotNone(by_id[1]["next"])        # active -> has a next date
+        self.assertEqual(by_id[2]["status"], "ended")  # past its until
+        self.assertIsNone(by_id[2]["next"])
+        self.assertEqual(by_id[2]["until"], "2026-03-31")
+        self.assertEqual(by_id[3]["status"], "paused")
+
+    def test_recur_list_json_empty(self):
+        self.assertEqual(json.loads(self._main(["recur", "list", "--json"])), [])
+
     def test_recur_until_stops_generation(self):
         self._main(["recur", "add", "100", "rent", "x", "--every", "month",
                     "--start", "2026-01-01", "--until", "2026-03-10"])

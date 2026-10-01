@@ -103,7 +103,7 @@ import sys
 import tempfile
 from datetime import datetime, date, timedelta
 
-__version__ = "1.93.0"
+__version__ = "1.94.0"
 
 # --------------------------------------------------------------------------- #
 # Sandbox + storage
@@ -3641,32 +3641,57 @@ def cmd_recur_edit(args):
     print("  (already-generated expenses are unchanged)")
 
 
+def _recur_row(rule, today):
+    """Build a structured status row for a recurring rule (shared by text/JSON)."""
+    today_iso = today.isoformat()
+    skips = set(rule.get("skips", []))
+    occ = _occurrences(rule, add_months(today, 2), today + timedelta(days=1))
+    upcoming = [d for d in occ if d > today and d.isoformat() not in skips]
+    nxt = upcoming[0].isoformat() if upcoming else None
+    if rule.get("paused"):
+        status = "paused"
+    elif (rule.get("until") and rule["until"] < today_iso) or nxt is None:
+        status = "ended"
+    else:
+        status = "active"
+    return {
+        "id": rule["id"], "amount": rule["amount"], "category": rule["category"],
+        "every": rule["every"], "kind": rule.get("kind", "expense"),
+        "note": rule.get("note", ""), "start": rule["start"],
+        "until": rule.get("until"),
+        "next": nxt if status == "active" else None,
+        "status": status,
+        "skips": sorted(s for s in skips if s >= today_iso),
+    }
+
+
 def cmd_recur_list(args):
     data = load()
-    if not data["recurring"]:
+    today = date.today()
+    rows = [_recur_row(r, today)
+            for r in sorted(data["recurring"], key=lambda x: x["id"])]
+
+    if getattr(args, "json", False):
+        print(json.dumps(rows, indent=2))
+        return
+
+    if not rows:
         print("no recurring rules. Try: recur add 1200 rent --every month")
         return
-    today = date.today()
+
     print("Recurring rules")
     print("=" * 60)
-    for r in sorted(data["recurring"], key=lambda x: x["id"]):
-        skips = set(r.get("skips", []))
-        occ = _occurrences(r, add_months(today, 2), today + timedelta(days=1))
-        # the next charge is the first upcoming date that isn't skipped
-        upcoming = [d for d in occ if d > today and d.isoformat() not in skips]
-        nxt = upcoming[0].isoformat() if upcoming else "-"
-        note = f" - {r['note']}" if r["note"] else ""
-        mark = " +income" if r.get("kind") == "income" else ""
-        future_skips = sorted(s for s in skips if s >= today.isoformat())
-        skip_note = f"  skips: {', '.join(future_skips)}" if future_skips else ""
-        ended = bool(r.get("until")) and r["until"] < today.isoformat()
-        until_note = f"  until {r['until']}" if r.get("until") else ""
-        state = ("  (PAUSED)" if r.get("paused")
-                 else "  (ENDED)" if ended else "")
-        nxt_disp = ("paused" if r.get("paused")
-                    else "ended" if ended or nxt == "-" else nxt)
-        print(f"#{r['id']:<3} {money(r['amount']):>10}  [{r['category']}]{mark}"
-              f"  every {r['every']:<5}  next: {nxt_disp}{until_note}{note}"
+    for row in rows:
+        note = f" - {row['note']}" if row["note"] else ""
+        mark = " +income" if row["kind"] == "income" else ""
+        skip_note = f"  skips: {', '.join(row['skips'])}" if row["skips"] else ""
+        until_note = f"  until {row['until']}" if row["until"] else ""
+        state = ("  (PAUSED)" if row["status"] == "paused"
+                 else "  (ENDED)" if row["status"] == "ended" else "")
+        nxt_disp = {"paused": "paused", "ended": "ended"}.get(
+            row["status"], row["next"])
+        print(f"#{row['id']:<3} {money(row['amount']):>10}  [{row['category']}]{mark}"
+              f"  every {row['every']:<5}  next: {nxt_disp}{until_note}{note}"
               f"{skip_note}{state}")
 
 
@@ -4311,6 +4336,7 @@ def build_parser():
     re_.set_defaults(func=cmd_recur_edit)
 
     rl = rsub.add_parser("list", help="show recurring rules")
+    rl.add_argument("--json", action="store_true", help="output JSON instead of text")
     rl.set_defaults(func=cmd_recur_list)
 
     rr = rsub.add_parser("remove", help="delete a recurring rule")
