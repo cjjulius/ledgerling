@@ -4,6 +4,16 @@ All notable changes to Ledgerling are documented here. The format is based on
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and this project
 adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.107.0] - 2026-10-01
+
+### Changed
+
+- Web UI accessibility: the result-view tabs (Text / Table / Chart / Projection
+  / Health / Calendar) are now a proper ARIA tablist. Each tab has
+  `role=tab`/`aria-selected` and controls its `role=tabpanel`, focus roves with
+  a single tabbable tab, and Left/Right/Home/End move between them — the
+  recommended keyboard pattern for tabs.
+
 ## [1.106.0] - 2026-10-01
 
 ### Added
@@ -1094,6 +1104,7 @@ file, standard library only, strictly confined to its own folder.
   guard (`_within_app`) that refuses any path escaping the app folder; imports
   and restores are reduced to a basename and looked up only within the folder.
 
+[1.107.0]: #11070---2026-10-01
 [1.106.0]: #11060---2026-10-01
 [1.105.0]: #11050---2026-10-01
 [1.104.1]: #11041---2026-10-01

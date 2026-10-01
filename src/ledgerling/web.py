@@ -1036,6 +1036,7 @@ async function runCmd(c, form) {
   }
 }
 
+let TAB_SEQ = 0;
 function buildTabs(data) {
   const pre = document.getElementById('outpre');
   const tableEl = document.getElementById('outtable');
@@ -1043,14 +1044,53 @@ function buildTabs(data) {
   const calEl = document.getElementById('outcal');
   const tabs = document.getElementById('tabs');
   tabs.innerHTML = '';
+  // Proper ARIA tabs: a tablist of tabs controlling tabpanels, with roving
+  // tabindex and arrow-key navigation for keyboard/screen-reader users.
+  tabs.setAttribute('role', 'tablist');
+  tabs.setAttribute('aria-label', 'Result views');
   const panels = {text: pre, table: tableEl, chart: chartEl, cal: calEl};
-  const show = which => Object.entries(panels).forEach(
-    ([k, el]) => el.style.display = (k === which ? '' : 'none'));
+  Object.values(panels).forEach(el => {
+    el.setAttribute('role', 'tabpanel');
+    el.tabIndex = 0;
+  });
+  const tabBtns = [];
+  const select = (btn, focus) => {
+    tabBtns.forEach(b => {
+      const on = b === btn;
+      b.classList.toggle('active', on);
+      b.setAttribute('aria-selected', on ? 'true' : 'false');
+      b.tabIndex = on ? 0 : -1;
+    });
+    Object.entries(panels).forEach(([k, el]) => {
+      el.style.display = (k === btn.dataset.which ? '' : 'none');
+    });
+    const panel = panels[btn.dataset.which];
+    if (panel) panel.setAttribute('aria-labelledby', btn.id);
+    if (focus) btn.focus();
+  };
   const mk = (label, which) => {
-    const b = document.createElement('button'); b.className = 'tab'; b.textContent = label;
-    b.onclick = () => { [...tabs.children].forEach(x => x.classList.remove('active'));
-      b.classList.add('active'); show(which); };
+    const b = document.createElement('button'); b.className = 'tab';
+    b.textContent = label;
+    b.id = 'tab-' + (++TAB_SEQ);
+    b.setAttribute('role', 'tab');
+    b.setAttribute('aria-selected', 'false');
+    b.tabIndex = -1;
+    b.dataset.which = which;
+    const panel = panels[which];
+    if (panel && panel.id) b.setAttribute('aria-controls', panel.id);
+    b.onclick = () => select(b, false);
+    tabBtns.push(b);
     return b;
+  };
+  tabs.onkeydown = (e) => {
+    const i = tabBtns.indexOf(document.activeElement);
+    if (i < 0) return;
+    let j = null;
+    if (e.key === 'ArrowRight') j = (i + 1) % tabBtns.length;
+    else if (e.key === 'ArrowLeft') j = (i - 1 + tabBtns.length) % tabBtns.length;
+    else if (e.key === 'Home') j = 0;
+    else if (e.key === 'End') j = tabBtns.length - 1;
+    if (j !== null) { e.preventDefault(); select(tabBtns[j], true); }
   };
   const tText = mk('Text', 'text'); tabs.appendChild(tText);
   const has = data !== null &&
@@ -1079,8 +1119,7 @@ function buildTabs(data) {
     calEl.innerHTML = ''; calEl.appendChild(renderCalendar(cal));
     active = mk('Calendar', 'cal'); tabs.appendChild(active); prefer = 'cal';
   }
-  active.classList.add('active');
-  show(prefer);
+  select(active, false);
 }
 
 function insightsData(data) {

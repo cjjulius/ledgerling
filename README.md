@@ -49,7 +49,10 @@ It's built to be **keyboard- and screen-reader-friendly**: a skip link, labeled
 landmarks, visible focus rings, fully keyboard-operable command list and group
 headers (Tab / Enter / Space), form fields with associated labels and
 `aria-required`/`aria-describedby`, a theme toggle that reports its state, and a
-polite live region that announces command output as it updates.
+polite live region that announces command output as it updates. The result
+views (Text / Table / Chart / …) are a proper ARIA tablist — arrow keys plus
+Home/End move between tabs with a roving focus, and each tab is wired to its
+panel.
 
 ### Shell completion (optional)
 
