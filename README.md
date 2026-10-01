@@ -96,6 +96,8 @@ MIT — see [LICENSE](LICENSE).
 # Record / edit / delete expenses
 ledgerling add 12.50 food "lunch burrito"
 ledgerling add 45 food "groceries" --date yesterday
+ledgerling config --home-code USD      # one-time: your home currency's fx code
+ledgerling add 100 travel "paris" --in EUR   # entered in EUR, stored in home $
 ledgerling edit 1 --amount 13.75 --note "lunch (with tip)"
 ledgerling delete 2
 ledgerling split 1 groceries 70 household 30   # one receipt -> two categories

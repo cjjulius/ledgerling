@@ -4,6 +4,17 @@ All notable changes to Ledgerling are documented here. The format is based on
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and this project
 adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.122.0] - 2026-10-01
+
+### Added
+
+- Record entries in a foreign currency: `add`/`income` accept `--in CODE`,
+  converting the amount to your home currency via the stored `fx` rates before
+  storing it (the ledger stays single-currency). Set your home currency's code
+  once with `config --home-code USD`. Errors clearly if the home code or a
+  needed rate is missing; the confirmation shows the original amount, e.g.
+  `added #1: $33.50 (from 5000 JPY) ...`.
+
 ## [1.121.1] - 2026-10-01
 
 ### Fixed
@@ -1296,6 +1307,7 @@ file, standard library only, strictly confined to its own folder.
   guard (`_within_app`) that refuses any path escaping the app folder; imports
   and restores are reduced to a basename and looked up only within the folder.
 
+[1.122.0]: #11220---2026-10-01
 [1.121.1]: #11211---2026-10-01
 [1.121.0]: #11210---2026-10-01
 [1.120.0]: #11200---2026-10-01

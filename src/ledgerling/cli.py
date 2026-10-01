@@ -112,7 +112,7 @@ import tempfile
 import time
 from datetime import datetime, date, timedelta
 
-__version__ = "1.121.1"
+__version__ = "1.122.0"
 
 # --------------------------------------------------------------------------- #
 # Sandbox + storage
@@ -138,7 +138,7 @@ _SUPPRESS_UNDO = False
 
 DEFAULT_DATA = {"expenses": [], "budgets": {}, "recurring": []}
 DEFAULT_CONFIG = {"currency": "$", "list_limit": 20, "symbol_position": "before",
-                  "fx": {}}
+                  "fx": {}, "home_code": ""}
 
 # Live settings, loaded from CONFIG_FILE at startup (see main()). Kept as a
 # module-level dict so helpers like money() can read it without threading it
@@ -494,9 +494,14 @@ def cmd_add(args):
     if args.amount <= 0:
         sys.exit("error: amount must be greater than zero")
     note = args.note.strip()
+    amount, conv = round(args.amount, 2), ""
+    src = getattr(args, "in_", None)
+    if src:
+        amount = _amount_in_home(args.amount, src)
+        conv = f" (from {args.amount:g} {_fx_code(src)})"
     entry = {
         "id": next_id(data["expenses"]),
-        "amount": round(args.amount, 2),
+        "amount": amount,
         "category": clean_category(args.category),
         "note": note,
         "date": parse_date(args.date),
@@ -505,7 +510,7 @@ def cmd_add(args):
     }
     data["expenses"].append(entry)
     save(data)
-    print(f"added #{entry['id']}: {money(entry['amount'])} "
+    print(f"added #{entry['id']}: {money(entry['amount'])}{conv} "
           f"[{entry['category']}] {entry['note']} on {entry['date']}")
     line = budget_status_line(data, entry["category"], entry["date"])
     if line:
@@ -517,9 +522,14 @@ def cmd_income(args):
     if args.amount <= 0:
         sys.exit("error: amount must be greater than zero")
     note = args.note.strip()
+    amount, conv = round(args.amount, 2), ""
+    src = getattr(args, "in_", None)
+    if src:
+        amount = _amount_in_home(args.amount, src)
+        conv = f" (from {args.amount:g} {_fx_code(src)})"
     entry = {
         "id": next_id(data["expenses"]),
-        "amount": round(args.amount, 2),
+        "amount": amount,
         "category": clean_category(args.category),
         "note": note,
         "date": parse_date(args.date),
@@ -528,7 +538,7 @@ def cmd_income(args):
     }
     data["expenses"].append(entry)
     save(data)
-    print(f"recorded income #{entry['id']}: {money(entry['amount'])} "
+    print(f"recorded income #{entry['id']}: {money(entry['amount'])}{conv} "
           f"[{entry['category']}] {entry['note']} on {entry['date']}")
 
 
@@ -4027,6 +4037,12 @@ def cmd_config(args):
     if getattr(args, "symbol_position", None) is not None:
         cfg["symbol_position"] = args.symbol_position
         changed = True
+    if getattr(args, "home_code", None) is not None:
+        hc = args.home_code.strip()
+        if hc and not _FX_CODE_RE.match(hc):
+            sys.exit("error: --home-code must be a currency code (letters only)")
+        cfg["home_code"] = hc.upper()
+        changed = True
 
     if changed:
         save_config(cfg)
@@ -4037,6 +4053,7 @@ def cmd_config(args):
     print(f"{'currency':<16} {cfg['currency']}")
     print(f"{'list_limit':<16} {cfg['list_limit']}")
     print(f"{'symbol_position':<16} {cfg.get('symbol_position', 'before')}")
+    print(f"{'home_code':<16} {cfg.get('home_code') or '(unset)'}")
     print(f"{'sample':<16} {money(1234.5)}")
 
 
@@ -4057,6 +4074,22 @@ def _fx_code(raw):
 
 def _fx_rates():
     return dict(load_config().get("fx", {}))
+
+
+def _amount_in_home(amount, code):
+    """Convert `amount` (given in currency `code`) to the home currency using
+    the stored fx rates. Exits with a clear message if the setup is missing."""
+    cfg = load_config()
+    home = (cfg.get("home_code") or "").strip().upper()
+    if not home:
+        sys.exit("error: set your home currency code first, e.g. "
+                 "`config --home-code USD`")
+    rates = cfg.get("fx", {})
+    code = _fx_code(code)
+    for c in (code, home):
+        if c not in rates:
+            sys.exit(f"error: no fx rate set for {c}. Try: `fx set {c} <rate>`")
+    return round(amount * rates[code] / rates[home], 2)
 
 
 def cmd_fx_set(args):
@@ -4464,6 +4497,8 @@ def build_parser():
     a.add_argument("note", nargs="?", default="", help="optional note")
     a.add_argument("--date", default="today",
                    help="YYYY-MM-DD, 'today', or 'yesterday'")
+    a.add_argument("--in", dest="in_", metavar="CODE",
+                   help="amount is in this currency; convert to home via fx rates")
     a.set_defaults(func=cmd_add)
 
     inc = sub.add_parser("income", help="record an income entry")
@@ -4472,6 +4507,8 @@ def build_parser():
     inc.add_argument("note", nargs="?", default="", help="optional note")
     inc.add_argument("--date", default="today",
                      help="YYYY-MM-DD, 'today', or 'yesterday'")
+    inc.add_argument("--in", dest="in_", metavar="CODE",
+                     help="amount is in this currency; convert to home via fx rates")
     inc.set_defaults(func=cmd_income)
 
     l = sub.add_parser("list", help="show recent expenses")
@@ -4954,6 +4991,8 @@ def build_parser():
     cf.add_argument("--symbol-position", dest="symbol_position",
                     choices=["before", "after"],
                     help="show the currency symbol before or after amounts")
+    cf.add_argument("--home-code", dest="home_code",
+                    help="your home currency's fx code (e.g. USD) for `add --in`")
     cf.add_argument("--reset", action="store_true", help="restore default settings")
     cf.set_defaults(func=cmd_config)
 
