@@ -362,6 +362,19 @@ class WebUI(TempAppCase):
         amount = next(a for a in add["args"] if a["dest"] == "amount")
         self.assertFalse(amount.get("variadic"))
 
+    def test_every_command_is_grouped_in_sidebar(self):
+        # Every command must be listed in the web sidebar's GROUP_DEFS, so none
+        # silently falls into the catch-all "More" group.
+        import re
+        from ledgerling import web
+        m = re.search(r"const GROUP_DEFS = \[(.*?)\];", web.INDEX_HTML, re.S)
+        self.assertIsNotNone(m, "could not locate GROUP_DEFS in the web UI")
+        grouped = set(re.findall(r"'([^']+)'", m.group(1)))
+        names = {c["name"] for c in web.describe()["commands"]}
+        missing = names - grouped
+        self.assertEqual(missing, set(),
+                         "commands not in any sidebar group: %s" % sorted(missing))
+
     def test_run_cli_bridge(self):
         from ledgerling import web
         web.run_cli(["add", "12.50", "food", "lunch #x"])

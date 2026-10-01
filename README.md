@@ -401,7 +401,9 @@ docs can't silently drift from the parser either. A third runs every
 no-argument command against an empty store, so adding a command that crashes on
 empty data (division by zero, `max()` of nothing, ...) fails the suite. A fourth
 checks every read command offers `--json` (so it works for scripting and the
-web UI), with `export` exempt since it writes files via `--format`.
+web UI), with `export` exempt since it writes files via `--format`. A fifth
+checks every command is placed in a web-sidebar group, so none silently lands
+in the catch-all "More".
 
 The recurring-occurrence generator takes an optional `since` lower bound so
 projections and catch-up don't iterate over years of history for long-running
