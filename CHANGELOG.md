@@ -4,6 +4,17 @@ All notable changes to Ledgerling are documented here. The format is based on
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and this project
 adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.101.0] - 2026-10-01
+
+### Added
+
+- `check --fix` repairs the safe, unambiguous problems it finds: unlinks
+  expenses from missing recurring rules, fills empty categories with
+  `uncategorized`, reassigns duplicate/invalid ids, and drops invalid budgets.
+  Judgment calls (non-positive amounts, malformed dates, broken rule fields)
+  are left untouched and still reported. The fix is a normal undoable change,
+  and the JSON output gains a `fixed` list of what was repaired.
+
 ## [1.100.0] - 2026-10-01
 
 ### Added
@@ -1017,6 +1028,7 @@ file, standard library only, strictly confined to its own folder.
   guard (`_within_app`) that refuses any path escaping the app folder; imports
   and restores are reduced to a basename and looked up only within the folder.
 
+[1.101.0]: #11010---2026-10-01
 [1.100.0]: #11000---2026-10-01
 [1.99.0]: #1990---2026-10-01
 [1.98.0]: #1980---2026-10-01
