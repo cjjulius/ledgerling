@@ -283,6 +283,10 @@ ledgerling cashflow --days 60 --start-balance 2500
 ledgerling target 10000
 ledgerling target 10000 --monthly 750 --start 2500
 
+# Runway: how long a balance lasts at your average monthly net (burn rate)
+ledgerling runway
+ledgerling runway --balance 8000 --monthly-net -1200
+
 # Compound-growth / future-value calculator (pure math; not investment advice)
 ledgerling interest 10000 --rate 6 --years 20
 ledgerling interest 10000 --rate 6 --years 20 --monthly 200

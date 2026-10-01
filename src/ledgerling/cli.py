@@ -62,6 +62,7 @@ Commands:
     upcoming  Forecast recurring charges/income due in the next N days
     cashflow  Project a running balance forward (flags if it goes negative)
     target    Estimate how long to reach a lump-sum savings target
+    runway    How long a balance lasts at your average monthly net
     commitments  Recurring rules normalized to monthly/annual cost
     suggest   Suggest per-category budgets from recent average spending
     autobudget  Apply suggested budgets from recent spending (undoable)
@@ -109,7 +110,7 @@ import sys
 import tempfile
 from datetime import datetime, date, timedelta
 
-__version__ = "1.113.0"
+__version__ = "1.114.0"
 
 # --------------------------------------------------------------------------- #
 # Sandbox + storage
@@ -1983,6 +1984,58 @@ def cmd_target(args):
         print(f"{'remaining':<14} {money(remaining):>16}")
         label = "month" if months_needed == 1 else "months"
         print(f"about {months_needed} {label} -> around {reach_date}")
+
+
+def cmd_runway(args):
+    """How long a balance lasts at your average monthly net (burn rate).
+
+    The depletion counterpart to `target`. Balance defaults to your all-time
+    net; the monthly net defaults to your average over the last --months.
+    """
+    months_window = args.months if args.months and args.months > 0 else 6
+    data = load()
+    if args.balance is not None:
+        balance = round(args.balance, 2)
+    else:
+        inc = sum(e["amount"] for e in income_only(data["expenses"]))
+        exp = sum(e["amount"] for e in expenses_only(data["expenses"]))
+        balance = round(inc - exp, 2)
+    if args.monthly_net is not None:
+        net = round(args.monthly_net, 2)
+        basis = "given"
+    else:
+        net = _avg_monthly_net(data, months_window)
+        basis = f"avg of last {months_window} mo"
+
+    today = date.today()
+    if net >= 0:
+        status, months, depletion = "positive", None, None
+    elif balance <= 0:
+        status, months, depletion = "depleted", 0.0, today.isoformat()
+    else:
+        months = round(balance / abs(net), 1)
+        depletion = add_months(today, int(balance / abs(net))).isoformat()
+        status = "limited"
+
+    if getattr(args, "json", False):
+        print(json.dumps({
+            "balance": balance, "monthly_net": net, "status": status,
+            "months": months, "depletion_date": depletion,
+        }, indent=2))
+        return
+
+    print("Runway")
+    print("=" * 44)
+    print(f"{'balance':<16} {money(balance):>14}")
+    flow = f"{'+' if net >= 0 else ''}{money(net)}"
+    print(f"{'monthly net':<16} {flow:>14}  ({basis})")
+    if status == "positive":
+        print("net is >= 0 - your balance isn't shrinking")
+    elif status == "depleted":
+        print("balance is already at or below zero")
+    else:
+        label = "month" if months == 1 else "months"
+        print(f"about {months:g} {label} of runway -> ~{depletion}")
 
 
 def cmd_average(args):
@@ -4677,6 +4730,18 @@ def build_parser():
     tgt.add_argument("--json", action="store_true", help="output JSON instead of text")
     tgt.set_defaults(func=cmd_target)
 
+    rw = sub.add_parser("runway",
+                        help="how long a balance lasts at your average monthly net")
+    rw.add_argument("--balance", type=float,
+                    help="current balance (default: your all-time net)")
+    rw.add_argument("--monthly-net", type=float, dest="monthly_net",
+                    help="monthly net (default: your recent average net)")
+    rw.add_argument("--months", type=int, default=6,
+                    help="months of history to average for the default rate "
+                         "(default 6)")
+    rw.add_argument("--json", action="store_true", help="output JSON instead of text")
+    rw.set_defaults(func=cmd_runway)
+
     av = sub.add_parser("average", help="average spending per day/week/month")
     av.add_argument("--json", action="store_true", help="output JSON instead of text")
     av.set_defaults(func=cmd_average)
@@ -4928,7 +4993,7 @@ CATCHUP_COMMANDS = frozenset({
     "untagged", "average", "distribution", "sources", "quarter", "forecast",
     "balance", "commitments", "savings", "heatmap", "suggest", "insights",
     "tagtrend", "range", "matrix", "cumulative", "allowance", "tagmatrix",
-    "weekly", "years", "anomalies", "roundup", "cashflow", "target",
+    "weekly", "years", "anomalies", "roundup", "cashflow", "target", "runway",
 })
 MUTATING_COMMANDS = frozenset({
     "add", "income", "edit", "delete", "clone", "refund", "note", "tag",

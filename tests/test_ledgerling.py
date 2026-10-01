@@ -913,6 +913,26 @@ class CLI(TempAppCase):
         self.assertEqual(L.DEFAULT_CONFIG["fx"], {})        # default untouched
         self.assertEqual(L.load_config()["fx"], {})         # next load is clean
 
+    def test_runway_limited(self):
+        d = json.loads(self._main(["runway", "--balance", "6000",
+                                   "--monthly-net", "-1500", "--json"]))
+        self.assertEqual(d["status"], "limited")
+        self.assertEqual(d["months"], 4.0)
+        self.assertIsNotNone(d["depletion_date"])
+
+    def test_runway_positive_when_not_burning(self):
+        d = json.loads(self._main(["runway", "--balance", "1000",
+                                   "--monthly-net", "250", "--json"]))
+        self.assertEqual(d["status"], "positive")
+        self.assertIsNone(d["months"])
+        self.assertIsNone(d["depletion_date"])
+
+    def test_runway_already_depleted(self):
+        d = json.loads(self._main(["runway", "--balance", "0",
+                                   "--monthly-net", "-100", "--json"]))
+        self.assertEqual(d["status"], "depleted")
+        self.assertEqual(d["months"], 0.0)
+
     def test_target_on_track(self):
         d = json.loads(self._main(
             ["target", "1000", "--monthly", "250", "--start", "100", "--json"]))

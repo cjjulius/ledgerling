@@ -4,6 +4,17 @@ All notable changes to Ledgerling are documented here. The format is based on
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and this project
 adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.114.0] - 2026-10-01
+
+### Added
+
+- `runway` — estimates how long a balance lasts at your average monthly net
+  (the depletion counterpart to `target`). Balance defaults to your all-time
+  net and the monthly net to your recent average (override with `--balance` /
+  `--monthly-net`). Reports months of runway and an approximate depletion date,
+  or notes that your balance isn't shrinking when net is >= 0. Supports
+  `--json`.
+
 ## [1.113.0] - 2026-10-01
 
 ### Changed
@@ -1171,6 +1182,7 @@ file, standard library only, strictly confined to its own folder.
   guard (`_within_app`) that refuses any path escaping the app folder; imports
   and restores are reduced to a basename and looked up only within the folder.
 
+[1.114.0]: #11140---2026-10-01
 [1.113.0]: #11130---2026-10-01
 [1.112.1]: #11121---2026-10-01
 [1.112.0]: #11120---2026-10-01

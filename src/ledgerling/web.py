@@ -486,7 +486,7 @@ const GROUP_DEFS = [
     'balance', 'savings', 'heatmap', 'streak', 'pace', 'forecast', 'sources', 'anomalies', 'cashflow',
     'categories', 'tags', 'untagged', 'search', 'list']],
   ['Budgets & goals', ['budget', 'unbudget', 'allowance', 'goal', 'suggest', 'autobudget', 'commitments', 'upcoming']],
-  ['Calculators', ['tip', 'interest', 'loan', 'target', 'roundup',
+  ['Calculators', ['tip', 'interest', 'loan', 'target', 'runway', 'roundup',
     'fx convert', 'fx set', 'fx list', 'fx rm']],
   ['Recurring', ['recur add', 'recur from', 'recur list', 'recur edit', 'recur remove', 'recur run', 'recur skip', 'recur unskip', 'recur pause', 'recur resume']],
   ['Data', ['export', 'import', 'backup', 'restore', 'dedupe', 'duplicates',
