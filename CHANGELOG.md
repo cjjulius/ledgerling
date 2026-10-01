@@ -4,6 +4,18 @@ All notable changes to Ledgerling are documented here. The format is based on
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and this project
 adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.96.0] - 2026-10-01
+
+### Added
+
+- `target` — estimate how long to reach a lump-sum savings target. Give the
+  amount; the monthly contribution defaults to your average net over the last
+  `--months` months (override with `--monthly`) and the starting balance to
+  your all-time net (override with `--start`). Reports the remaining amount and
+  roughly how many months (and a date) until you reach it, flags a goal already
+  met, and says so when the current rate never gets there. Supports `--json`
+  and appears in the self-generating web UI.
+
 ## [1.95.0] - 2026-10-01
 
 ### Fixed
@@ -963,6 +975,7 @@ file, standard library only, strictly confined to its own folder.
   guard (`_within_app`) that refuses any path escaping the app folder; imports
   and restores are reduced to a basename and looked up only within the folder.
 
+[1.96.0]: #1960---2026-10-01
 [1.95.0]: #1950---2026-10-01
 [1.94.0]: #1940---2026-10-01
 [1.93.0]: #1930---2026-10-01
