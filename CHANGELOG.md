@@ -4,6 +4,15 @@ All notable changes to Ledgerling are documented here. The format is based on
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and this project
 adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.114.1] - 2026-10-01
+
+### Changed
+
+- Internal: factored the "all-time net" default (total income minus total
+  expenses) used by `cashflow`, `target`, and `runway` into a single
+  `all_time_net()` helper instead of three copies of the same loop. No
+  behaviour change; covered by a unit test.
+
 ## [1.114.0] - 2026-10-01
 
 ### Added
@@ -1182,6 +1191,7 @@ file, standard library only, strictly confined to its own folder.
   guard (`_within_app`) that refuses any path escaping the app folder; imports
   and restores are reduced to a basename and looked up only within the folder.
 
+[1.114.1]: #11141---2026-10-01
 [1.114.0]: #11140---2026-10-01
 [1.113.0]: #11130---2026-10-01
 [1.112.1]: #11121---2026-10-01
