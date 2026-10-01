@@ -869,6 +869,29 @@ class CLI(TempAppCase):
         self.assertEqual(d["status"], "on_track")
         self.assertGreater(d["monthly"], 0)
 
+    def test_list_sort_amount(self):
+        self._main(["add", "30", "food", "a", "--date", "2026-01-01"])
+        self._main(["add", "10", "food", "b", "--date", "2026-01-02"])
+        self._main(["add", "20", "food", "c", "--date", "2026-01-03"])
+        asc = json.loads(self._main(["list", "--sort", "amount", "--json"]))
+        self.assertEqual([e["amount"] for e in asc], [10.0, 20.0, 30.0])
+        desc = json.loads(self._main(["list", "--sort", "amount", "--desc",
+                                      "--json"]))
+        self.assertEqual([e["amount"] for e in desc], [30.0, 20.0, 10.0])
+        # largest-N: desc + limit keeps the top N of the sorted order
+        top2 = json.loads(self._main(["list", "--sort", "amount", "--desc",
+                                      "--limit", "2", "--json"]))
+        self.assertEqual([e["amount"] for e in top2], [30.0, 20.0])
+
+    def test_list_default_order_unchanged(self):
+        self._main(["add", "1", "food", "a", "--date", "2026-01-03"])
+        self._main(["add", "2", "food", "b", "--date", "2026-01-01"])
+        self._main(["add", "3", "food", "c", "--date", "2026-01-02"])
+        # default is still chronological (most-recent window, shown oldest->newest)
+        rows = json.loads(self._main(["list", "--json"]))
+        self.assertEqual([e["date"] for e in rows],
+                         ["2026-01-01", "2026-01-02", "2026-01-03"])
+
     def test_export_filters_by_kind_and_category(self):
         self._main(["add", "10", "food", "a", "--date", "2026-01-01"])
         self._main(["add", "20", "rent", "b", "--date", "2026-01-02"])

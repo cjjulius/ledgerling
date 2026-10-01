@@ -4,6 +4,15 @@ All notable changes to Ledgerling are documented here. The format is based on
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and this project
 adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.104.0] - 2026-10-01
+
+### Added
+
+- `list` gains `--sort {date,amount,category}` and `--desc`. The default is
+  unchanged (the most-recent window, shown oldest-to-newest); any other sort or
+  an explicit `--desc` takes the first N of the chosen order, so e.g.
+  `list --sort amount --desc --limit 5` shows your five largest recent entries.
+
 ## [1.103.0] - 2026-10-01
 
 ### Added
@@ -1056,6 +1065,7 @@ file, standard library only, strictly confined to its own folder.
   guard (`_within_app`) that refuses any path escaping the app folder; imports
   and restores are reduced to a basename and looked up only within the folder.
 
+[1.104.0]: #11040---2026-10-01
 [1.103.0]: #11030---2026-10-01
 [1.102.0]: #11020---2026-10-01
 [1.101.1]: #11011---2026-10-01
