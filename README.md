@@ -461,8 +461,9 @@ Shared derived values and small routines live in single helpers rather than
 being re-implemented per command — e.g. the all-time net that `cashflow`,
 `target`, and `runway` use as a default balance, a category's spend in a month
 (`budget`/`pace`/`allowance`/`report`), the date-range bounds for
-`export`/`search`, the `--in` currency conversion for `add`/`income`, and the
-per-period income/spending accumulation that `savings` and `years` share.
+`export`/`search`, the `--in` currency conversion for `add`/`income`, the
+per-period income/spending accumulation that `savings` and `years` share, and
+the optional `--month` row filter that a dozen read commands apply.
 
 Config loading is defensive: a stored setting is only accepted when its type
 matches the default (a corrupt or hand-edited value falls back to that default
