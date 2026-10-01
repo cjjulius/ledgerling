@@ -110,7 +110,7 @@ import sys
 import tempfile
 from datetime import datetime, date, timedelta
 
-__version__ = "1.116.0"
+__version__ = "1.117.0"
 
 # --------------------------------------------------------------------------- #
 # Sandbox + storage
@@ -523,6 +523,9 @@ def cmd_list(args):
     rows = _scope_by_kind(data["expenses"], args)
     if args.category:
         rows = [e for e in rows if e["category"] == args.category.strip().lower()]
+    if getattr(args, "tag", None):
+        want = args.tag.strip().lstrip("#").lower()
+        rows = [e for e in rows if want in e.get("tags", [])]
     if args.month:
         rows = [e for e in rows if month_of(e["date"]) == args.month]
     key = getattr(args, "sort", "date") or "date"
@@ -2104,6 +2107,9 @@ def cmd_top(args):
     rows = _scope_by_kind(data["expenses"], args)
     if args.category:
         rows = [e for e in rows if e["category"] == args.category.strip().lower()]
+    if getattr(args, "tag", None):
+        want = args.tag.strip().lstrip("#").lower()
+        rows = [e for e in rows if want in e.get("tags", [])]
     if args.month:
         rows = [e for e in rows if month_of(e["date"]) == args.month]
     rows = sorted(rows, key=lambda e: e["amount"], reverse=True)
@@ -4399,6 +4405,7 @@ def build_parser():
 
     l = sub.add_parser("list", help="show recent expenses")
     l.add_argument("--category", help="filter by category")
+    l.add_argument("--tag", help="filter by #tag (with or without the #)")
     l.add_argument("--month", help="filter by month, YYYY-MM")
     l.add_argument("--limit", type=int, default=None,
                    help="show at most N most-recent items (default from config)")
@@ -4775,6 +4782,7 @@ def build_parser():
                     help="how many to show (default 10)")
     tp.add_argument("--month", help="restrict to a month, YYYY-MM")
     tp.add_argument("--category", help="restrict to a category")
+    tp.add_argument("--tag", help="restrict to a #tag (with or without the #)")
     tp.add_argument("--income", action="store_true", help="rank income instead")
     tp.add_argument("--all", action="store_true", help="rank expenses and income")
     tp.add_argument("--json", action="store_true", help="output JSON instead of text")

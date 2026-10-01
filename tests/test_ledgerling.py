@@ -1020,6 +1020,23 @@ class CLI(TempAppCase):
             except Exception as exc:       # noqa: BLE001 - we want any crash
                 self.fail(f"'{name}' crashed on empty data: {exc!r}")
 
+    def test_list_filter_by_tag(self):
+        self._main(["add", "10", "food", "lunch #work", "--date", "2026-01-01"])
+        self._main(["add", "20", "food", "dinner", "--date", "2026-01-02"])
+        self._main(["add", "30", "travel", "cab #work", "--date", "2026-01-03"])
+        rows = json.loads(self._main(["list", "--tag", "work", "--json"]))
+        self.assertEqual(sorted(e["amount"] for e in rows), [10.0, 30.0])
+        # leading # is accepted too
+        rows2 = json.loads(self._main(["list", "--tag", "#work", "--json"]))
+        self.assertEqual(len(rows2), 2)
+
+    def test_top_filter_by_tag(self):
+        self._main(["add", "10", "food", "a #work"])
+        self._main(["add", "99", "food", "b"])
+        self._main(["add", "50", "travel", "c #work"])
+        rows = json.loads(self._main(["top", "--tag", "work", "--json"]))
+        self.assertEqual([e["amount"] for e in rows], [50.0, 10.0])  # largest first
+
     def test_list_sort_amount(self):
         self._main(["add", "30", "food", "a", "--date", "2026-01-01"])
         self._main(["add", "10", "food", "b", "--date", "2026-01-02"])
