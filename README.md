@@ -335,12 +335,15 @@ ledgerling recur add 1200 rent "apartment" --every month --start 2026-08-01
 ledgerling recur add 15 subscriptions "music" --every month
 ledgerling recur add 3000 salary "paycheck" --every month --income
 ledgerling recur add 450 loan "car" --every month --until 2027-06-30  # fixed term
+ledgerling recur add 450 loan "car" --every month --count 12          # 12 payments
 ledgerling recur from 5 --every month   # turn entry #5 into a recurring rule
 ledgerling recur list
 ledgerling recur list --json          # structured rows (id, next, until, status)
 ledgerling recur edit 1 --amount 1350 --note "rent increase"
 ledgerling recur edit 1 --until 2027-01-31   # add/change an end date
 ledgerling recur edit 1 --no-until           # make it open-ended again
+ledgerling recur edit 1 --count 24           # or cap by number of occurrences
+ledgerling recur edit 1 --no-count           # remove the count cap
 ledgerling recur remove 1
 ledgerling recur run
 ledgerling recur skip 1               # skip the next occurrence (e.g. paused)
@@ -389,8 +392,9 @@ they can't be aliased and changed process-wide.
   `budget`, or `export`, any occurrences due up to today are generated
   automatically (idempotent — never duplicated). `recur run` forces it.
 - Removing a recurring rule keeps the expenses it already created.
-- A recurring rule with an `--until` end date stops generating after it; `recur
-  list` marks such a rule `ENDED`. Already-generated expenses are left as-is.
+- A recurring rule can stop on its own by date (`--until`) or after a fixed
+  number of occurrences (`--count`, e.g. 12 loan payments); `recur list` marks a
+  finished rule `ENDED`. Already-generated expenses are left as-is.
 - **Undo** reverts the last change to your data (add/edit/delete/split/import/
   budget/recategorize/restore/recurring catch-up). Running `undo` again redoes it — it's
   a one-step toggle, stored in the data folder.
