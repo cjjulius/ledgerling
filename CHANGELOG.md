@@ -4,6 +4,19 @@ All notable changes to Ledgerling are documented here. The format is based on
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and this project
 adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.123.0] - 2026-10-01
+
+### Added
+
+- `subscriptions` command: detects subscription-like charges from your actual
+  spending history — a payee (grouped by note, `#tags` stripped, falling back to
+  category) billed on a regular cadence (weekly, biweekly, monthly, quarterly or
+  yearly) with a stable amount — and estimates each one's monthly and annual
+  cost plus a grand total. Unlike `commitments` (which normalizes your declared
+  recurring rules), this surfaces recurring spend you never formalized. Tune the
+  sensitivity with `--min-count N` (default 3); `--json` supported. Available in
+  the web UI under Analyze.
+
 ## [1.122.1] - 2026-10-01
 
 ### Changed
@@ -1316,6 +1329,7 @@ file, standard library only, strictly confined to its own folder.
   guard (`_within_app`) that refuses any path escaping the app folder; imports
   and restores are reduced to a basename and looked up only within the folder.
 
+[1.123.0]: #11230---2026-10-01
 [1.122.1]: #11221---2026-10-01
 [1.122.0]: #11220---2026-10-01
 [1.121.1]: #11211---2026-10-01

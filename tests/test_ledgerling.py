@@ -232,6 +232,75 @@ class PureLogic(unittest.TestCase):
         with self.assertRaises(SystemExit):
             L.parse_date("2026-99-99")
 
+    def test_median(self):
+        self.assertEqual(L._median([]), 0.0)
+        self.assertEqual(L._median([5]), 5)
+        self.assertEqual(L._median([3, 1, 2]), 2)       # odd -> middle
+        self.assertEqual(L._median([1, 2, 3, 4]), 2.5)  # even -> mean of mid
+
+    def test_normalize_payee(self):
+        # note wins, #tags stripped, whitespace collapsed and lowercased
+        self.assertEqual(
+            L._normalize_payee({"note": "  Netflix  #fun ", "category": "ent"}),
+            "netflix")
+        # empty note falls back to the (category)
+        self.assertEqual(
+            L._normalize_payee({"note": "", "category": "rent"}), "(rent)")
+        self.assertEqual(
+            L._normalize_payee({"note": "#only #tags", "category": "misc"}),
+            "(misc)")
+
+    def test_detect_subscriptions(self):
+        # a clean monthly Netflix charge (stable amount) + irregular groceries
+        exp = []
+        for i, d in enumerate(("2026-01-05", "2026-02-05", "2026-03-05",
+                               "2026-04-05")):
+            exp.append({"id": i + 1, "amount": 15.99, "category": "ent",
+                        "note": "netflix", "date": d, "tags": []})
+        # groceries: irregular dates + variable amounts -> not a subscription
+        exp += [
+            {"id": 10, "amount": 54.0, "category": "food", "note": "groceries",
+             "date": "2026-01-03", "tags": []},
+            {"id": 11, "amount": 12.0, "category": "food", "note": "groceries",
+             "date": "2026-01-19", "tags": []},
+            {"id": 12, "amount": 88.0, "category": "food", "note": "groceries",
+             "date": "2026-03-02", "tags": []},
+        ]
+        subs = L.detect_subscriptions({"expenses": exp, "budgets": {},
+                                       "recurring": []})
+        self.assertEqual(len(subs), 1)
+        s = subs[0]
+        self.assertEqual(s["payee"], "netflix")
+        self.assertEqual(s["cadence"], "monthly")
+        self.assertEqual(s["amount"], 15.99)
+        self.assertEqual(s["count"], 4)
+        self.assertEqual(s["monthly"], 15.99)
+        self.assertEqual(s["annual"], round(15.99 * 12, 2))
+
+    def test_detect_subscriptions_weekly_and_min_count(self):
+        exp = [{"id": i + 1, "amount": 4.5, "category": "coffee",
+                "note": "latte", "date": d, "tags": []}
+               for i, d in enumerate(("2026-01-01", "2026-01-08",
+                                      "2026-01-15", "2026-01-22"))]
+        subs = L.detect_subscriptions({"expenses": exp, "budgets": {},
+                                       "recurring": []})
+        self.assertEqual(subs[0]["cadence"], "weekly")
+        self.assertEqual(subs[0]["monthly"], round(4.5 * 52 / 12, 2))
+        # raising min_count above the sample size suppresses it
+        self.assertEqual(
+            L.detect_subscriptions({"expenses": exp, "budgets": {},
+                                    "recurring": []}, min_count=5), [])
+
+    def test_detect_subscriptions_ignores_income(self):
+        # a regular monthly income shouldn't be flagged as a subscription
+        exp = [{"id": i + 1, "amount": 3000.0, "category": "salary",
+                "note": "pay", "date": d, "kind": "income", "tags": []}
+               for i, d in enumerate(("2026-01-01", "2026-02-01",
+                                      "2026-03-01"))]
+        self.assertEqual(
+            L.detect_subscriptions({"expenses": exp, "budgets": {},
+                                    "recurring": []}), [])
+
 
 class RecurringEngine(unittest.TestCase):
     def test_occurrences_monthly_clamp(self):
@@ -1694,6 +1763,26 @@ class CLI(TempAppCase):
                          round(3000 - (1200 + 70 * 52 / 12), 2))
         self.assertEqual(d["annual_income"], round(3000 * 12, 2))
         self.assertEqual(len(d["rules"]), 3)
+
+    def test_subscriptions_json_and_text(self):
+        for d in ("2026-01-10", "2026-02-10", "2026-03-10"):
+            self._main(["add", "9.99", "ent", "spotify", "--date", d])
+        d = json.loads(self._main(["subscriptions", "--json"]))
+        self.assertEqual(d["count"], 1)
+        s = d["subscriptions"][0]
+        self.assertEqual(s["payee"], "spotify")
+        self.assertEqual(s["cadence"], "monthly")
+        self.assertEqual(d["monthly"], 9.99)
+        self.assertEqual(d["annual"], round(9.99 * 12, 2))
+        # text mode names the payee and the per-year total
+        out = self._main(["subscriptions"])
+        self.assertIn("spotify", out)
+        self.assertIn("monthly", out)
+
+    def test_subscriptions_json_empty(self):
+        d = json.loads(self._main(["subscriptions", "--json"]))
+        self.assertEqual(d, {"subscriptions": [], "count": 0,
+                             "monthly": 0.0, "annual": 0.0})
 
     def test_savings_json(self):
         self._main(["income", "1000", "salary", "a", "--date", "2026-01-10"])
