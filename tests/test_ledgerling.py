@@ -1619,6 +1619,43 @@ class CLI(TempAppCase):
         d = json.loads(self._main(["top", "--category", "food", "--json"]))
         self.assertEqual([e["amount"] for e in d], [40.0, 10.0])
 
+    def test_payees_json(self):
+        # two charges to "netflix", one to "spotify"; income excluded
+        self._main(["add", "15.99", "ent", "netflix", "--date", "2026-01-05"])
+        self._main(["add", "15.99", "ent", "netflix #fun", "--date", "2026-02-05"])
+        self._main(["add", "9.99", "ent", "spotify", "--date", "2026-01-20"])
+        self._main(["income", "3000", "salary", "payday"])   # must be excluded
+        d = json.loads(self._main(["payees", "--json"]))
+        self.assertEqual(d["count"], 2)                      # netflix, spotify
+        by = {p["payee"]: p for p in d["payees"]}
+        # #tags are stripped so both netflix charges group together
+        self.assertEqual(by["netflix"]["count"], 2)
+        self.assertEqual(by["netflix"]["total"], 31.98)
+        self.assertEqual(by["netflix"]["average"], 15.99)
+        self.assertEqual(by["netflix"]["first"], "2026-01-05")
+        self.assertEqual(by["netflix"]["last"], "2026-02-05")
+        # ranked by total, so netflix comes before spotify
+        self.assertEqual([p["payee"] for p in d["payees"]], ["netflix", "spotify"])
+        self.assertNotIn("payday", by)                       # income left out
+
+    def test_payees_limit_and_month(self):
+        self._main(["add", "100", "a", "alpha", "--date", "2026-01-10"])
+        self._main(["add", "50", "b", "beta", "--date", "2026-02-10"])
+        # --limit caps the rows but the count reflects all payees
+        d = json.loads(self._main(["payees", "--limit", "1", "--json"]))
+        self.assertEqual(d["shown"], 1)
+        self.assertEqual(d["count"], 2)
+        self.assertEqual(d["payees"][0]["payee"], "alpha")
+        # --month scopes the data
+        d2 = json.loads(self._main(["payees", "--month", "2026-02", "--json"]))
+        self.assertEqual([p["payee"] for p in d2["payees"]], ["beta"])
+
+    def test_payees_empty_category_fallback(self):
+        # a blank note falls back to the (category) key
+        self._main(["add", "12", "groceries", "", "--date", "2026-03-01"])
+        d = json.loads(self._main(["payees", "--json"]))
+        self.assertEqual(d["payees"][0]["payee"], "(groceries)")
+
     def test_trend_json(self):
         this = date.today().isoformat()[:7]
         last = L.add_months(date.today().replace(day=1), -1).isoformat()[:7]

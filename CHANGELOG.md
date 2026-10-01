@@ -4,6 +4,19 @@ All notable changes to Ledgerling are documented here. The format is based on
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and this project
 adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.126.0] - 2026-10-01
+
+### Added
+
+- `payees` command: ranks spending by payee/merchant, grouping entries by the
+  note with `#tags` stripped (falling back to the category when a note is
+  blank) — the same merchant key `subscriptions` uses. Shows each payee's
+  count, total, average, and first/last-seen dates, ranked by total spend.
+  `--month YYYY-MM` scopes to a month, `--limit N` caps the rows (default 20,
+  while the reported `count` still reflects all payees); `--json` supported.
+  The merchant complement to the category-based `categories`/`top`. Available
+  in the web UI under Analyze.
+
 ## [1.125.0] - 2026-10-01
 
 ### Added
@@ -1376,6 +1389,7 @@ file, standard library only, strictly confined to its own folder.
   guard (`_within_app`) that refuses any path escaping the app folder; imports
   and restores are reduced to a basename and looked up only within the folder.
 
+[1.126.0]: #11260---2026-10-01
 [1.125.0]: #11250---2026-10-01
 [1.124.1]: #11241---2026-10-01
 [1.124.0]: #11240---2026-10-01
