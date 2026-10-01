@@ -110,7 +110,7 @@ import sys
 import tempfile
 from datetime import datetime, date, timedelta
 
-__version__ = "1.114.1"
+__version__ = "1.115.0"
 
 # --------------------------------------------------------------------------- #
 # Sandbox + storage
@@ -657,36 +657,56 @@ def cmd_split(args):
 
     Useful for a single receipt covering multiple categories (a Costco run that
     was groceries + household). The parts inherit the original's date, note,
-    tags and kind; the total must match the original exactly (to the cent).
+    tags and kind. By default the parts are exact amounts that must total the
+    original to the cent; with --pct they are percentages that must sum to 100,
+    and the amounts are derived (the last part absorbs any rounding remainder).
     """
     data = load()
     e = find(data["expenses"], args.id)
     if not e:
         sys.exit(f"error: no entry with id #{args.id}")
     parts = args.parts
+    by_pct = getattr(args, "pct", False)
+    label = "percent" if by_pct else "amount"
     if len(parts) % 2 != 0:
-        sys.exit("error: split needs category/amount pairs, e.g. "
-                 "split 5 groceries 70 household 30")
-    pairs = []
+        example = ("split 5 --pct groceries 60 household 40" if by_pct
+                   else "split 5 groceries 70 household 30")
+        sys.exit(f"error: split needs category/{label} pairs, e.g. {example}")
+    raw = []
     i = 0
     while i < len(parts):
         cat = clean_category(parts[i])
         try:
-            amt = float(parts[i + 1])
+            val = float(parts[i + 1])
         except ValueError:
-            sys.exit(f"error: '{parts[i + 1]}' is not a valid amount")
-        if amt <= 0:
-            sys.exit("error: split amounts must be greater than zero")
-        pairs.append((cat, round(amt, 2)))
+            sys.exit(f"error: '{parts[i + 1]}' is not a valid {label}")
+        if val <= 0:
+            sys.exit(f"error: split {label}s must be greater than zero")
+        raw.append((cat, val))
         i += 2
-    if len(pairs) < 2:
+    if len(raw) < 2:
         sys.exit("error: split into at least two parts")
 
     orig_cents = round(e["amount"] * 100)
-    sum_cents = sum(round(a * 100) for _, a in pairs)
-    if sum_cents != orig_cents:
-        sys.exit(f"error: parts total {money(round(sum_cents / 100, 2))} but "
-                 f"#{e['id']} is {money(e['amount'])}")
+    if by_pct:
+        if round(sum(v for _, v in raw), 4) != 100:
+            sys.exit(f"error: percentages must sum to 100 "
+                     f"(got {sum(v for _, v in raw):g})")
+        pairs, used = [], 0
+        for idx, (cat, pct) in enumerate(raw):
+            cents = (orig_cents - used if idx == len(raw) - 1
+                     else round(orig_cents * pct / 100))
+            if cents <= 0:
+                sys.exit("error: a part rounds to zero; use larger "
+                         "percentages or exact amounts")
+            used += cents if idx < len(raw) - 1 else 0
+            pairs.append((cat, round(cents / 100, 2)))
+    else:
+        pairs = [(cat, round(v, 2)) for cat, v in raw]
+        sum_cents = sum(round(a * 100) for _, a in pairs)
+        if sum_cents != orig_cents:
+            sys.exit(f"error: parts total {money(round(sum_cents / 100, 2))} but "
+                     f"#{e['id']} is {money(e['amount'])}")
 
     note, kind, tags = e["note"], kind_of(e), parse_tags(e["note"])
     date_iso = e["date"]
@@ -4407,7 +4427,10 @@ def build_parser():
                         help="split an entry into category/amount parts")
     sp.add_argument("id", type=int, help="entry id to split (see `list`)")
     sp.add_argument("parts", nargs="+",
-                    help="category amount pairs, e.g. groceries 70 household 30")
+                    help="category/amount (or category/percent with --pct) pairs, "
+                         "e.g. groceries 70 household 30")
+    sp.add_argument("--pct", action="store_true",
+                    help="treat values as percentages that sum to 100")
     sp.set_defaults(func=cmd_split)
 
     cl = sub.add_parser("clone", help="duplicate an entry (defaults to today)")

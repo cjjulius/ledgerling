@@ -93,6 +93,7 @@ ledgerling add 45 food "groceries" --date yesterday
 ledgerling edit 1 --amount 13.75 --note "lunch (with tip)"
 ledgerling delete 2
 ledgerling split 1 groceries 70 household 30   # one receipt -> two categories
+ledgerling split 1 --pct groceries 60 household 40   # ...or split by percentage
 ledgerling clone 1                    # duplicate entry #1 dated today
 ledgerling refund 1                   # record a full refund of expense #1
 ledgerling refund 1 --amount 12.50    # a partial refund

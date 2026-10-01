@@ -4,6 +4,15 @@ All notable changes to Ledgerling are documented here. The format is based on
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and this project
 adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.115.0] - 2026-10-01
+
+### Added
+
+- `split --pct` splits an entry by percentages (which must sum to 100) instead
+  of exact amounts, deriving each part's amount from the original and giving the
+  last part any rounding remainder so the parts still total the original to the
+  cent. The default exact-amount mode is unchanged.
+
 ## [1.114.1] - 2026-10-01
 
 ### Changed
@@ -1191,6 +1200,7 @@ file, standard library only, strictly confined to its own folder.
   guard (`_within_app`) that refuses any path escaping the app folder; imports
   and restores are reduced to a basename and looked up only within the folder.
 
+[1.115.0]: #11150---2026-10-01
 [1.114.1]: #11141---2026-10-01
 [1.114.0]: #11140---2026-10-01
 [1.113.0]: #11130---2026-10-01
