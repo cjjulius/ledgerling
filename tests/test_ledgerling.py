@@ -191,9 +191,10 @@ class PureLogic(unittest.TestCase):
         self.assertEqual(L.all_time_net({"expenses": []}), 0.0)
 
     def test_median(self):
-        self.assertEqual(L._median([]), 0)
+        self.assertEqual(L._median([]), 0.0)            # empty -> 0.0
         self.assertEqual(L._median([5]), 5)
         self.assertEqual(L._median([1, 3]), 2)          # even -> mean of middle two
+        self.assertEqual(L._median([1, 2, 3, 4]), 2.5)  # even, four values
         self.assertEqual(L._median([3, 1, 2]), 2)       # odd, unsorted input
 
     def test_money_formatting(self):
@@ -232,11 +233,18 @@ class PureLogic(unittest.TestCase):
         with self.assertRaises(SystemExit):
             L.parse_date("2026-99-99")
 
-    def test_median(self):
-        self.assertEqual(L._median([]), 0.0)
-        self.assertEqual(L._median([5]), 5)
-        self.assertEqual(L._median([3, 1, 2]), 2)       # odd -> middle
-        self.assertEqual(L._median([1, 2, 3, 4]), 2.5)  # even -> mean of mid
+    def test_group_totals(self):
+        rows = [
+            {"amount": 10.0, "date": "2026-01-05"},                 # expense
+            {"amount": 5.0, "date": "2026-01-20"},                  # expense
+            {"amount": 100.0, "date": "2026-01-01", "kind": "income"},
+            {"amount": 7.0, "date": "2026-02-03"},                  # expense
+        ]
+        agg = L.group_totals(rows, lambda e: L.month_of(e["date"]))
+        self.assertEqual(agg["2026-01"], {"income": 100.0, "spending": 15.0})
+        self.assertEqual(agg["2026-02"], {"income": 0.0, "spending": 7.0})
+        # a None key drops the entry
+        self.assertEqual(L.group_totals(rows, lambda e: None), {})
 
     def test_normalize_payee(self):
         # note wins, #tags stripped, whitespace collapsed and lowercased
