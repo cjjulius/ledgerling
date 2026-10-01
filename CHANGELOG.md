@@ -4,6 +4,18 @@ All notable changes to Ledgerling are documented here. The format is based on
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and this project
 adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.92.0] - 2026-09-30
+
+### Added
+
+- Recurring rules can now have an end date. `recur add`/`recur from` take
+  `--until YYYY-MM-DD`, and `recur edit` takes `--until` to set/change it or
+  `--no-until` to clear it. Occurrences after the end date are never generated,
+  so a lease, a fixed-term loan, or a trial subscription stops on its own. The
+  end date flows through catch-up, `upcoming`, `cashflow`, and `recur list`
+  (which shows the `until` date and marks a finished rule `ENDED`). An `--until`
+  before the rule's start is rejected.
+
 ## [1.91.0] - 2026-09-30
 
 ### Changed
@@ -921,6 +933,7 @@ file, standard library only, strictly confined to its own folder.
   guard (`_within_app`) that refuses any path escaping the app folder; imports
   and restores are reduced to a basename and looked up only within the folder.
 
+[1.92.0]: #1920---2026-09-30
 [1.91.0]: #1910---2026-09-30
 [1.90.0]: #1900---2026-09-30
 [1.89.0]: #1890---2026-09-30
