@@ -645,6 +645,28 @@ class CLI(TempAppCase):
         self.assertEqual(by_cat["groceries"]["kind"], "expense")
         self.assertEqual(round(sum(e["amount"] for e in exp), 2), 100.0)
 
+    def test_split_by_percent(self):
+        self._main(["add", "100", "costco", "run", "--date", "2026-07-03"])
+        self._main(["split", "1", "--pct", "groceries", "70", "household", "30"])
+        exp = L.load()["expenses"]
+        by_cat = {e["category"]: e["amount"] for e in exp}
+        self.assertEqual(by_cat["groceries"], 70.0)
+        self.assertEqual(by_cat["household"], 30.0)
+        self.assertEqual(round(sum(e["amount"] for e in exp), 2), 100.0)
+
+    def test_split_by_percent_rounding_sums_exact(self):
+        # 100.00 split 33.33/33.33/33.34 (3 equal thirds) must sum back exactly
+        self._main(["add", "100", "x", "y"])
+        self._main(["split", "1", "--pct", "a", "33.33", "b", "33.33",
+                    "c", "33.34"])
+        exp = L.load()["expenses"]
+        self.assertEqual(round(sum(e["amount"] for e in exp), 2), 100.0)
+
+    def test_split_pct_rejects_bad_sum(self):
+        self._main(["add", "100", "x", "y"])
+        with self.assertRaises(SystemExit):
+            self._main(["split", "1", "--pct", "a", "70", "b", "40"])
+
     def test_split_rejects_total_mismatch(self):
         self._main(["add", "100", "costco", "x"])
         with self.assertRaises(SystemExit):
