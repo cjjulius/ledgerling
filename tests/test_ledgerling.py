@@ -682,6 +682,30 @@ class CLI(TempAppCase):
         with self.assertRaises(SystemExit):        # conflicting kind flags
             self._main(["recur", "edit", "1", "--income", "--expense"])
 
+    def test_add_in_foreign_currency_converts(self):
+        self._main(["config", "--home-code", "USD"])
+        self._main(["fx", "set", "USD", "1"])
+        self._main(["fx", "set", "EUR", "1.1"])          # 1 EUR = 1.10 USD
+        self._main(["add", "100", "travel", "paris", "--in", "EUR"])
+        exp = L.load()["expenses"]
+        self.assertEqual(len(exp), 1)
+        self.assertEqual(exp[0]["amount"], 110.0)        # 100 * 1.1 / 1
+        # income works the same way
+        self._main(["income", "200", "refund", "x", "--in", "EUR"])
+        inc = [e for e in L.load()["expenses"] if e["kind"] == "income"][0]
+        self.assertEqual(inc["amount"], 220.0)
+
+    def test_add_in_requires_home_code(self):
+        self._main(["fx", "set", "EUR", "1.1"])
+        with self.assertRaises(SystemExit):           # no home code set
+            self._main(["add", "100", "travel", "x", "--in", "EUR"])
+
+    def test_add_in_requires_rate(self):
+        self._main(["config", "--home-code", "USD"])
+        self._main(["fx", "set", "USD", "1"])
+        with self.assertRaises(SystemExit):           # no EUR rate
+            self._main(["add", "100", "travel", "x", "--in", "EUR"])
+
     def test_clone(self):
         self._main(["income", "500", "salary", "bonus #q3", "--date", "2026-05-01"])
         self._main(["clone", "1", "--date", "2026-06-01"])
