@@ -108,9 +108,10 @@ import re
 import shutil
 import sys
 import tempfile
+import time
 from datetime import datetime, date, timedelta
 
-__version__ = "1.118.0"
+__version__ = "1.119.0"
 
 # --------------------------------------------------------------------------- #
 # Sandbox + storage
@@ -183,7 +184,16 @@ def _atomic_write_json(path, obj):
     try:
         with os.fdopen(fd, "w", encoding="utf-8") as fh:
             json.dump(obj, fh, indent=2)
-        os.replace(tmp, path)
+        # os.replace can transiently fail on Windows when antivirus or a sync
+        # client (e.g. OneDrive) briefly locks the target; retry a few times.
+        for attempt in range(5):
+            try:
+                os.replace(tmp, path)
+                break
+            except PermissionError:
+                if attempt == 4:
+                    raise
+                time.sleep(0.1)
     except OSError as exc:
         if os.path.exists(tmp):
             os.remove(tmp)
@@ -319,7 +329,12 @@ def bar(fraction, width=24):
 
 
 def next_id(items):
-    return max((i["id"] for i in items), default=0) + 1
+    # Only consider genuine integer ids, so a corrupt/hand-edited entry with a
+    # null or string id can't crash id assignment (bool is excluded: it is an
+    # int subclass but never a valid id).
+    ids = [i.get("id") for i in items]
+    ids = [x for x in ids if isinstance(x, int) and not isinstance(x, bool)]
+    return (max(ids) + 1) if ids else 1
 
 
 def find(items, item_id):
@@ -1872,6 +1887,8 @@ def cmd_loan(args):
         sys.exit("error: --years must be greater than 0")
 
     n = round(args.years * 12)
+    if n < 1:
+        sys.exit("error: --years is too short (rounds to zero monthly periods)")
     i = args.rate / 100 / 12
     if i:
         payment = args.principal * i / (1 - (1 + i) ** -n)
@@ -1919,6 +1936,8 @@ def cmd_interest(args):
         sys.exit("error: --monthly cannot be negative")
 
     n = round(args.years * 12)
+    if n < 1:
+        sys.exit("error: --years is too short (rounds to zero monthly periods)")
     i = args.rate / 100 / 12
     if i:
         growth = (1 + i) ** n
@@ -2432,8 +2451,11 @@ def cmd_upcoming(args):
     items = []
     tomorrow = today + timedelta(days=1)
     for rule in data["recurring"]:
+        if rule.get("paused"):
+            continue  # a paused rule won't actually charge
+        skips = set(rule.get("skips", []))
         for d in _occurrences(rule, horizon, tomorrow):
-            if d > today:
+            if d > today and d.isoformat() not in skips:
                 items.append({
                     "date": d.isoformat(),
                     "amount": rule["amount"],
@@ -3762,8 +3784,12 @@ def _valid_iso(s):
 
 # Issue kinds that _autofix can safely repair on its own.
 _FIXABLE_KINDS = frozenset({
-    "duplicate_id", "orphan_recur_id", "empty_category", "bad_budget",
+    "duplicate_id", "bad_id", "orphan_recur_id", "empty_category", "bad_budget",
 })
+
+
+def _is_valid_id(x):
+    return isinstance(x, int) and not isinstance(x, bool)
 
 
 def _scan_issues(data):
@@ -3773,7 +3799,8 @@ def _scan_issues(data):
     counts = {}
     for e in data["expenses"]:
         counts[e.get("id")] = counts.get(e.get("id"), 0) + 1
-    for eid, n in sorted(counts.items(), key=lambda kv: (kv[0] is None, kv[0])):
+    # str() the key so a mix of int and non-int ids can't raise in the sort.
+    for eid, n in sorted(counts.items(), key=lambda kv: (kv[0] is None, str(kv[0]))):
         if n > 1:
             issues.append({"kind": "duplicate_id", "id": eid,
                            "detail": f"id #{eid} is used by {n} entries"})
@@ -3781,6 +3808,9 @@ def _scan_issues(data):
     rule_ids = {r.get("id") for r in data["recurring"]}
     for e in data["expenses"]:
         eid = e.get("id")
+        if not _is_valid_id(eid):
+            issues.append({"kind": "bad_id", "id": eid,
+                           "detail": f"entry has a non-integer id {eid!r}"})
         amt = e.get("amount")
         if isinstance(amt, bool) or not isinstance(amt, (int, float)) or amt <= 0:
             issues.append({"kind": "bad_amount", "id": eid,
@@ -3840,7 +3870,7 @@ def _autofix(data):
     next_free = next_id(data["expenses"])
     for e in data["expenses"]:
         eid = e.get("id")
-        if not isinstance(eid, int) or isinstance(eid, bool) or eid in seen:
+        if not _is_valid_id(eid) or eid in seen:
             e["id"] = next_free
             fixed.append(f"reassigned a duplicate/invalid id to #{next_free}")
             next_free += 1

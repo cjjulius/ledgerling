@@ -4,6 +4,38 @@ All notable changes to Ledgerling are documented here. The format is based on
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and this project
 adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.119.0] - 2026-10-01
+
+### Fixed
+
+- Audit pass. Several defects found and fixed:
+  - `loan` (and `interest`) crashed with `ZeroDivisionError` when `--years` was
+    small enough to round to zero monthly periods (e.g. `loan 1000 --years
+    0.04`); they now reject a sub-period term with a clear message.
+  - `next_id` crashed (`TypeError`) on a corrupt/hand-edited data file whose
+    entry had a null or string id — which also bricked `add`/`import`/`clone`/
+    `split`/`check --fix`. It now ignores non-integer ids.
+  - `check` crashed sorting a file with mixed int/string ids; it now sorts
+    type-safely, reports a new `bad_id` issue for non-integer ids, and
+    `check --fix` reassigns them to valid ids.
+  - `upcoming` was forecasting charges for paused rules and explicitly-skipped
+    dates (things that won't happen); it now excludes both, matching
+    `cashflow`. (This also corrects the dashboard's Upcoming card.)
+  - Web UI: a `sys.exit("error: ...")` validation message was swallowed, so the
+    UI showed a blank generic error; the message is now surfaced.
+  - `do_POST` parses `Content-Length` defensively (400 instead of a 500 on a
+    malformed header).
+  - The atomic data write retries `os.replace` on a transient `PermissionError`
+    (antivirus / OneDrive briefly locking the file), making saves reliable on
+    Windows with a synced data folder.
+
+### Added
+
+- Tests: functional coverage for the previously-untested `delete`, `backup`,
+  and `restore` commands, deep edge-case tests for the recurring engine
+  (`count`+`until`+`since`) and money formatting, plus regressions for every
+  fix above.
+
 ## [1.118.0] - 2026-10-01
 
 ### Added
@@ -1236,6 +1268,7 @@ file, standard library only, strictly confined to its own folder.
   guard (`_within_app`) that refuses any path escaping the app folder; imports
   and restores are reduced to a basename and looked up only within the folder.
 
+[1.119.0]: #11190---2026-10-01
 [1.118.0]: #11180---2026-10-01
 [1.117.1]: #11171---2026-10-01
 [1.117.0]: #11170---2026-10-01

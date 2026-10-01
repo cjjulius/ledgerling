@@ -96,7 +96,16 @@ def run_cli(argv):
             try:
                 L.main(list(argv))
             except SystemExit as exc:
-                code = exc.code if isinstance(exc.code, int) else 1
+                # argparse errors print to stderr and exit non-zero; a bare
+                # sys.exit("error: ...") instead carries the message as .code,
+                # so surface that string (else the UI shows a blank error).
+                if isinstance(exc.code, int):
+                    code = exc.code
+                elif exc.code is None:
+                    code = 0
+                else:
+                    code = 1
+                    err.write(str(exc.code).rstrip("\n") + "\n")
             except Exception as exc:  # never crash the request
                 code = 1
                 err.write(f"internal error: {exc}\n")
@@ -131,8 +140,8 @@ class _Handler(BaseHTTPRequestHandler):
         if self.path != "/api/run":
             self._send(404, json.dumps({"error": "not found"}))
             return
-        length = int(self.headers.get("Content-Length", 0))
         try:
+            length = int(self.headers.get("Content-Length", 0))
             payload = json.loads(self.rfile.read(length) or b"{}")
             argv = payload.get("argv", [])
             if not isinstance(argv, list) or not all(isinstance(x, str)
