@@ -107,7 +107,7 @@ import sys
 import tempfile
 from datetime import datetime, date, timedelta
 
-__version__ = "1.105.0"
+__version__ = "1.106.0"
 
 # --------------------------------------------------------------------------- #
 # Sandbox + storage
@@ -741,21 +741,37 @@ def cmd_budget(args):
         print(f"set monthly budget for [{cat}] to {money(args.amount)}")
         return
 
-    if not data["budgets"]:
+    period = args.month or date.today().isoformat()[:7]
+    rows = []
+    for cat, limit in sorted(data["budgets"].items()):
+        spent = round(sum(e["amount"] for e in data["expenses"]
+                          if kind_of(e) == "expense" and e["category"] == cat
+                          and month_of(e["date"]) == period), 2)
+        rows.append({
+            "category": cat, "limit": limit, "spent": spent,
+            "remaining": round(limit - spent, 2),
+            "percent": round(spent / limit * 100, 1) if limit else 0.0,
+            "over": spent > limit,
+        })
+
+    if getattr(args, "json", False):
+        print(json.dumps({"month": period, "budgets": rows}, indent=2))
+        return
+
+    if not rows:
         print("no budgets set. Try: budget --category food --amount 400")
         return
 
-    period = args.month or date.today().isoformat()[:7]
     print(f"Budgets for {period}")
-    print("=" * 54)
-    for cat, limit in sorted(data["budgets"].items()):
-        spent = sum(e["amount"] for e in data["expenses"]
-                    if kind_of(e) == "expense" and e["category"] == cat
-                    and month_of(e["date"]) == period)
-        frac = spent / limit if limit else 0
-        flag = "  <-- OVER" if spent > limit else ""
-        print(f"{cat:<14} {money(spent):>10} / {money(limit):<10} "
-              f"{bar(frac)} {frac * 100:4.0f}%{flag}")
+    print("=" * 60)
+    for r in rows:
+        frac = r["spent"] / r["limit"] if r["limit"] else 0
+        if r["over"]:
+            tail = f"  OVER by {money(-r['remaining'])}"
+        else:
+            tail = f"  {money(r['remaining'])} left"
+        print(f"{r['category']:<14} {money(r['spent']):>10} / "
+              f"{money(r['limit']):<10} {bar(frac)} {r['percent']:4.0f}%{tail}")
 
 
 def cmd_unbudget(args):
@@ -4233,6 +4249,8 @@ def build_parser():
     b.add_argument("--category", help="category to set a budget for")
     b.add_argument("--amount", type=float, help="monthly budget amount")
     b.add_argument("--month", help="month to check against, YYYY-MM")
+    b.add_argument("--json", action="store_true",
+                   help="output JSON instead of text (view mode)")
     b.set_defaults(func=cmd_budget)
 
     ub = sub.add_parser("unbudget", help="remove a category's budget")

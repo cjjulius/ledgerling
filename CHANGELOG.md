@@ -4,6 +4,16 @@ All notable changes to Ledgerling are documented here. The format is based on
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and this project
 adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.106.0] - 2026-10-01
+
+### Added
+
+- `budget` (view mode) gains `--json`, emitting per-category rows with limit,
+  spent, remaining, percent, and an `over` flag — so the self-generating web UI
+  renders the budget view as a table and scripts can read it. The text view now
+  also shows how much is left (or "OVER by") per category, not just a bar and
+  percentage.
+
 ## [1.105.0] - 2026-10-01
 
 ### Added
@@ -1084,6 +1094,7 @@ file, standard library only, strictly confined to its own folder.
   guard (`_within_app`) that refuses any path escaping the app folder; imports
   and restores are reduced to a basename and looked up only within the folder.
 
+[1.106.0]: #11060---2026-10-01
 [1.105.0]: #11050---2026-10-01
 [1.104.1]: #11041---2026-10-01
 [1.104.0]: #11040---2026-10-01
