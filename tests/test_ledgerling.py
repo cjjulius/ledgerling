@@ -220,6 +220,17 @@ class PureLogic(unittest.TestCase):
         with self.assertRaises(SystemExit):
             L.clean_category("   ")
 
+    def test_filter_month(self):
+        rows = [{"date": "2026-01-05"}, {"date": "2026-02-10"},
+                {"date": "2026-01-31"}]
+        got = L.filter_month(rows, "2026-01")
+        self.assertEqual([r["date"] for r in got], ["2026-01-05", "2026-01-31"])
+        # a falsy month returns the same list object unchanged (no filtering)
+        self.assertIs(L.filter_month(rows, None), rows)
+        self.assertIs(L.filter_month(rows, ""), rows)
+        # no matches -> empty
+        self.assertEqual(L.filter_month(rows, "2026-12"), [])
+
     def test_check_month(self):
         L.check_month(None)          # no filter -> ok
         L.check_month("2026-09")     # valid -> ok

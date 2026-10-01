@@ -114,7 +114,7 @@ import tempfile
 import time
 from datetime import datetime, date, timedelta
 
-__version__ = "1.126.0"
+__version__ = "1.126.1"
 
 # --------------------------------------------------------------------------- #
 # Sandbox + storage
@@ -284,6 +284,15 @@ def check_month(m):
     """Exit with a clear message if a --month filter is malformed."""
     if m is not None and not _MONTH_RE.match(m):
         sys.exit(f"error: '{m}' is not a valid month (use YYYY-MM)")
+
+
+def filter_month(rows, month):
+    """Return only the rows dated within a YYYY-MM month, or all rows unchanged
+    when month is falsy. Centralizes the optional --month filter that most read
+    commands share (validate the value with check_month first)."""
+    if not month:
+        return rows
+    return [e for e in rows if month_of(e["date"]) == month]
 
 
 def clean_category(raw):
@@ -632,8 +641,7 @@ def cmd_list(args):
     if getattr(args, "tag", None):
         want = args.tag.strip().lstrip("#").lower()
         rows = [e for e in rows if want in e.get("tags", [])]
-    if args.month:
-        rows = [e for e in rows if month_of(e["date"]) == args.month]
+    rows = filter_month(rows, args.month)
     key = getattr(args, "sort", "date") or "date"
     reverse = bool(getattr(args, "desc", False))
     if key == "amount":
@@ -951,7 +959,7 @@ def cmd_export(args):
     data = load()
     rows = sorted(data["expenses"], key=lambda e: (e["date"], e["id"]))
     if args.month:
-        rows = [e for e in rows if month_of(e["date"]) == args.month]
+        rows = filter_month(rows, args.month)
     elif arg_start or arg_end:
         start, end = _date_bounds(arg_start, arg_end)
         rows = [e for e in rows if start <= e["date"] <= end]
@@ -1202,8 +1210,7 @@ def cmd_search(args):
     if args.tag:
         want = args.tag.strip().lstrip("#").lower()
         rows = [e for e in rows if want in e.get("tags", [])]
-    if args.month:
-        rows = [e for e in rows if month_of(e["date"]) == args.month]
+    rows = filter_month(rows, args.month)
     if getattr(args, "since", None) or getattr(args, "until", None):
         start, end = _date_bounds(args.since, args.until)
         rows = [e for e in rows if start <= e["date"] <= end]
@@ -1750,8 +1757,7 @@ def cmd_distribution(args):
     check_month(args.month)
     data = load()
     rows = expenses_only(data["expenses"])
-    if args.month:
-        rows = [e for e in rows if month_of(e["date"]) == args.month]
+    rows = filter_month(rows, args.month)
 
     buckets = [{"label": _DIST_LABELS[i], "count": 0, "total": 0.0}
                for i in range(len(_DIST_LABELS))]
@@ -1787,8 +1793,7 @@ def cmd_anomalies(args):
     min_count = args.min_count if args.min_count and args.min_count > 1 else 4
     data = load()
     rows = expenses_only(data["expenses"])
-    if args.month:
-        rows = [e for e in rows if month_of(e["date"]) == args.month]
+    rows = filter_month(rows, args.month)
     if args.category:
         cat = clean_category(args.category)
         rows = [e for e in rows if e["category"] == cat]
@@ -1859,8 +1864,7 @@ def cmd_roundup(args):
 
     data = load()
     rows = expenses_only(data["expenses"])
-    if args.month:
-        rows = [e for e in rows if month_of(e["date"]) == args.month]
+    rows = filter_month(rows, args.month)
 
     count = len(rows)
     total_cents = 0
@@ -2246,8 +2250,7 @@ def cmd_top(args):
     if getattr(args, "tag", None):
         want = args.tag.strip().lstrip("#").lower()
         rows = [e for e in rows if want in e.get("tags", [])]
-    if args.month:
-        rows = [e for e in rows if month_of(e["date"]) == args.month]
+    rows = filter_month(rows, args.month)
     rows = sorted(rows, key=lambda e: e["amount"], reverse=True)
     limit = args.limit if args.limit and args.limit > 0 else 10
     rows = rows[:limit]
@@ -2284,8 +2287,7 @@ def cmd_payees(args):
     check_month(args.month)
     data = load()
     rows = expenses_only(data["expenses"])
-    if args.month:
-        rows = [e for e in rows if month_of(e["date"]) == args.month]
+    rows = filter_month(rows, args.month)
 
     agg = {}
     for e in rows:
@@ -2528,8 +2530,7 @@ def cmd_sources(args):
     check_month(args.month)
     data = load()
     rows = income_only(data["expenses"])
-    if args.month:
-        rows = [e for e in rows if month_of(e["date"]) == args.month]
+    rows = filter_month(rows, args.month)
     agg = {}
     for e in rows:
         a = agg.setdefault(e["category"], {"count": 0, "total": 0.0})
@@ -2558,8 +2559,7 @@ def cmd_untagged(args):
     check_month(args.month)
     data = load()
     rows = [e for e in expenses_only(data["expenses"]) if not e.get("tags")]
-    if args.month:
-        rows = [e for e in rows if month_of(e["date"]) == args.month]
+    rows = filter_month(rows, args.month)
     rows = sorted(rows, key=lambda e: (e["date"], e["id"]))
 
     if getattr(args, "json", False):
@@ -2583,8 +2583,7 @@ def cmd_tags(args):
     check_month(args.month)
     data = load()
     rows = expenses_only(data["expenses"])
-    if args.month:
-        rows = [e for e in rows if month_of(e["date"]) == args.month]
+    rows = filter_month(rows, args.month)
     agg = {}
     for e in rows:
         for t in e.get("tags", []):
@@ -2878,8 +2877,7 @@ def cmd_categories(args):
     check_month(args.month)
     data = load()
     rows = expenses_only(data["expenses"])
-    if args.month:
-        rows = [e for e in rows if month_of(e["date"]) == args.month]
+    rows = filter_month(rows, args.month)
     agg = {}
     for e in rows:
         a = agg.setdefault(e["category"], {"count": 0, "total": 0.0})
@@ -2915,8 +2913,7 @@ def cmd_weekday(args):
     check_month(args.month)
     data = load()
     rows = expenses_only(data["expenses"])
-    if args.month:
-        rows = [e for e in rows if month_of(e["date"]) == args.month]
+    rows = filter_month(rows, args.month)
 
     agg = {i: {"total": 0.0, "count": 0} for i in range(7)}
     for e in rows:

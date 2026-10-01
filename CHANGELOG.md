@@ -4,6 +4,16 @@ All notable changes to Ledgerling are documented here. The format is based on
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and this project
 adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.126.1] - 2026-10-01
+
+### Changed
+
+- Internal: extracted a `filter_month(rows, month)` helper for the optional
+  `--month` row filter that a dozen read commands each reimplemented as an
+  `if args.month:` list-comprehension, and routed all of them (plus `export`'s
+  month branch) through it. No behaviour change (a falsy month returns the rows
+  unchanged, exactly as before); covered by a new unit test.
+
 ## [1.126.0] - 2026-10-01
 
 ### Added
@@ -1389,6 +1399,7 @@ file, standard library only, strictly confined to its own folder.
   guard (`_within_app`) that refuses any path escaping the app folder; imports
   and restores are reduced to a basename and looked up only within the folder.
 
+[1.126.1]: #11261---2026-10-01
 [1.126.0]: #11260---2026-10-01
 [1.125.0]: #11250---2026-10-01
 [1.124.1]: #11241---2026-10-01
