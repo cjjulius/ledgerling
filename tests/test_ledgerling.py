@@ -505,6 +505,33 @@ class CLI(TempAppCase):
         with self.assertRaises(SystemExit):
             self._main(["clone", "99"])
 
+    def test_split_replaces_entry_with_parts(self):
+        self._main(["add", "100", "costco", "run #bulk", "--date", "2026-07-03"])
+        self._main(["split", "1", "groceries", "70", "household", "30"])
+        exp = L.load()["expenses"]
+        self.assertEqual(len(exp), 2)
+        # the original "costco" entry is replaced by the two parts
+        self.assertNotIn("costco", [e["category"] for e in exp])
+        by_cat = {e["category"]: e for e in exp}
+        self.assertEqual(by_cat["groceries"]["amount"], 70.0)
+        self.assertEqual(by_cat["household"]["amount"], 30.0)
+        # inherits date, note, tags, kind from the original
+        self.assertEqual(by_cat["groceries"]["date"], "2026-07-03")
+        self.assertEqual(by_cat["groceries"]["tags"], ["bulk"])
+        self.assertEqual(by_cat["groceries"]["kind"], "expense")
+        self.assertEqual(round(sum(e["amount"] for e in exp), 2), 100.0)
+
+    def test_split_rejects_total_mismatch(self):
+        self._main(["add", "100", "costco", "x"])
+        with self.assertRaises(SystemExit):
+            self._main(["split", "1", "groceries", "70", "household", "40"])
+        self.assertEqual(len(L.load()["expenses"]), 1)   # unchanged
+
+    def test_split_rejects_odd_args(self):
+        self._main(["add", "50", "costco", "x"])
+        with self.assertRaises(SystemExit):
+            self._main(["split", "1", "groceries", "30", "household"])
+
     def test_duplicates_json(self):
         self._main(["add", "40", "food", "dinner", "--date", "2026-09-10"])
         self._main(["add", "40", "food", "dinner", "--date", "2026-09-10"])  # dup
