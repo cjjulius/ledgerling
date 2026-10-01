@@ -4,6 +4,18 @@ All notable changes to Ledgerling are documented here. The format is based on
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and this project
 adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.136.0] - 2026-10-01
+
+### Added
+
+- `statement` command: a consolidated monthly statement pulling together income
+  / spending / net, savings rate, spending by category, budget adherence, and
+  the largest expenses into one document. Prints by default; `--json` emits the
+  structured form; `--save [FILE]` writes a shareable **Markdown** statement to
+  the exports folder (default `statement_<month>.md`, path kept inside the data
+  folder). `--month` selects the month. Backed by a pure, tested
+  `month_statement()` helper; grouped under Analyze in both UIs.
+
 ## [1.135.0] - 2026-10-01
 
 ### Added
@@ -1593,6 +1605,7 @@ file, standard library only, strictly confined to its own folder.
   guard (`_within_app`) that refuses any path escaping the app folder; imports
   and restores are reduced to a basename and looked up only within the folder.
 
+[1.136.0]: #11360---2026-10-01
 [1.135.0]: #11350---2026-10-01
 [1.134.1]: #11341---2026-10-01
 [1.134.0]: #11340---2026-10-01

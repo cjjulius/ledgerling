@@ -432,6 +432,13 @@ ledgerling commitments
 ledgerling subscriptions
 ledgerling subscriptions --min-count 4   # require more charges before flagging
 
+# A consolidated monthly statement (income, spending by category, budget
+# adherence, largest expenses, savings rate). Prints by default; --json for the
+# structured form; --save writes a shareable Markdown file to exports/.
+ledgerling statement
+ledgerling statement --month 2026-09
+ledgerling statement --month 2026-09 --save   # -> exports/statement_2026-09.md
+
 # Analytics: extremes, averages, and end-of-month projection
 ledgerling stats
 
