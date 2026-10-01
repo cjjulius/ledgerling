@@ -122,6 +122,38 @@ class PureLogic(unittest.TestCase):
         self.assertEqual(L.add_months(date(2026, 12, 10), 1), date(2027, 1, 10))
         self.assertEqual(L.add_months(date(2026, 3, 15), -3), date(2025, 12, 15))
 
+    def test_occurrences_count_and_until_combined(self):
+        # Whichever limit (count or until) is hit first should cap generation.
+        rule = {"start": "2026-01-01", "every": "month", "count": 6,
+                "until": "2026-03-15"}
+        got = L._occurrences(rule, date(2026, 12, 31))
+        self.assertEqual(got, [date(2026, 1, 1), date(2026, 2, 1),
+                               date(2026, 3, 1)])          # until wins (3 < 6)
+        rule2 = {"start": "2026-01-01", "every": "month", "count": 2,
+                 "until": "2026-12-31"}
+        got2 = L._occurrences(rule2, date(2026, 12, 31))
+        self.assertEqual(got2, [date(2026, 1, 1), date(2026, 2, 1)])  # count wins
+
+    def test_occurrences_count_with_since_is_absolute(self):
+        rule = {"start": "2026-01-01", "every": "month", "count": 4}
+        # since fast-forward must not change the absolute 4-occurrence cap
+        got = L._occurrences(rule, date(2026, 12, 31), since=date(2026, 3, 1))
+        self.assertEqual(got, [date(2026, 3, 1), date(2026, 4, 1)])  # #3 and #4
+
+    def test_occurrences_weekly_first_index_boundaries(self):
+        rule = {"start": "2026-01-01", "every": "week"}
+        full = L._occurrences(rule, date(2026, 3, 1))
+        for since in (date(2026, 1, 1), date(2026, 1, 8), date(2026, 1, 9),
+                      date(2026, 2, 15)):
+            got = L._occurrences(rule, date(2026, 3, 1), since=since)
+            self.assertEqual(got, [d for d in full if d >= since],
+                             "weekly since %s" % since)
+
+    def test_money_large_and_negative(self):
+        L._CONFIG.clear(); L._CONFIG.update(L.DEFAULT_CONFIG)
+        self.assertEqual(L.money(1234567.5), "$1,234,567.50")
+        self.assertEqual(L.money(-1234567.5), "-$1,234,567.50")
+
     def test_category_spent(self):
         data = {"expenses": [
             {"id": 1, "amount": 10.0, "category": "food", "kind": "expense",
@@ -412,6 +444,18 @@ class WebUI(TempAppCase):
         bad = web.run_cli(["list", "--month", "2026-13"])
         self.assertNotEqual(bad["code"], 0)
 
+    def test_run_cli_surfaces_validation_message(self):
+        # A sys.exit("error: ...") validation message must reach the UI via
+        # stderr, not be swallowed into a blank generic error.
+        from ledgerling import web
+        res = web.run_cli(["budget", "--category", "food"])  # missing --amount
+        self.assertEqual(res["code"], 1)
+        self.assertIn("provide both", res["stderr"])
+        # a successful command still reports code 0 with no error text
+        ok = web.run_cli(["version"])
+        self.assertEqual(ok["code"], 0)
+        self.assertEqual(ok["stderr"], "")
+
     def test_http_endpoints(self):
         import threading
         import urllib.request
@@ -655,6 +699,40 @@ class CLI(TempAppCase):
         with self.assertRaises(SystemExit):
             self._main(["clone", "99"])
 
+    def test_delete_removes_entry_and_is_undoable(self):
+        self._main(["add", "10", "food", "a"])
+        self._main(["add", "20", "rent", "b"])
+        self._main(["delete", "1"])
+        self.assertEqual([e["category"] for e in L.load()["expenses"]], ["rent"])
+        self._main(["undo"])                      # delete is undoable
+        self.assertEqual(len(L.load()["expenses"]), 2)
+
+    def test_delete_missing_errors(self):
+        with self.assertRaises(SystemExit):
+            self._main(["delete", "999"])
+
+    def test_backup_and_restore_roundtrip(self):
+        self._main(["add", "10", "food", "a"])
+        out = self._main(["backup"])
+        self.assertIn("backed up to", out)
+        names = os.listdir(L.BACKUP_DIR)
+        self.assertEqual(len(names), 1)
+        # mutate after the backup, then restore it
+        self._main(["add", "999", "splurge", "oops"])
+        self.assertEqual(len(L.load()["expenses"]), 2)
+        self._main(["restore", "--file", names[0]])
+        exp = L.load()["expenses"]
+        self.assertEqual(len(exp), 1)
+        self.assertEqual(exp[0]["category"], "food")
+
+    def test_restore_missing_file_errors(self):
+        with self.assertRaises(SystemExit):
+            self._main(["restore", "--file", "nope.json"])
+
+    def test_backup_with_no_data_errors(self):
+        with self.assertRaises(SystemExit):
+            self._main(["backup"])             # nothing recorded yet
+
     def test_split_replaces_entry_with_parts(self):
         self._main(["add", "100", "costco", "run #bulk", "--date", "2026-07-03"])
         self._main(["split", "1", "groceries", "70", "household", "30"])
@@ -844,6 +922,21 @@ class CLI(TempAppCase):
     def test_loan_rejects_zero_principal(self):
         with self.assertRaises(SystemExit):
             self._main(["loan", "0"])
+
+    def test_loan_rejects_sub_period_term(self):
+        # 0.04y -> round(0.48)=0 periods; must error cleanly, not ZeroDivisionError
+        with self.assertRaises(SystemExit):
+            self._main(["loan", "1000", "--years", "0.04"])
+
+    def test_interest_rejects_sub_period_term(self):
+        with self.assertRaises(SystemExit):
+            self._main(["interest", "1000", "--years", "0.04"])
+
+    def test_next_id_ignores_non_integer_ids(self):
+        self.assertEqual(L.next_id([{"id": None}]), 1)
+        self.assertEqual(L.next_id([{"id": "oops"}, {"id": 5}]), 6)
+        self.assertEqual(L.next_id([{"id": True}]), 1)   # bool is not a real id
+        self.assertEqual(L.next_id([]), 1)
 
     def test_interest_no_rate_is_linear(self):
         d = json.loads(self._main(["interest", "1000", "--rate", "0",
@@ -1239,6 +1332,41 @@ class CLI(TempAppCase):
         self.assertEqual(L.load()["expenses"][0]["category"], "uncategorized")
         self._main(["undo"])
         self.assertEqual(L.load()["expenses"][0]["category"], "")  # restored
+
+    def test_check_handles_non_integer_ids(self):
+        # A corrupt data file with a null and a string id must not crash check;
+        # it reports bad_id, and --fix reassigns them to valid integer ids.
+        L.save({"expenses": [
+            {"id": None, "amount": 5.0, "category": "food", "note": "",
+             "date": "2026-01-01", "tags": [], "kind": "expense"},
+            {"id": "oops", "amount": 6.0, "category": "rent", "note": "",
+             "date": "2026-01-02", "tags": [], "kind": "expense"},
+        ], "budgets": {}, "recurring": [], "goal": None})
+        d = json.loads(self._main(["check", "--json"]))          # no crash
+        self.assertIn("bad_id", {i["kind"] for i in d["issues"]})
+        self._main(["check", "--fix"])
+        ids = [e["id"] for e in L.load()["expenses"]]
+        self.assertTrue(all(isinstance(i, int) for i in ids))
+        self.assertEqual(len(ids), len(set(ids)))
+        self.assertEqual(json.loads(self._main(["check", "--json"]))["issues"], [])
+
+    def test_upcoming_excludes_paused_and_skipped(self):
+        today = date.today().isoformat()
+        self._main(["recur", "add", "15", "subs", "music", "--every", "week",
+                    "--start", today])
+        self._main(["recur", "add", "99", "gym", "x", "--every", "week",
+                    "--start", today])
+        self._main(["recur", "pause", "2"])                      # gym paused
+        d = json.loads(self._main(["upcoming", "--days", "30", "--json"]))
+        cats = {i["category"] for i in d["items"]}
+        self.assertIn("subs", cats)
+        self.assertNotIn("gym", cats)                            # paused -> excluded
+        # now skip the subs rule's next occurrence and confirm it's dropped
+        first = sorted(i["date"] for i in d["items"] if i["category"] == "subs")[0]
+        self._main(["recur", "skip", "1", "--date", first])
+        d2 = json.loads(self._main(["upcoming", "--days", "30", "--json"]))
+        self.assertNotIn(first, [i["date"] for i in d2["items"]
+                                 if i["category"] == "subs"])
 
     def test_check_flags_invalid_rule(self):
         L.save({"expenses": [], "budgets": {}, "recurring": [

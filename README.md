@@ -440,7 +440,11 @@ they can't be aliased and changed process-wide.
 - Removing a recurring rule keeps the expenses it already created.
 - A recurring rule can stop on its own by date (`--until`) or after a fixed
   number of occurrences (`--count`, e.g. 12 loan payments); `recur list` marks a
-  finished rule `ENDED`. Already-generated expenses are left as-is.
+  finished rule `ENDED`. Already-generated expenses are left as-is. A skipped
+  occurrence still counts toward `--count` (the rule fires N times; a skipped
+  one just isn't recorded).
+- `upcoming` and `cashflow` only forecast charges that will actually happen —
+  paused rules and skipped dates are excluded.
 - **Undo** reverts the last change to your data (add/edit/delete/split/import/
   budget/recategorize/restore/`check --fix`/recurring catch-up). Running `undo` again redoes it — it's
   a one-step toggle, stored in the data folder.
