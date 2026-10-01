@@ -2707,6 +2707,39 @@ class CLI(TempAppCase):
         d = json.loads(self._main(["stats", "--json"]))
         self.assertIsNone(d["goal"])
 
+    def test_clear_reconcile_unclear(self):
+        self._main(["income", "1000", "salary", "pay"])     # #1
+        self._main(["add", "200", "food", "groceries"])     # #2
+        self._main(["add", "50", "transit", "bus"])         # #3
+        # clear the income and one expense
+        out = self._main(["clear", "1", "2"])
+        self.assertIn("cleared", out)
+        d = json.loads(self._main(["reconcile", "--json"]))
+        self.assertEqual(d["cleared_count"], 2)
+        self.assertEqual(d["pending_count"], 1)
+        self.assertEqual(d["cleared_net"], 800.0)           # 1000 - 200
+        self.assertEqual(d["pending_net"], -50.0)           # -bus
+        self.assertEqual(d["projected_balance"], 750.0)
+        # unclear the expense; re-clearing is idempotent
+        self._main(["unclear", "2"])
+        d2 = json.loads(self._main(["reconcile", "--json"]))
+        self.assertEqual(d2["cleared_count"], 1)
+        self.assertEqual(d2["cleared_net"], 1000.0)
+        self.assertFalse(L.load()["expenses"][1]["cleared"])
+
+    def test_clear_rejects_missing_id(self):
+        self._main(["add", "10", "food", "x"])
+        with self.assertRaises(SystemExit):
+            with contextlib.redirect_stdout(io.StringIO()), \
+                    contextlib.redirect_stderr(io.StringIO()):
+                L.main(["clear", "1", "999"])
+        # the valid id must not have been changed (all-or-nothing)
+        self.assertFalse(L.load()["expenses"][0].get("cleared"))
+
+    def test_reconcile_empty(self):
+        d = json.loads(self._main(["reconcile", "--json"]))
+        self.assertEqual(d["projected_balance"], 0.0)
+
     def test_statement_json_and_save(self):
         m = "2026-05"
         self._main(["income", "2000", "salary", "pay", "--date", f"{m}-01"])

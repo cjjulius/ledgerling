@@ -4,6 +4,17 @@ All notable changes to Ledgerling are documented here. The format is based on
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and this project
 adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.137.0] - 2026-10-01
+
+### Added
+
+- Reconciliation: mark entries as **cleared** (e.g. posted to your bank) vs
+  **pending**. `clear <id> ...` and `unclear <id> ...` flip a per-entry
+  `cleared` flag (all-or-nothing: an unknown id aborts without changing any),
+  and `reconcile` shows the cleared net, the pending net, and the projected
+  balance once everything clears (`--json` supported). Grouped under Data in
+  both UIs; the flag is optional, so existing entries and files are unaffected.
+
 ## [1.136.1] - 2026-10-01
 
 ### Changed
@@ -1614,6 +1625,7 @@ file, standard library only, strictly confined to its own folder.
   guard (`_within_app`) that refuses any path escaping the app folder; imports
   and restores are reduced to a basename and looked up only within the folder.
 
+[1.137.0]: #11370---2026-10-01
 [1.136.1]: #11361---2026-10-01
 [1.136.0]: #11360---2026-10-01
 [1.135.0]: #11350---2026-10-01
