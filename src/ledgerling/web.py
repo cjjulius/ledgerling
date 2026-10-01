@@ -361,6 +361,23 @@ INDEX_HTML = r"""<!doctype html>
   .cbar.neg { background:var(--neg); }
   .cval { font:12px ui-monospace,Menlo,Consolas,monospace; text-align:right; }
   .cval.neg { color:var(--neg); }
+  .cashflow { display:flex; flex-direction:column; gap:12px; }
+  .cfhead { display:flex; flex-wrap:wrap; gap:10px; }
+  .cfstat { flex:1 1 110px; background:var(--panel2); border:1px solid var(--line);
+    border-radius:10px; padding:8px 12px; }
+  .cfstat .cfk { font-size:11px; color:var(--muted); text-transform:uppercase;
+    letter-spacing:.4px; }
+  .cfstat .cfv { font:15px ui-monospace,Menlo,Consolas,monospace; margin-top:2px; }
+  .cfstat .cfv.pos { color:var(--pos); }
+  .cfstat .cfv.neg { color:var(--neg); }
+  .cfwarn { background:color-mix(in srgb,var(--neg) 14%,transparent);
+    border:1px solid var(--neg); color:var(--neg); border-radius:9px;
+    padding:8px 12px; font-size:13px; font-weight:600; }
+  .cfchart { background:var(--panel2); border:1px solid var(--line);
+    border-radius:10px; padding:8px; }
+  .cfsvg { width:100%; height:auto; display:block; }
+  .cfaxis { font:11px ui-monospace,Menlo,Consolas,monospace; fill:var(--muted); }
+  .cfaxis.neg { fill:var(--neg); }
   .cal { display:flex; flex-direction:column; gap:8px; max-width:440px; }
   .cal .cgrid { display:grid; grid-template-columns:repeat(7,1fr); gap:5px; }
   .cal .cdow { font-size:11px; color:var(--muted); text-align:center; padding:2px 0; font-weight:600; }
@@ -986,7 +1003,8 @@ function buildTabs(data) {
     (Array.isArray(data) ? data.length : Object.keys(data).length);
   const ins = has ? insightsData(data) : null;
   const cal = has ? calendarData(data) : null;
-  const cd = (has && !ins) ? chartData(data) : null;
+  const cf = has ? cashflowData(data) : null;
+  const cd = (has && !ins && !cf) ? chartData(data) : null;
   let active = tText, prefer = 'text';
   if (has) {
     tableEl.innerHTML = '';
@@ -994,7 +1012,10 @@ function buildTabs(data) {
     else { tableEl.appendChild(renderData(data)); active = mk('Table', 'table'); }
     tabs.appendChild(active); prefer = 'table';
   }
-  if (cd) {
+  if (cf) {
+    chartEl.innerHTML = ''; chartEl.appendChild(renderCashflow(cf));
+    active = mk('Projection', 'chart'); tabs.appendChild(active); prefer = 'chart';
+  } else if (cd) {
     chartEl.innerHTML = ''; chartEl.appendChild(renderChart(cd));
     active = mk('Chart', 'chart'); tabs.appendChild(active); prefer = 'chart';
   }
@@ -1075,6 +1096,84 @@ function renderCalendar(data) {
   legend.appendChild(document.createTextNode('more'));
   if (max > 0) legend.appendChild(document.createTextNode('  (peak ' + max + ')'));
   wrap.appendChild(legend);
+  return wrap;
+}
+
+function cashflowData(data) {
+  // cashflow: {start_balance, end_balance, net_change, low_balance, low_date,
+  //            negative_on, events:[{date, amount, balance, ...}]}
+  if (!data || typeof data !== 'object' || Array.isArray(data)) return null;
+  if (typeof data.start_balance !== 'number' || !Array.isArray(data.events)) return null;
+  if (!data.events.length || typeof data.events[0].balance !== 'number') return null;
+  return data;
+}
+
+function renderCashflow(data) {
+  const wrap = document.createElement('div'); wrap.className = 'cashflow';
+  const head = document.createElement('div'); head.className = 'cfhead';
+  const stat = (label, val, cls) => {
+    const d = document.createElement('div'); d.className = 'cfstat';
+    d.innerHTML = '<div class="cfk">' + esc(label) + '</div>' +
+      '<div class="cfv ' + (cls || '') + '">' + esc(val) + '</div>';
+    head.appendChild(d);
+  };
+  const chg = data.net_change;
+  stat('start', money(data.start_balance));
+  stat('end', money(data.end_balance), data.end_balance < 0 ? 'neg' : 'pos');
+  stat('net change', (chg >= 0 ? '+' : '') + money(chg), chg < 0 ? 'neg' : 'pos');
+  stat('lowest', money(data.low_balance), data.low_balance < 0 ? 'neg' : '');
+  wrap.appendChild(head);
+  if (data.negative_on) {
+    const warn = document.createElement('div'); warn.className = 'cfwarn';
+    warn.textContent = 'Balance goes negative on ' + data.negative_on;
+    wrap.appendChild(warn);
+  }
+  // Series: a starting point ("now") plus the running balance after each event.
+  const series = [{date: 'now', v: data.start_balance}].concat(
+    data.events.map(e => ({date: e.date, v: e.balance})));
+  const W = 680, H = 230, padL = 10, padR = 10, padT = 16, padB = 26;
+  const plotW = W - padL - padR, plotH = H - padT - padB;
+  const vals = series.map(s => s.v);
+  let minV = Math.min(0, ...vals), maxV = Math.max(0, ...vals);
+  if (minV === maxV) maxV = minV + 1;
+  const n = series.length;
+  const xFor = i => padL + (n === 1 ? plotW / 2 : (i / (n - 1)) * plotW);
+  const yFor = v => padT + (maxV - v) / (maxV - minV) * plotH;
+  const zeroY = yFor(0);
+  let line = '';
+  series.forEach((s, i) => {
+    line += (i === 0 ? 'M' : 'L') + xFor(i).toFixed(1) + ' ' + yFor(s.v).toFixed(1) + ' ';
+  });
+  const area = line + 'L' + xFor(n - 1).toFixed(1) + ' ' + zeroY.toFixed(1) +
+    ' L' + xFor(0).toFixed(1) + ' ' + zeroY.toFixed(1) + ' Z';
+  let dots = '';
+  series.forEach((s, i) => {
+    const neg = s.v < 0;
+    dots += '<circle cx="' + xFor(i).toFixed(1) + '" cy="' + yFor(s.v).toFixed(1) +
+      '" r="' + (i === 0 ? 3 : 2.4) + '" fill="' + (neg ? 'var(--neg)' : 'var(--accent)') +
+      '"><title>' + esc(s.date + ': ' + money(s.v)) + '</title></circle>';
+  });
+  const svg =
+    '<svg viewBox="0 0 ' + W + ' ' + H + '" class="cfsvg" ' +
+    'preserveAspectRatio="xMidYMid meet" role="img" ' +
+    'aria-label="Projected running balance over time">' +
+    '<line x1="' + padL + '" y1="' + zeroY.toFixed(1) + '" x2="' + (W - padR) +
+      '" y2="' + zeroY.toFixed(1) + '" stroke="var(--muted)" ' +
+      'stroke-dasharray="4 3" stroke-width="1"/>' +
+    '<path d="' + area + '" fill="var(--accent)" opacity="0.12"/>' +
+    '<path d="' + line + '" fill="none" stroke="var(--accent)" stroke-width="2" ' +
+      'stroke-linejoin="round" stroke-linecap="round"/>' +
+    dots +
+    '<text x="' + padL + '" y="' + (H - 7) + '" class="cfaxis">now</text>' +
+    '<text x="' + (W - padR) + '" y="' + (H - 7) + '" text-anchor="end" ' +
+      'class="cfaxis">' + esc(series[n - 1].date) + '</text>' +
+    '<text x="' + (padL + 2) + '" y="' + (padT) + '" class="cfaxis">' +
+      esc(money(maxV)) + '</text>' +
+    (minV < 0 ? '<text x="' + (padL + 2) + '" y="' + (H - padB + 10) +
+      '" class="cfaxis neg">' + esc(money(minV)) + '</text>' : '') +
+    '</svg>';
+  const box = document.createElement('div'); box.className = 'cfchart';
+  box.innerHTML = svg; wrap.appendChild(box);
   return wrap;
 }
 

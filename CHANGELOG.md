@@ -4,6 +4,17 @@ All notable changes to Ledgerling are documented here. The format is based on
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and this project
 adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.85.0] - 2026-09-30
+
+### Added
+
+- Web UI: `cashflow` now renders a dedicated **Projection** view instead of a
+  generic bar chart — an SVG running-balance line with a dashed zero baseline
+  and area fill, a start / end / net-change / lowest summary strip, and a
+  highlighted banner when the balance is projected to go negative. Points are
+  red below zero and carry hover tooltips. The chart is theme-aware and marked
+  up with an `img` role and label for assistive tech.
+
 ## [1.84.0] - 2026-09-30
 
 ### Added
@@ -844,6 +855,7 @@ file, standard library only, strictly confined to its own folder.
   guard (`_within_app`) that refuses any path escaping the app folder; imports
   and restores are reduced to a basename and looked up only within the folder.
 
+[1.85.0]: #1850---2026-09-30
 [1.84.0]: #1840---2026-09-30
 [1.83.0]: #1830---2026-09-30
 [1.82.0]: #1820---2026-09-30
