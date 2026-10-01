@@ -576,6 +576,20 @@ class WebUI(TempAppCase):
         self.assertIn("c.setAttribute('role', 'img')", html)
         self.assertIn("c.setAttribute('aria-label', label)", html)
 
+    def test_gui_groups_every_command(self):
+        # The desktop app's sidebar tree must list every command (anything
+        # ungrouped would only reach the catch-all "More" node), and importing
+        # the GUI module must not require tkinter (it's imported lazily inside).
+        from ledgerling import gui, web
+        names = {c["name"] for c in web.describe()["commands"]}
+        grouped = {n for _g, ns in gui.GROUP_DEFS for n in ns}
+        # every grouped name is real, and every real name is grouped or "More"
+        self.assertEqual(grouped - names, set(),
+                         "GUI groups list unknown commands")
+        missing = {n for n in names if gui._group_of(n) == "More"}
+        self.assertEqual(missing, set(),
+                         "commands not in any GUI group: %s" % sorted(missing))
+
     def test_run_cli_bridge(self):
         from ledgerling import web
         web.run_cli(["add", "12.50", "food", "lunch #x"])
@@ -1332,7 +1346,7 @@ class CLI(TempAppCase):
                 names = list(a.choices.keys())
         self.assertIn("summary", names)   # sanity: we actually found commands
         for name in names:
-            if name == "web":             # starts a server; skip
+            if name in ("web", "gui"):    # start a server / open a window; skip
                 continue
             try:
                 with contextlib.redirect_stdout(io.StringIO()), \

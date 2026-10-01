@@ -97,6 +97,7 @@ Commands:
     check     Scan your data for integrity problems
     completion  Print a bash/zsh tab-completion script
     web       Launch a local web UI covering every command
+    gui       Launch the native desktop app covering every command
 
 Run `python ledgerling.py --help` or `<command> --help` for details.
 """
@@ -115,7 +116,7 @@ import tempfile
 import time
 from datetime import datetime, date, timedelta
 
-__version__ = "1.127.1"
+__version__ = "1.128.0"
 
 # --------------------------------------------------------------------------- #
 # Sandbox + storage
@@ -4084,6 +4085,11 @@ def cmd_web(args):
     web.serve(port=args.port, open_browser=not args.no_browser)
 
 
+def cmd_gui(args):
+    from . import gui  # lazy import so the CLI never needs tkinter loaded
+    gui.launch(theme=getattr(args, "theme", "dark"))
+
+
 def cmd_version(args):
     print(f"ledgerling {__version__}")
 
@@ -5328,6 +5334,12 @@ def build_parser():
                     help="don't open a browser automatically")
     wb.set_defaults(func=cmd_web)
 
+    gu = sub.add_parser("gui",
+                        help="launch the native desktop app (auto-covers every command)")
+    gu.add_argument("--theme", choices=["dark", "light"], default="dark",
+                    help="initial colour theme (default dark)")
+    gu.set_defaults(func=cmd_gui)
+
     cp = sub.add_parser("completion",
                         help="print a shell completion script (bash or zsh)")
     cp.add_argument("shell", nargs="?", choices=["bash", "zsh"], default="bash",
@@ -5462,8 +5474,8 @@ MUTATING_COMMANDS = frozenset({
     "add", "income", "edit", "delete", "clone", "refund", "note", "tag",
     "untag", "retag", "recategorize", "unbudget", "goal", "autobudget",
     "import", "restore", "backup", "dedupe", "undo", "config", "recur",
-    "completion", "version", "web", "where", "tip", "split", "fx", "check",
-    "interest", "loan",
+    "completion", "version", "web", "gui", "where", "tip", "split", "fx",
+    "check", "interest", "loan",
 })
 
 

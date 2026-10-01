@@ -20,6 +20,33 @@ pip install .
 Both give you a `ledgerling` command. Without installing, you can also run it
 from a checkout with `python -m ledgerling` (add `src/` to `PYTHONPATH`).
 
+### Desktop app
+
+```bash
+ledgerling gui              # open the native desktop window
+ledgerling gui --theme light
+```
+
+Ledgerling ships a **native desktop application** built on Tkinter (still
+standard library only — no extra dependencies). It opens a real OS window with:
+
+- a **menu bar** — File (Run, open web UI, Quit), a **Commands** menu with every
+  command organized into submenus, View (toggle light/dark, focus search), and
+  Help;
+- a **toolbar** of quick-access buttons for the common actions (add, income,
+  summary, search, upcoming, settings);
+- a **sidebar** that groups every command (Record / Analyze / Budgets & goals /
+  Calculators / Recurring / Data / Settings) with a live **filter** box;
+- a **schema-driven form** for the selected command (it generates itself from
+  the CLI, so every current and future command appears automatically), an
+  **output pane** with a Copy button, and a **status bar**;
+- **keyboard shortcuts**: `Ctrl+Enter` to run, `Ctrl+K` to focus the filter,
+  `Ctrl+T` to toggle the theme, `Ctrl+Q` to quit — and Enter in any field runs
+  the command.
+
+When built as an executable (see below), this is the **double-clickable app**:
+`ledgerling-gui.exe` launches straight into the window with no console.
+
 ### Web UI
 
 ```bash
@@ -68,6 +95,28 @@ labeled grid whose every day cell carries its own accessible name (e.g.
 weekday headers hidden from assistive tech. The whole UI honours
 `prefers-reduced-motion`, dropping transitions and animations for users who ask
 for less motion.
+
+### Standalone executable
+
+Build self-contained binaries (no Python install needed to run them):
+
+```bash
+python scripts/build_exe.py
+```
+
+With [PyInstaller](https://pyinstaller.org/) available this produces **two**
+one-file executables under `dist/`:
+
+- **`ledgerling`** (`ledgerling.exe` on Windows) — the console CLI; run any
+  command, including `ledgerling gui` and `ledgerling web`.
+- **`ledgerling-gui`** (`ledgerling-gui.exe`) — the **double-clickable desktop
+  app**: a windowed build with no console that opens straight into the native
+  UI.
+
+Without PyInstaller it falls back to a stdlib `zipapp` (`dist/ledgerling.pyz`).
+Everything is written only to `build/`/`dist/` (git-ignored); nothing is
+uploaded. Your data lives in your home folder, so the executable can be moved
+anywhere and keeps the same ledger.
 
 ### Shell completion (optional)
 

@@ -4,6 +4,24 @@ All notable changes to Ledgerling are documented here. The format is based on
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and this project
 adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.128.0] - 2026-10-01
+
+### Added
+
+- **Native desktop application** (`ledgerling gui`), built on Tkinter — still
+  pure standard library, no new dependencies. It opens a real OS window with a
+  menu bar (File / Commands / View / Help), a quick-access toolbar, a grouped
+  command sidebar with a live filter, a schema-driven form for the selected
+  command, an output pane with Copy, a light/dark theme toggle, and a status
+  bar. Like the web UI it **generates itself from the CLI** (via the shared
+  `describe()` schema and `run_cli()` bridge), so every current and future
+  command appears automatically. Keyboard shortcuts: `Ctrl+Enter` run, `Ctrl+K`
+  focus filter, `Ctrl+T` toggle theme, `Ctrl+Q` quit; `--theme light|dark`.
+- The executable build now produces **two** binaries: the existing console CLI
+  (`ledgerling`) and a new windowed, double-clickable desktop app
+  (`ledgerling-gui`) that launches straight into the native window with no
+  console. Documented in the new "Standalone executable" README section.
+
 ## [1.127.1] - 2026-10-01
 
 ### Changed
@@ -1435,6 +1453,7 @@ file, standard library only, strictly confined to its own folder.
   guard (`_within_app`) that refuses any path escaping the app folder; imports
   and restores are reduced to a basename and looked up only within the folder.
 
+[1.128.0]: #11280---2026-10-01
 [1.127.1]: #11271---2026-10-01
 [1.127.0]: #11270---2026-10-01
 [1.126.1]: #11261---2026-10-01
