@@ -4,6 +4,17 @@ All notable changes to Ledgerling are documented here. The format is based on
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and this project
 adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.90.0] - 2026-09-30
+
+### Added
+
+- `fx` — an offline currency converter with a user-maintained rate table (no
+  network, so it stays within the sandbox). `fx set CODE RATE` records a
+  currency's value per a reference unit, `fx list` shows the table, `fx rm CODE`
+  removes one, and `fx convert AMOUNT FROM TO` converts between any two stored
+  currencies. Rates live in the config file; `list`/`convert` support `--json`,
+  and the nested subcommands appear in the self-generating web UI.
+
 ## [1.89.0] - 2026-09-30
 
 ### Fixed
@@ -899,6 +910,7 @@ file, standard library only, strictly confined to its own folder.
   guard (`_within_app`) that refuses any path escaping the app folder; imports
   and restores are reduced to a basename and looked up only within the folder.
 
+[1.90.0]: #1900---2026-09-30
 [1.89.0]: #1890---2026-09-30
 [1.88.0]: #1880---2026-09-30
 [1.87.0]: #1870---2026-09-30

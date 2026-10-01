@@ -56,6 +56,7 @@ Commands:
     anomalies  Flag unusually large expenses within each category
     roundup   Simulate round-up savings (round each expense up to $N)
     tip       Tip calculator and even bill splitter
+    fx        Offline currency converter (set/list/rm/convert, user-set rates)
     upcoming  Forecast recurring charges/income due in the next N days
     cashflow  Project a running balance forward (flags if it goes negative)
     commitments  Recurring rules normalized to monthly/annual cost
@@ -102,7 +103,7 @@ import sys
 import tempfile
 from datetime import datetime, date, timedelta
 
-__version__ = "1.89.0"
+__version__ = "1.90.0"
 
 # --------------------------------------------------------------------------- #
 # Sandbox + storage
@@ -127,7 +128,8 @@ BACKUP_DIR = os.path.join(HOME_DIR, "backups")
 _SUPPRESS_UNDO = False
 
 DEFAULT_DATA = {"expenses": [], "budgets": {}, "recurring": []}
-DEFAULT_CONFIG = {"currency": "$", "list_limit": 20, "symbol_position": "before"}
+DEFAULT_CONFIG = {"currency": "$", "list_limit": 20, "symbol_position": "before",
+                  "fx": {}}
 
 # Live settings, loaded from CONFIG_FILE at startup (see main()). Kept as a
 # module-level dict so helpers like money() can read it without threading it
@@ -3432,6 +3434,84 @@ def cmd_config(args):
     print(f"{'sample':<16} {money(1234.5)}")
 
 
+# --------------------------------------------------------------------------- #
+# Offline currency converter (fx)
+# --------------------------------------------------------------------------- #
+
+_FX_CODE_RE = re.compile(r"^[A-Za-z]{1,6}$")
+
+
+def _fx_code(raw):
+    """Normalize and validate a currency code (letters only, upper-cased)."""
+    c = (raw or "").strip().upper()
+    if not _FX_CODE_RE.match(c):
+        sys.exit(f"error: '{raw}' is not a valid currency code (letters only)")
+    return c
+
+
+def _fx_rates():
+    return dict(load_config().get("fx", {}))
+
+
+def cmd_fx_set(args):
+    code = _fx_code(args.code)
+    if args.rate <= 0:
+        sys.exit("error: rate must be greater than zero")
+    cfg = load_config()
+    rates = dict(cfg.get("fx", {}))
+    rates[code] = round(args.rate, 6)
+    cfg["fx"] = rates
+    save_config(cfg)
+    print(f"set {code} = {rates[code]:g} (per reference unit)")
+
+
+def cmd_fx_rm(args):
+    code = _fx_code(args.code)
+    cfg = load_config()
+    rates = dict(cfg.get("fx", {}))
+    if code not in rates:
+        sys.exit(f"error: no rate set for {code}")
+    del rates[code]
+    cfg["fx"] = rates
+    save_config(cfg)
+    print(f"removed {code}")
+
+
+def cmd_fx_list(args):
+    rates = _fx_rates()
+    if getattr(args, "json", False):
+        print(json.dumps({"rates": rates}, indent=2))
+        return
+    if not rates:
+        print("no exchange rates set. Try: fx set EUR 1.09")
+        return
+    print("Exchange rates (per reference unit)")
+    print("=" * 40)
+    for code in sorted(rates):
+        print(f"{code:<8} {rates[code]:>12g}")
+
+
+def cmd_fx_convert(args):
+    rates = _fx_rates()
+    src = _fx_code(args.src)
+    dst = _fx_code(args.dst)
+    for c in (src, dst):
+        if c not in rates:
+            sys.exit(f"error: no rate set for {c}. Try: fx set {c} <rate>")
+    if args.amount < 0:
+        sys.exit("error: amount cannot be negative")
+    pair = rates[src] / rates[dst]
+    result = round(args.amount * pair, 2)
+    if getattr(args, "json", False):
+        print(json.dumps({
+            "amount": round(args.amount, 2), "from": src, "to": dst,
+            "rate": round(pair, 6), "result": result,
+        }, indent=2))
+        return
+    print(f"{args.amount:g} {src} = {result:,.2f} {dst}")
+    print(f"rate  1 {src} = {pair:,.6g} {dst}")
+
+
 def cmd_recur_add(args):
     data = load()
     if args.amount <= 0:
@@ -4118,6 +4198,29 @@ def build_parser():
                     help="which shell (default bash)")
     cp.set_defaults(func=cmd_completion)
 
+    fx = sub.add_parser("fx",
+                        help="offline currency converter (user-set rates)")
+    fxsub = fx.add_subparsers(dest="fx_command")
+    fxs = fxsub.add_parser("set", help="set or update a currency's rate")
+    fxs.add_argument("code", help="currency code, e.g. EUR")
+    fxs.add_argument("rate", type=float,
+                     help="value of 1 unit in your reference currency")
+    fxs.set_defaults(func=cmd_fx_set)
+    fxl = fxsub.add_parser("list", help="list stored rates")
+    fxl.add_argument("--json", action="store_true", help="output JSON instead of text")
+    fxl.set_defaults(func=cmd_fx_list)
+    fxr = fxsub.add_parser("rm", help="remove a currency's rate")
+    fxr.add_argument("code", help="currency code to remove")
+    fxr.set_defaults(func=cmd_fx_rm)
+    fxc = fxsub.add_parser("convert",
+                           help="convert an amount between two set currencies")
+    fxc.add_argument("amount", type=float, help="the amount to convert")
+    fxc.add_argument("src", metavar="from", help="source currency code")
+    fxc.add_argument("dst", metavar="to", help="target currency code")
+    fxc.add_argument("--json", action="store_true", help="output JSON instead of text")
+    fxc.set_defaults(func=cmd_fx_convert)
+    fx.set_defaults(func=lambda args: fx.print_help())
+
     r = sub.add_parser("recur", help="manage recurring expenses")
     rsub = r.add_subparsers(dest="recur_command")
 
@@ -4206,7 +4309,7 @@ MUTATING_COMMANDS = frozenset({
     "add", "income", "edit", "delete", "clone", "refund", "note", "tag",
     "untag", "retag", "recategorize", "unbudget", "goal", "autobudget",
     "import", "restore", "backup", "dedupe", "undo", "config", "recur",
-    "completion", "version", "web", "where", "tip", "split",
+    "completion", "version", "web", "where", "tip", "split", "fx",
 })
 
 

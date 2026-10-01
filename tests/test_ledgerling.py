@@ -697,6 +697,28 @@ class CLI(TempAppCase):
         with self.assertRaises(SystemExit):
             self._main(["tip", "20", "--split", "0"])
 
+    def test_fx_set_list_convert(self):
+        self._main(["fx", "set", "usd", "1"])
+        self._main(["fx", "set", "eur", "1.09"])
+        listed = json.loads(self._main(["fx", "list", "--json"]))
+        self.assertEqual(listed["rates"], {"USD": 1.0, "EUR": 1.09})
+        conv = json.loads(self._main(["fx", "convert", "100", "eur", "usd",
+                                      "--json"]))
+        self.assertEqual(conv["from"], "EUR")
+        self.assertEqual(conv["to"], "USD")
+        self.assertEqual(conv["result"], 109.0)  # 100 * 1.09 / 1
+
+    def test_fx_convert_unknown_code(self):
+        self._main(["fx", "set", "usd", "1"])
+        with self.assertRaises(SystemExit):
+            self._main(["fx", "convert", "10", "usd", "jpy"])
+
+    def test_fx_rm_and_persistence(self):
+        self._main(["fx", "set", "gbp", "1.27"])
+        self.assertEqual(L.load_config().get("fx"), {"GBP": 1.27})
+        self._main(["fx", "rm", "gbp"])
+        self.assertEqual(L.load_config().get("fx"), {})
+
     def test_average_json(self):
         self._main(["add", "100", "food", "a", "--date", "2026-01-01"])
         self._main(["add", "100", "food", "b", "--date", "2026-01-11"])  # 11-day span
