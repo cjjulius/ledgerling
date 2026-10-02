@@ -288,6 +288,36 @@ class PureLogic(unittest.TestCase):
         # a None key drops the entry
         self.assertEqual(L.group_totals(rows, lambda e: None), {})
 
+    def test_filter_entries_shared(self):
+        import types
+        rows = [
+            {"id": 1, "amount": 10.0, "date": "2026-07-03", "category": "food",
+             "tags": ["work"], "kind": "expense", "cleared": True},
+            {"id": 2, "amount": 20.0, "date": "2026-07-10", "category": "travel",
+             "tags": [], "kind": "expense"},
+            {"id": 3, "amount": 99.0, "date": "2026-06-01", "category": "food",
+             "tags": ["work"], "kind": "expense"},
+            {"id": 4, "amount": 500.0, "date": "2026-07-05", "category": "salary",
+             "tags": [], "kind": "income"},
+        ]
+
+        def ns(**kw):
+            base = dict(all=False, income=False, category=None, tag=None,
+                        month=None, cleared=False, pending=False)
+            base.update(kw)
+            return types.SimpleNamespace(**base)
+        ids = lambda a: [e["id"] for e in L._filter_entries(rows, a)]
+        self.assertEqual(ids(ns()), [1, 2, 3])                     # expenses only
+        self.assertEqual(ids(ns(category="Food", month="2026-07")), [1])
+        self.assertEqual(ids(ns(tag="#work")), [1, 3])             # '#' tolerated
+        self.assertEqual(ids(ns(income=True)), [4])                # income scope
+        self.assertEqual(ids(ns(all=True)), [1, 2, 3, 4])          # both kinds
+        self.assertEqual(ids(ns(cleared=True)), [1])
+        self.assertEqual(ids(ns(pending=True)), [2, 3])
+        with self.assertRaises(SystemExit):                        # mutually exclusive
+            with contextlib.redirect_stderr(io.StringIO()):
+                L._filter_entries(rows, ns(cleared=True, pending=True))
+
     def test_profile_stats(self):
         rows = [
             {"amount": 10.0, "date": "2026-07-03", "category": "food", "note": "a"},
