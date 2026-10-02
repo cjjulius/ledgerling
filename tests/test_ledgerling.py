@@ -288,6 +288,19 @@ class PureLogic(unittest.TestCase):
         # a None key drops the entry
         self.assertEqual(L.group_totals(rows, lambda e: None), {})
 
+    def test_category_totals(self):
+        rows = [
+            {"category": "food", "amount": 10.0},
+            {"category": "food", "amount": 5.25},
+            {"category": "transit", "amount": 2.50},
+        ]
+        self.assertEqual(L.category_totals(rows),
+                         {"food": 15.25, "transit": 2.5})
+        self.assertEqual(L.category_totals([]), {})
+        # running 2dp rounding, matching the per-command loops it replaced
+        pennies = [{"category": "x", "amount": 0.1} for _ in range(3)]
+        self.assertEqual(L.category_totals(pennies), {"x": 0.3})
+
     def test_build_ics(self):
         items = [
             {"date": "2026-02-01", "amount": 1200.0, "category": "rent",

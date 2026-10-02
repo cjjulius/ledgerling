@@ -4,6 +4,15 @@ All notable changes to Ledgerling are documented here. The format is based on
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and this project
 adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.147.1] - 2026-10-02
+
+### Changed
+
+- Internal: the per-command "sum amounts by category" loop (duplicated in
+  `summary`, `insights`, `scorecard`, and `range`) is extracted into a shared
+  `category_totals(rows)` helper with the same running 2dp rounding. No
+  behaviour change; covered by a new unit test.
+
 ## [1.147.0] - 2026-10-02
 
 ### Added
@@ -1767,6 +1776,7 @@ file, standard library only, strictly confined to its own folder.
   guard (`_within_app`) that refuses any path escaping the app folder; imports
   and restores are reduced to a basename and looked up only within the folder.
 
+[1.147.1]: #11471---2026-10-02
 [1.147.0]: #11470---2026-10-02
 [1.146.0]: #11460---2026-10-02
 [1.145.0]: #11450---2026-10-01

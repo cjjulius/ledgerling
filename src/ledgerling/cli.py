@@ -132,7 +132,7 @@ import tempfile
 import time
 from datetime import datetime, date, timedelta
 
-__version__ = "1.147.0"
+__version__ = "1.147.1"
 
 # --------------------------------------------------------------------------- #
 # Sandbox + storage
@@ -391,6 +391,17 @@ def group_totals(rows, key_fn):
         else:
             a["spending"] = round(a["spending"] + e["amount"], 2)
     return agg
+
+
+def category_totals(rows):
+    """Sum amounts by category over a list of entries, with running 2dp
+    rounding. Returns {category: total}. Callers pass rows already filtered to
+    the kind/period they want (e.g. one month's expenses)."""
+    totals = {}
+    for e in rows:
+        totals[e["category"]] = round(totals.get(e["category"], 0.0)
+                                      + e["amount"], 2)
+    return totals
 
 
 _TAG_RE = re.compile(r"#(\w+)")
@@ -3784,9 +3795,7 @@ def cmd_month(args):
     income = sum(e["amount"] for e in inc)
     net = income - spending
 
-    cat_tot = {}
-    for e in exp:
-        cat_tot[e["category"]] = round(cat_tot.get(e["category"], 0) + e["amount"], 2)
+    cat_tot = category_totals(exp)
 
     budgets = {}
     for cat, limit in data["budgets"].items():
@@ -3931,9 +3940,7 @@ def cmd_insights(args):
     prev_spend = round(sum(e["amount"] for e in all_exp
                            if month_of(e["date"]) == prev), 2)
 
-    cat_tot = {}
-    for e in exp:
-        cat_tot[e["category"]] = round(cat_tot.get(e["category"], 0) + e["amount"], 2)
+    cat_tot = category_totals(exp)
 
     insights = []
     if not exp and not inc:
@@ -4028,9 +4035,7 @@ def _score_month(data, period, today=None):
     income = round(sum(e["amount"] for e in inc), 2)
     net = round(income - spending, 2)
 
-    cat_tot = {}
-    for e in exp:
-        cat_tot[e["category"]] = round(cat_tot.get(e["category"], 0.0) + e["amount"], 2)
+    cat_tot = category_totals(exp)
 
     # Component 1: savings rate (40 pts). 20%+ of income saved earns full marks.
     rate = (net / income) if income > 0 else 0.0
@@ -4203,9 +4208,7 @@ def cmd_range(args):
     income = round(sum(e["amount"] for e in inc), 2)
     days = (date.fromisoformat(end) - date.fromisoformat(start)).days + 1
 
-    cat_tot = {}
-    for e in exp:
-        cat_tot[e["category"]] = round(cat_tot.get(e["category"], 0) + e["amount"], 2)
+    cat_tot = category_totals(exp)
     by_category = dict(sorted(cat_tot.items(), key=lambda kv: kv[1], reverse=True))
 
     if getattr(args, "json", False):

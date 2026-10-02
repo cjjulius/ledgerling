@@ -639,6 +639,8 @@ being re-implemented per command — e.g. the all-time net that `cashflow`,
 per-period income/spending accumulation that `savings` and `years` share, the
 optional `--month` row filter that a dozen read commands apply, the
 month income/spending/net totals that `compare`, `today`, and `statement` share,
+the category-totals accumulation (`{category: total}` with running 2dp rounding)
+that `summary`, `insights`, `scorecard`, and `range` share,
 and the formatted entry line (`#id date amount [category] …` with its markers)
 that `list` and `search` share.
 
@@ -647,7 +649,7 @@ matches the default (a corrupt or hand-edited value falls back to that default
 instead of crashing a later command), and mutable defaults are deep-copied so
 they can't be aliased and changed process-wide. Data loading is defensive the
 same way: every container section (expenses, budgets, recurring, accounts,
-net-worth history, pots) is declared in one table and, on load, filled if
+net-worth history, pots, templates) is declared in one table and, on load, filled if
 missing and reset to an empty container if its stored value is the wrong type —
 so a corrupt file can't crash a command, and bad *contents* are surfaced by
 `check`.
