@@ -4,6 +4,23 @@ All notable changes to Ledgerling are documented here. The format is based on
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and this project
 adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.151.0] - 2026-10-02
+
+### Added
+
+- `savingsplan [--json]` command: rolls every savings goal (a pot with a
+  target) into one plan — the total monthly saving needed to hit all *dated*
+  goals on time, each goal's own required contribution, and counts of goals
+  past due or already funded. Goals are ordered by urgency (overdue first, then
+  on-target by soonest due date, then undated, then funded). Builds directly on
+  pot target dates. Grouped under Budgets & goals in both UIs.
+
+### Changed
+
+- Internal: the per-pot projection (progress, remaining, months left, required
+  monthly, status) is extracted from `pot` into a shared `_pot_view()` helper,
+  now reused by both `pot` and `savingsplan`.
+
 ## [1.150.0] - 2026-10-02
 
 ### Added
@@ -1812,6 +1829,7 @@ file, standard library only, strictly confined to its own folder.
   guard (`_within_app`) that refuses any path escaping the app folder; imports
   and restores are reduced to a basename and looked up only within the folder.
 
+[1.151.0]: #11510---2026-10-02
 [1.150.0]: #11500---2026-10-02
 [1.149.0]: #11490---2026-10-02
 [1.148.0]: #11480---2026-10-02

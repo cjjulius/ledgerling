@@ -271,6 +271,8 @@ ledgerling pot vacation --take 100      # withdraw (never below zero)
 ledgerling pot vacation --clear-by      # drop the target date
 ledgerling pot                          # list all pots + total saved
 ledgerling pot vacation --remove
+ledgerling savingsplan                  # total $/month to hit all dated goals,
+                                        # ordered by urgency (overdue first)
 ledgerling transfer 150 vacation laptop # move money between two pots
 
 # Net worth: track manual account balances (assets and debts) and see your

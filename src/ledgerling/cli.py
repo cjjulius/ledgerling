@@ -97,6 +97,7 @@ Commands:
     networth  Track account balances (assets/debts) and net worth
     worthtrend  Net-worth snapshots over time
     pot       Savings pots (sinking funds): save toward named targets
+    savingsplan  Total monthly saving needed to hit all dated goals on time
     transfer  Move money between two savings pots
     recur     Recurring rules (add/from/edit/list/remove/run/skip/unskip/pause/resume)
     template  Quick-entry presets (add/list/remove/rename/use) for common expenses
@@ -133,7 +134,7 @@ import tempfile
 import time
 from datetime import datetime, date, timedelta
 
-__version__ = "1.150.0"
+__version__ = "1.151.0"
 
 # --------------------------------------------------------------------------- #
 # Sandbox + storage
@@ -4781,6 +4782,37 @@ def _months_until(due_iso, today=None):
     return max(1, math.ceil(days / 30.44))
 
 
+def _pot_view(nm, p, today=None):
+    """Derive a savings pot's display/JSON view: progress, remaining, and -- when
+    it has both a target and a due date -- the months left, the monthly saving
+    needed to finish in time, and a status (no_target/saving/on_target/overdue/
+    funded). Shared by `pot` and `savingsplan`."""
+    saved = round(p.get("saved", 0.0), 2)
+    target = p.get("target")
+    due = p.get("due")
+    frac = (saved / target) if target else None
+    remaining = round(max(0.0, target - saved), 2) if target else None
+    months_left = _months_until(due, today) if due else None
+    required = None
+    if target and due and remaining and remaining > 0:
+        required = round(remaining / months_left, 2) if months_left else None
+    if not target:
+        status = "no_target"
+    elif remaining == 0:
+        status = "funded"
+    elif not due:
+        status = "saving"
+    elif months_left == 0:
+        status = "overdue"
+    else:
+        status = "on_target"
+    return {"name": nm, "saved": saved, "target": target, "due": due,
+            "remaining": remaining,
+            "progress_pct": round(frac * 100, 1) if frac is not None else None,
+            "months_left": months_left, "required_monthly": required,
+            "status": status}
+
+
 def cmd_pot(args):
     """Savings pots (sinking funds): named targets you save toward. With a name
     and an action (--target/--add/--take/--remove, and/or --by/--clear-by to set
@@ -4831,38 +4863,12 @@ def cmd_pot(args):
         pots[name] = pot
         save(data)
 
-    def view(nm, p):
-        saved = round(p.get("saved", 0.0), 2)
-        target = p.get("target")
-        due = p.get("due")
-        frac = (saved / target) if target else None
-        remaining = round(max(0.0, target - saved), 2) if target else None
-        months_left = _months_until(due) if due else None
-        required = None
-        if target and due and remaining and remaining > 0:
-            required = round(remaining / months_left, 2) if months_left else None
-        if not target:
-            status = "no_target"
-        elif remaining == 0:
-            status = "funded"
-        elif not due:
-            status = "saving"
-        elif months_left == 0:
-            status = "overdue"
-        else:
-            status = "on_target"
-        return {"name": nm, "saved": saved, "target": target, "due": due,
-                "remaining": remaining,
-                "progress_pct": round(frac * 100, 1) if frac is not None else None,
-                "months_left": months_left, "required_monthly": required,
-                "status": status}
-
     if name:
         if name not in pots:
             sys.exit(f"error: no pot '{name}'")
-        rows = [view(name, pots[name])]
+        rows = [_pot_view(name, pots[name])]
     else:
-        rows = [view(n, p) for n, p in sorted(pots.items())]
+        rows = [_pot_view(n, p) for n, p in sorted(pots.items())]
     total_saved = round(sum(r["saved"] for r in rows), 2)
 
     if getattr(args, "json", False):
@@ -4897,6 +4903,58 @@ def cmd_pot(args):
                 print(f"  {'':<16} by {r['due']}")
     print("-" * 56)
     print(f"  total saved across pots: {money(total_saved)}")
+
+
+def cmd_savingsplan(args):
+    """Roll every savings goal (a pot with a target) into one plan: the total
+    monthly saving needed to hit all dated goals on time, each goal's own
+    required contribution, and any goals already funded or past due."""
+    data = load()
+    views = [_pot_view(n, p) for n, p in data["pots"].items()]
+    goals = [v for v in views if v["target"]]
+
+    # Order by urgency: overdue first, then on-target goals by soonest due date,
+    # then undated goals still saving, then funded ones at the end.
+    _PRIORITY = {"overdue": 0, "on_target": 1, "saving": 2, "funded": 3}
+    goals.sort(key=lambda v: (_PRIORITY.get(v["status"], 2), v["due"] or "9999-99"))
+
+    total_monthly = round(sum(v["required_monthly"] or 0.0
+                              for v in goals if v["status"] == "on_target"), 2)
+    dated = [v for v in goals if v["status"] == "on_target"]
+    overdue = [v for v in goals if v["status"] == "overdue"]
+    funded = [v for v in goals if v["status"] == "funded"]
+
+    if getattr(args, "json", False):
+        print(json.dumps({"goals": goals, "total_monthly": total_monthly,
+                          "dated": len(dated), "overdue": len(overdue),
+                          "funded": len(funded)}, indent=2))
+        return
+
+    if not goals:
+        print("no savings goals yet. Give a pot a target: pot vacation --target 2000")
+        return
+    print("Savings plan")
+    print("=" * 60)
+    for v in goals:
+        if v["status"] == "funded":
+            detail = "funded"
+        elif v["status"] == "overdue":
+            detail = f"OVERDUE (was due {v['due']})"
+        elif v["status"] == "on_target":
+            mths = v["months_left"]
+            detail = (f"{money(v['required_monthly'])}/mo until {v['due']} "
+                      f"({mths} month{'' if mths == 1 else 's'})")
+        else:
+            detail = f"{money(v['remaining'])} to go (no date)"
+        print(f"  {v['name']:<16} {money(v['saved'])} / {money(v['target']):<11} "
+              f"{detail}")
+    print("-" * 60)
+    print(f"  to hit {len(dated)} dated goal{'' if len(dated) == 1 else 's'} on "
+          f"time, save {money(total_monthly)}/month")
+    if overdue:
+        print(f"  {len(overdue)} goal{'' if len(overdue) == 1 else 's'} past due")
+    if funded:
+        print(f"  {len(funded)} goal{'' if len(funded) == 1 else 's'} funded")
 
 
 def cmd_transfer(args):
@@ -6739,6 +6797,11 @@ def build_parser():
     pot.add_argument("--json", action="store_true", help="output JSON instead of text")
     pot.set_defaults(func=cmd_pot)
 
+    spl = sub.add_parser("savingsplan",
+                         help="total monthly saving needed to hit all dated goals")
+    spl.add_argument("--json", action="store_true", help="output JSON instead of text")
+    spl.set_defaults(func=cmd_savingsplan)
+
     tf = sub.add_parser("transfer",
                         help="move money between two savings pots")
     tf.add_argument("amount", type=float, help="amount to move")
@@ -6999,6 +7062,7 @@ CATCHUP_COMMANDS = frozenset({
     "weekly", "years", "anomalies", "roundup", "cashflow", "target", "runway",
     "net", "subscriptions", "payees", "overbudget", "today", "worthtrend",
     "statement", "reconcile", "scorecard", "scoretrend", "category",
+    "savingsplan",
 })
 MUTATING_COMMANDS = frozenset({
     "add", "income", "edit", "delete", "clone", "refund", "note", "tag",
