@@ -3013,6 +3013,36 @@ class CLI(TempAppCase):
                     contextlib.redirect_stderr(io.StringIO()):
                 L.main(["pot", "car", "--by", past, "--clear-by"])
 
+    def test_savingsplan_aggregates_dated_goals(self):
+        d90 = (date.today() + timedelta(days=90)).isoformat()
+        d60 = (date.today() + timedelta(days=60)).isoformat()
+        past = (date.today() - timedelta(days=3)).isoformat()
+        self._main(["pot", "vacation", "--target", "1200", "--by", d90])
+        self._main(["pot", "laptop", "--target", "900", "--by", d60])
+        self._main(["pot", "phone", "--target", "500", "--by", past])  # overdue
+        self._main(["pot", "gift", "--target", "100"])                 # no date
+        self._main(["pot", "done", "--target", "50"])
+        self._main(["pot", "done", "--add", "50"])                     # funded
+        d = json.loads(self._main(["savingsplan", "--json"]))
+        self.assertEqual(d["dated"], 2)        # vacation + laptop
+        self.assertEqual(d["overdue"], 1)      # phone
+        self.assertEqual(d["funded"], 1)       # done
+        # total monthly is the sum of the two dated goals' required contributions
+        by = {g["name"]: g for g in d["goals"]}
+        expect = round((by["vacation"]["required_monthly"]
+                        + by["laptop"]["required_monthly"]), 2)
+        self.assertEqual(d["total_monthly"], expect)
+        # ordered by urgency: overdue first, then on-target by soonest due,
+        # then undated, then funded last
+        self.assertEqual([g["name"] for g in d["goals"]],
+                         ["phone", "laptop", "vacation", "gift", "done"])
+
+    def test_savingsplan_empty(self):
+        d = json.loads(self._main(["savingsplan", "--json"]))
+        self.assertEqual(d["goals"], [])
+        self.assertEqual(d["total_monthly"], 0.0)
+        self.assertIn("no savings goals", self._main(["savingsplan"]))
+
     def test_transfer_between_pots(self):
         self._main(["pot", "vacation", "--add", "500"])
         self._main(["pot", "laptop", "--add", "100"])

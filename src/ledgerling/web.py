@@ -509,7 +509,7 @@ const GROUP_DEFS = [
     'quarter', 'weekday', 'trend', 'tagtrend', 'matrix', 'tagmatrix', 'cumulative', 'top', 'compare', 'average', 'distribution',
     'balance', 'savings', 'heatmap', 'streak', 'pace', 'forecast', 'sources', 'anomalies', 'cashflow', 'net', 'subscriptions',
     'categories', 'category', 'payees', 'worthtrend', 'tags', 'untagged', 'search', 'list']],
-  ['Budgets & goals', ['budget', 'unbudget', 'allowance', 'overbudget', 'goal', 'networth', 'pot', 'transfer', 'suggest', 'autobudget', 'commitments', 'upcoming']],
+  ['Budgets & goals', ['budget', 'unbudget', 'allowance', 'overbudget', 'goal', 'networth', 'pot', 'transfer', 'savingsplan', 'suggest', 'autobudget', 'commitments', 'upcoming']],
   ['Calculators', ['tip', 'interest', 'loan', 'target', 'runway', 'roundup',
     'fx convert', 'fx set', 'fx list', 'fx rm']],
   ['Recurring', ['recur add', 'recur from', 'recur list', 'recur edit', 'recur remove', 'recur run', 'recur skip', 'recur unskip', 'recur pause', 'recur resume']],
