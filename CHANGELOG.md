@@ -4,6 +4,15 @@ All notable changes to Ledgerling are documented here. The format is based on
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and this project
 adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.159.0] - 2026-10-02
+
+### Added
+
+- `mascot` command: a small ASCII companion whose mood reflects the month's
+  financial-health score (from `scorecard`) - cheerful when you are on track,
+  worried when things get tight, asleep when nothing is recorded. Read-only;
+  `--json` and `--month` supported; grouped under Almanac. (Closes idea #4.)
+
 ## [1.158.0] - 2026-10-02
 
 ### Added
@@ -1974,6 +1983,7 @@ file, standard library only, strictly confined to its own folder.
   guard (`_within_app`) that refuses any path escaping the app folder; imports
   and restores are reduced to a basename and looked up only within the folder.
 
+[1.159.0]: #11590---2026-10-02
 [1.158.0]: #11580---2026-10-02
 [1.157.0]: #11570---2026-10-02
 [1.156.1]: #11561---2026-10-02

@@ -48,7 +48,7 @@ GROUP_DEFS = [
               "retag", "tag", "untag", "recategorize", "clear", "unclear",
               "reconcile", "check", "undo"]),
     ("Settings", ["config", "where", "version", "completion", "web", "gui"]),
-    ("Almanac", ["fortune", "horoscope", "weather", "eightball"]),
+    ("Almanac", ["fortune", "horoscope", "weather", "eightball", "mascot"]),
 ]
 
 # Quick-access toolbar: (command, tooltip).

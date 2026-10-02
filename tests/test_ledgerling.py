@@ -2583,6 +2583,26 @@ class CLI(TempAppCase):
         txt = self._main(["scorecard", "--month", "2020-02"])
         self.assertIn("Nothing recorded", txt)
 
+    def test_mascot_moods(self):
+        # pure mood mapping from a score result
+        self.assertEqual(L._mascot_for({"has_data": True, "score": 95,
+                                        "grade": "A"})["mood"], "ecstatic")
+        self.assertEqual(L._mascot_for({"has_data": True, "score": 72,
+                                        "grade": "C"})["mood"], "content")
+        self.assertEqual(L._mascot_for({"has_data": True, "score": 10,
+                                        "grade": "F"})["mood"], "sad")
+        sleepy = L._mascot_for({"has_data": False, "score": 0, "grade": "-"})
+        self.assertEqual(sleepy["mood"], "sleepy")
+        self.assertIsNone(sleepy["score"])
+        # strong month -> happy/ecstatic mascot, empty month -> sleepy
+        self._main(["income", "3000", "salary", "p", "--date", "2026-04-01"])
+        self._main(["add", "100", "food", "g", "--date", "2026-04-02"])
+        d = json.loads(self._main(["mascot", "--month", "2026-04", "--json"]))
+        self.assertIn(d["mood"], ("ecstatic", "happy"))
+        self.assertEqual(d["grade"], "A")
+        e = json.loads(self._main(["mascot", "--month", "2020-01", "--json"]))
+        self.assertEqual(e["mood"], "sleepy")
+
     def test_scoretrend_window_and_average(self):
         # Build two strong months, then chart a window that includes them plus
         # an empty leading month. The window ends at the current month, so we
