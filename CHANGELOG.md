@@ -4,6 +4,16 @@ All notable changes to Ledgerling are documented here. The format is based on
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and this project
 adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.154.2] - 2026-10-02
+
+### Changed
+
+- Internal: the entry filters shared by `list` and `search` (kind scope,
+  category, tag, month, cleared/pending) are extracted into one
+  `_filter_entries()` helper, replacing the duplicated inline filtering in each.
+  Search layers its own keyword, date-range, and amount-bound filters on top. No
+  behaviour change; a direct unit test covers the helper.
+
 ## [1.154.1] - 2026-10-02
 
 ### Changed
@@ -1888,6 +1898,7 @@ file, standard library only, strictly confined to its own folder.
   guard (`_within_app`) that refuses any path escaping the app folder; imports
   and restores are reduced to a basename and looked up only within the folder.
 
+[1.154.2]: #11542---2026-10-02
 [1.154.1]: #11541---2026-10-02
 [1.154.0]: #11540---2026-10-02
 [1.153.1]: #11531---2026-10-02

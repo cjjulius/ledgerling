@@ -135,7 +135,7 @@ import tempfile
 import time
 from datetime import datetime, date, timedelta
 
-__version__ = "1.154.1"
+__version__ = "1.154.2"
 
 # --------------------------------------------------------------------------- #
 # Sandbox + storage
@@ -752,17 +752,27 @@ def _filter_cleared(rows, args):
     return rows
 
 
-def cmd_list(args):
-    check_month(args.month)
-    data = load()
-    rows = _scope_by_kind(data["expenses"], args)
-    if args.category:
-        rows = [e for e in rows if e["category"] == args.category.strip().lower()]
+def _filter_entries(rows, args):
+    """Apply the filters shared by `list` and `search`: the income/all kind
+    scope, an exact --category, --tag membership, the --month filter, and the
+    --cleared/--pending flag. Each is applied only when its arg is present, and
+    they all AND together, so callers can layer their own extra filters
+    (keyword, date range, amount bounds) before or after in any order."""
+    rows = _scope_by_kind(rows, args)
+    if getattr(args, "category", None):
+        cat = args.category.strip().lower()
+        rows = [e for e in rows if e["category"] == cat]
     if getattr(args, "tag", None):
         want = args.tag.strip().lstrip("#").lower()
         rows = [e for e in rows if want in e.get("tags", [])]
-    rows = filter_month(rows, args.month)
-    rows = _filter_cleared(rows, args)
+    rows = filter_month(rows, getattr(args, "month", None))
+    return _filter_cleared(rows, args)
+
+
+def cmd_list(args):
+    check_month(args.month)
+    data = load()
+    rows = _filter_entries(data["expenses"], args)
     key = getattr(args, "sort", "date") or "date"
     reverse = bool(getattr(args, "desc", False))
     if key == "amount":
@@ -1457,17 +1467,13 @@ def cmd_search(args):
     if args.min is not None and args.max is not None and args.min > args.max:
         sys.exit("error: --min cannot be greater than --max")
     data = load()
-    rows = _scope_by_kind(data["expenses"], args)
+    # Shared filters (kind scope, category, tag, month, cleared); then search's
+    # own keyword, date-range, and amount-bound filters. All AND together.
+    rows = _filter_entries(data["expenses"], args)
     kw = (args.keyword or "").strip().lower()
     if kw:
         rows = [e for e in rows
                 if kw in e["note"].lower() or kw in e["category"].lower()]
-    if args.category:
-        rows = [e for e in rows if e["category"] == args.category.strip().lower()]
-    if args.tag:
-        want = args.tag.strip().lstrip("#").lower()
-        rows = [e for e in rows if want in e.get("tags", [])]
-    rows = filter_month(rows, args.month)
     if getattr(args, "since", None) or getattr(args, "until", None):
         start, end = _date_bounds(args.since, args.until)
         rows = [e for e in rows if start <= e["date"] <= end]
@@ -1475,7 +1481,6 @@ def cmd_search(args):
         rows = [e for e in rows if e["amount"] >= args.min]
     if args.max is not None:
         rows = [e for e in rows if e["amount"] <= args.max]
-    rows = _filter_cleared(rows, args)
 
     sort = getattr(args, "sort", None) or "date"
     keyfn = {

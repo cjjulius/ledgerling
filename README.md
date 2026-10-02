@@ -283,6 +283,8 @@ the category-totals accumulation (`{category: total}` with running 2dp rounding)
 that `summary`, `insights`, `scorecard`, and `range` share,
 the drill-down summary stats (total, share, count, average/median, min/max,
 span) that `category` and `tags NAME` share,
+the common entry filters (kind scope, category, tag, month, cleared/pending)
+that `list` and `search` share,
 and the formatted entry line (`#id date amount [category] …` with its markers)
 that `list` and `search` share.
 
