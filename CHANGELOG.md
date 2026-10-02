@@ -4,6 +4,16 @@ All notable changes to Ledgerling are documented here. The format is based on
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and this project
 adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.140.0] - 2026-10-01
+
+### Added
+
+- The cleared/pending reconciliation status now round-trips through export and
+  import. CSV export gained a `cleared` column (`yes`/`no`), and `import` reads
+  a `cleared` field (CSV `yes`/`true`/`1` or a JSON boolean) and sets the flag
+  on imported entries — so reconciliation survives a CSV or JSON round-trip.
+  (JSON export already carried the field.)
+
 ## [1.139.1] - 2026-10-01
 
 ### Changed
@@ -1653,6 +1663,7 @@ file, standard library only, strictly confined to its own folder.
   guard (`_within_app`) that refuses any path escaping the app folder; imports
   and restores are reduced to a basename and looked up only within the folder.
 
+[1.140.0]: #11400---2026-10-01
 [1.139.1]: #11391---2026-10-01
 [1.139.0]: #11390---2026-10-01
 [1.138.0]: #11380---2026-10-01

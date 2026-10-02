@@ -260,7 +260,9 @@ ledgerling networth --snapshot      # one per day (same-day re-snapshots replace
 ledgerling worthtrend               # net worth per snapshot, with the change
 ledgerling worthtrend --json
 
-# Export to CSV or JSON (saved in exports/; a path is reduced to its file name)
+# Export to CSV or JSON (saved in exports/; a path is reduced to its file name).
+# The CSV includes a `cleared` column, and both formats round-trip the
+# cleared/pending reconciliation status back through `import`.
 ledgerling export
 ledgerling export --file august.csv --month 2026-08
 ledgerling export --format json --file data.json
