@@ -65,6 +65,7 @@ Commands:
     roundup   Simulate round-up savings (round each expense up to $N)
     challenge  Gamified savings challenges (52-week, no-spend, round-up jar)
     achievements  Badges you unlock from your ledger history
+    onthisday  Flashback: entries on this day-of-month in earlier months
     tip       Tip calculator and even bill splitter
     interest  Compound-growth / future-value calculator
     loan      Loan payment / amortization calculator
@@ -137,7 +138,7 @@ import tempfile
 import time
 from datetime import datetime, date, timedelta
 
-__version__ = "1.157.0"
+__version__ = "1.158.0"
 
 # --------------------------------------------------------------------------- #
 # Sandbox + storage
@@ -2410,6 +2411,63 @@ def cmd_achievements(args):
     for a in ach:
         mark = "[x]" if a["unlocked"] else "[ ]"
         print(f"  {mark} {a['name']:<22} {a['description']}")
+
+
+def _ordinal(n):
+    """1 -> '1st', 2 -> '2nd', 11 -> '11th', 23 -> '23rd'."""
+    suffix = "th" if 10 <= n % 100 <= 20 else {1: "st", 2: "nd", 3: "rd"}.get(
+        n % 10, "th")
+    return f"{n}{suffix}"
+
+
+def _on_this_day(rows, ref):
+    """Entries on the same day-of-month as `ref` in strictly earlier months,
+    grouped by month (newest first). Returns {day, ref_date, months:[{month,
+    entries, spent}], total_spent, entry_count}. Pure, so it is unit tested."""
+    day = ref.day
+    ref_month = ref.isoformat()[:7]
+    hits = [e for e in rows
+            if int(e["date"][8:10]) == day and month_of(e["date"]) < ref_month]
+    by_month = {}
+    for e in hits:
+        by_month.setdefault(month_of(e["date"]), []).append(e)
+    months = []
+    for m in sorted(by_month, reverse=True):
+        es = sorted(by_month[m], key=lambda e: e["id"])
+        spent = round(sum(e["amount"] for e in es
+                          if kind_of(e) == "expense"), 2)
+        months.append({"month": m, "entries": es, "spent": spent})
+    return {"day": day, "ref_date": ref.isoformat(), "months": months,
+            "total_spent": round(sum(mo["spent"] for mo in months), 2),
+            "entry_count": len(hits)}
+
+
+def cmd_onthisday(args):
+    """A flashback: what you recorded on this day-of-month in earlier months.
+    Defaults to today; --date picks another day."""
+    data = load()
+    ref = date.fromisoformat(parse_date(getattr(args, "date", None) or "today"))
+    res = _on_this_day(data["expenses"], ref)
+    ordn = _ordinal(res["day"])
+
+    if getattr(args, "json", False):
+        print(json.dumps(res, indent=2))
+        return
+
+    print(f"On this day - the {ordn} of the month")
+    print("=" * 56)
+    if not res["months"]:
+        print(f"  nothing recorded on the {ordn} of any earlier month")
+        return
+    for mo in res["months"]:
+        print(f"{mo['month']}")
+        for e in mo["entries"]:
+            print("  " + _entry_line(e))
+    n = res["entry_count"]
+    print("-" * 56)
+    print(f"  {n} entr{'y' if n == 1 else 'ies'} across {len(res['months'])} "
+          f"month{'' if len(res['months']) == 1 else 's'}; "
+          f"spent {money(res['total_spent'])} on the {ordn}")
 
 
 def cmd_tip(args):
@@ -7008,6 +7066,14 @@ def build_parser():
                      help="output JSON instead of text")
     ach.set_defaults(func=cmd_achievements)
 
+    otd = sub.add_parser("onthisday",
+                         help="flashback: entries on this day-of-month in earlier months")
+    otd.add_argument("--date", help="day to look back on, YYYY-MM-DD "
+                     "(default today)")
+    otd.add_argument("--json", action="store_true",
+                     help="output JSON instead of text")
+    otd.set_defaults(func=cmd_onthisday)
+
     tip = sub.add_parser("tip",
                          help="tip calculator and even bill splitter")
     tip.add_argument("amount", type=float, help="the bill amount (before tip)")
@@ -7462,7 +7528,7 @@ CATCHUP_COMMANDS = frozenset({
     "weekly", "years", "anomalies", "roundup", "cashflow", "target", "runway",
     "net", "subscriptions", "payees", "overbudget", "today", "worthtrend",
     "statement", "reconcile", "scorecard", "scoretrend", "category",
-    "savingsplan", "bills", "challenge", "achievements",
+    "savingsplan", "bills", "challenge", "achievements", "onthisday",
 })
 MUTATING_COMMANDS = frozenset({
     "add", "income", "edit", "delete", "clone", "refund", "note", "tag",

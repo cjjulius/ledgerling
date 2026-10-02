@@ -4,6 +4,15 @@ All notable changes to Ledgerling are documented here. The format is based on
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and this project
 adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.158.0] - 2026-10-02
+
+### Added
+
+- `onthisday [--date]` command: a flashback showing entries recorded on the
+  same day-of-month in earlier months, grouped by month with per-month and
+  total spend. Defaults to today. Read-only; `--json` supported; grouped under
+  Analyze. (Closes idea #3.)
+
 ## [1.157.0] - 2026-10-02
 
 ### Added
@@ -1965,6 +1974,7 @@ file, standard library only, strictly confined to its own folder.
   guard (`_within_app`) that refuses any path escaping the app folder; imports
   and restores are reduced to a basename and looked up only within the folder.
 
+[1.158.0]: #11580---2026-10-02
 [1.157.0]: #11570---2026-10-02
 [1.156.1]: #11561---2026-10-02
 [1.156.0]: #11560---2026-10-02

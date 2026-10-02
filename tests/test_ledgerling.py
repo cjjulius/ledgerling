@@ -3026,6 +3026,27 @@ class CLI(TempAppCase):
         out = self._main(["day", "--date", "1999-01-01"])
         self.assertIn("no entries", out)
 
+    def test_onthisday_flashback(self):
+        # same day-of-month (the 2nd) across earlier months, plus noise
+        self._main(["add", "10", "food", "a", "--date", "2026-03-02"])
+        self._main(["add", "20", "food", "b", "--date", "2026-05-02"])
+        self._main(["income", "99", "salary", "c", "--date", "2026-05-02"])
+        self._main(["add", "7", "food", "other", "--date", "2026-05-09"])  # wrong day
+        d = json.loads(self._main(["onthisday", "--date", "2026-06-02", "--json"]))
+        self.assertEqual(d["day"], 2)
+        self.assertEqual([m["month"] for m in d["months"]], ["2026-05", "2026-03"])
+        self.assertEqual(d["entry_count"], 3)              # 2 expenses + 1 income
+        self.assertEqual(d["total_spent"], 30.0)           # 10 + 20 (income excl.)
+        may = next(m for m in d["months"] if m["month"] == "2026-05")
+        self.assertEqual(may["spent"], 20.0)
+        # the ref month itself is excluded (strictly earlier months only)
+        d2 = json.loads(self._main(["onthisday", "--date", "2026-05-02", "--json"]))
+        self.assertEqual([m["month"] for m in d2["months"]], ["2026-03"])
+
+    def test_onthisday_empty(self):
+        out = self._main(["onthisday", "--date", "2026-06-15"])
+        self.assertIn("nothing recorded on the 15th", out)
+
     def test_week_json(self):
         monday = date.today() - timedelta(days=date.today().weekday())
         d0 = monday.isoformat()
