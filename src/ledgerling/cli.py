@@ -43,6 +43,7 @@ Commands:
     month     One-screen dashboard for a month (income, spend, net, budgets)
     today     A daily briefing: this month, what's due soon, and a fortune
     insights  Plain-language observations about a month
+    scorecard  A financial-health grade (A-F) for a month with a breakdown
     range     Totals over an arbitrary date range (start [end])
     forecast  Project this year's spending/income/net to year-end
     quarter   Quarterly rollup (Q1-Q4) for a year
@@ -129,7 +130,7 @@ import tempfile
 import time
 from datetime import datetime, date, timedelta
 
-__version__ = "1.143.0"
+__version__ = "1.144.0"
 
 # --------------------------------------------------------------------------- #
 # Sandbox + storage
@@ -4002,6 +4003,130 @@ def cmd_insights(args):
         print(f"- {s}")
 
 
+def _grade_for(score):
+    """Map a 0-100 score to a letter grade and a short descriptor."""
+    for cutoff, letter, label in (
+        (90, "A", "Excellent"), (80, "B", "Solid"), (70, "C", "Fair"),
+        (60, "D", "Shaky"),
+    ):
+        if score >= cutoff:
+            return letter, label
+    return "F", "Needs work"
+
+
+def cmd_scorecard(args):
+    """A single financial-health grade (A-F) for a month, combining three
+    weighted components: savings rate (40), budget adherence (35) and spending
+    habits / no-spend days (25). Shows the breakdown plus one actionable tip."""
+    check_month(args.month)
+    data = load()
+    today = date.today()
+    period = args.month or today.isoformat()[:7]
+
+    exp = [e for e in expenses_only(data["expenses"]) if month_of(e["date"]) == period]
+    inc = [e for e in income_only(data["expenses"]) if month_of(e["date"]) == period]
+    spending = round(sum(e["amount"] for e in exp), 2)
+    income = round(sum(e["amount"] for e in inc), 2)
+    net = round(income - spending, 2)
+
+    cat_tot = {}
+    for e in exp:
+        cat_tot[e["category"]] = round(cat_tot.get(e["category"], 0.0) + e["amount"], 2)
+
+    # Component 1: savings rate (40 pts). 20%+ of income saved earns full marks.
+    rate = (net / income) if income > 0 else 0.0
+    sav_frac = max(0.0, min(1.0, rate / 0.20))
+    sav_pts = round(sav_frac * 40, 1)
+    if income > 0:
+        sav_detail = f"{round(rate * 100)}% of income saved"
+    elif spending > 0:
+        sav_detail = "no income recorded"
+    else:
+        sav_detail = "nothing recorded"
+
+    # Component 2: budget adherence (35 pts). Credit per budgeted category,
+    # with a graduated penalty for overspending. No budgets -> neutral credit.
+    budgets = data["budgets"]
+    if budgets:
+        credits, on_track = [], 0
+        for cat, limit in budgets.items():
+            spent = cat_tot.get(cat, 0.0)
+            if limit <= 0:
+                continue
+            if spent <= limit:
+                credits.append(1.0)
+                on_track += 1
+            else:
+                credits.append(max(0.0, 1.0 - (spent - limit) / limit))
+        adh_frac = (sum(credits) / len(credits)) if credits else 0.7
+        bud_detail = f"{on_track} of {len(credits)} budgets on track"
+    else:
+        adh_frac = 0.7  # neutral when the user hasn't set budgets
+        bud_detail = "no budgets set (neutral)"
+    bud_pts = round(adh_frac * 35, 1)
+
+    # Component 3: spending habits (25 pts) from no-spend days. ~40% earns full.
+    year, mon = (int(x) for x in period.split("-"))
+    dim = calendar.monthrange(year, mon)[1]
+    last_day = today.day if period == today.isoformat()[:7] else dim
+    last_day = max(1, last_day)
+    spend_days = {int(e["date"][8:10]) for e in exp if int(e["date"][8:10]) <= last_day}
+    no_spend = last_day - len(spend_days)
+    hab_frac = max(0.0, min(1.0, (no_spend / last_day) / 0.40))
+    hab_pts = round(hab_frac * 25, 1)
+    hab_detail = (f"{no_spend} no-spend day{'' if no_spend == 1 else 's'} "
+                  f"(of {last_day})")
+
+    score = round(sav_pts + bud_pts + hab_pts)
+    has_data = bool(exp or inc)
+    if not has_data:
+        score = 0
+    grade, label = _grade_for(score) if has_data else ("-", "No data")
+
+    components = [
+        {"name": "Savings rate", "points": sav_pts, "max": 40, "detail": sav_detail},
+        {"name": "Budget adherence", "points": bud_pts, "max": 35,
+         "detail": bud_detail},
+        {"name": "Spending habits", "points": hab_pts, "max": 25,
+         "detail": hab_detail},
+    ]
+
+    # One actionable tip: target the weakest component by share of its max.
+    tips = []
+    if has_data:
+        weakest = min(components, key=lambda c: c["points"] / c["max"])
+        if weakest["name"] == "Savings rate":
+            tips.append("Grow the gap between income and spending to lift your "
+                        "savings rate toward 20%.")
+        elif weakest["name"] == "Budget adherence":
+            tips.append("Review over-budget categories with `overbudget` and "
+                        "adjust limits or spending.")
+        else:
+            tips.append("Add a few no-spend days; try `streak` to track them.")
+    else:
+        tips.append(f"Record some activity for {period} to get a grade.")
+
+    if getattr(args, "json", False):
+        print(json.dumps({"month": period, "grade": grade, "score": score,
+                          "components": components, "tips": tips}, indent=2))
+        return
+
+    print(f"Scorecard - {period}")
+    print("=" * 56)
+    if not has_data:
+        print(f"  Grade:  -   Nothing recorded for {period} yet.")
+        return
+    print(f"  Grade:  {grade}   ({score}/100)   {label}")
+    print()
+    for c in components:
+        frac = c["points"] / c["max"] if c["max"] else 0
+        print(f"  {c['name']:<17} {c['points']:>4.0f}/{c['max']:<2} "
+              f"{bar(frac, 10)}  {c['detail']}")
+    print("-" * 56)
+    for t in tips:
+        print(f"  Tip: {t}")
+
+
 def cmd_range(args):
     start = parse_date(args.start)
     end = parse_date(args.end) if args.end else date.today().isoformat()
@@ -5953,6 +6078,12 @@ def build_parser():
     ins.add_argument("--json", action="store_true", help="output JSON instead of text")
     ins.set_defaults(func=cmd_insights)
 
+    scd = sub.add_parser("scorecard",
+                         help="a financial-health grade (A-F) for a month")
+    scd.add_argument("--month", help="which month, YYYY-MM (default: current)")
+    scd.add_argument("--json", action="store_true", help="output JSON instead of text")
+    scd.set_defaults(func=cmd_scorecard)
+
     rg = sub.add_parser("range", help="totals over an arbitrary date range")
     rg.add_argument("start", help="start date: YYYY-MM-DD, 'today', or 'yesterday'")
     rg.add_argument("end", nargs="?",
@@ -6479,7 +6610,7 @@ CATCHUP_COMMANDS = frozenset({
     "tagtrend", "range", "matrix", "cumulative", "allowance", "tagmatrix",
     "weekly", "years", "anomalies", "roundup", "cashflow", "target", "runway",
     "net", "subscriptions", "payees", "overbudget", "today", "worthtrend",
-    "statement", "reconcile",
+    "statement", "reconcile", "scorecard",
 })
 MUTATING_COMMANDS = frozenset({
     "add", "income", "edit", "delete", "clone", "refund", "note", "tag",

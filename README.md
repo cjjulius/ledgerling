@@ -336,6 +336,11 @@ ledgerling month --month 2026-08
 ledgerling insights
 ledgerling insights --month 2026-08
 
+# A financial-health grade (A-F) for a month, with a scored breakdown
+# (savings rate / budget adherence / spending habits) and one tip
+ledgerling scorecard
+ledgerling scorecard --month 2026-08
+
 # Income, expenses, net and savings rate (all-time, or one month)
 ledgerling net
 ledgerling net --month 2026-09

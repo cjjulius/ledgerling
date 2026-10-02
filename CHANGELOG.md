@@ -4,6 +4,19 @@ All notable changes to Ledgerling are documented here. The format is based on
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and this project
 adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.144.0] - 2026-10-01
+
+### Added
+
+- `scorecard [--month]` command: a single financial-health grade (A-F) for a
+  month, computed from three weighted components — savings rate (40 pts, full
+  marks at 20%+ saved), budget adherence (35 pts, per-category credit with a
+  graduated penalty for overspending; neutral when no budgets are set) and
+  spending habits (25 pts from no-spend days). Prints the overall grade and
+  score out of 100, a bar breakdown per component, and one actionable tip
+  targeting the weakest area. `--json` supported; grouped under Analyze in
+  both UIs.
+
 ## [1.143.0] - 2026-10-01
 
 ### Added
@@ -1709,6 +1722,7 @@ file, standard library only, strictly confined to its own folder.
   guard (`_within_app`) that refuses any path escaping the app folder; imports
   and restores are reduced to a basename and looked up only within the folder.
 
+[1.144.0]: #11440---2026-10-01
 [1.143.0]: #11430---2026-10-01
 [1.142.1]: #11421---2026-10-01
 [1.142.0]: #11420---2026-10-01

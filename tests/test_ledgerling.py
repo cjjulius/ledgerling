@@ -2281,6 +2281,44 @@ class CLI(TempAppCase):
         d = json.loads(self._main(["insights", "--month", "2020-01", "--json"]))
         self.assertEqual(d["insights"], ["Nothing recorded for 2020-01 yet."])
 
+    def test_scorecard_strong_month(self):
+        # 25% saved, only budgeted category on track, many no-spend days.
+        self._main(["income", "2000", "salary", "pay", "--date", "2026-04-01"])
+        self._main(["add", "500", "food", "groceries", "--date", "2026-04-05"])
+        self._main(["budget", "--category", "food", "--amount", "600"])
+        d = json.loads(self._main(["scorecard", "--month", "2026-04", "--json"]))
+        self.assertEqual(d["month"], "2026-04")
+        comp = {c["name"]: c for c in d["components"]}
+        # 25% savings rate exceeds the 20% full-marks threshold.
+        self.assertEqual(comp["Savings rate"]["points"], 40)
+        # The single budget is on track -> full budget-adherence credit.
+        self.assertEqual(comp["Budget adherence"]["points"], 35)
+        # One spend day in a 30-day month -> plenty of no-spend days -> full.
+        self.assertEqual(comp["Spending habits"]["points"], 25)
+        self.assertEqual(d["score"], 100)
+        self.assertEqual(d["grade"], "A")
+        self.assertEqual(len(d["tips"]), 1)
+
+    def test_scorecard_overspent_month(self):
+        # Spent more than earned and blew the budget -> failing grade.
+        self._main(["income", "1000", "salary", "pay", "--date", "2026-05-01"])
+        for day in range(2, 20):
+            self._main(["add", "100", "food", f"d{day}", "--date", f"2026-05-{day:02d}"])
+        self._main(["budget", "--category", "food", "--amount", "200"])
+        d = json.loads(self._main(["scorecard", "--month", "2026-05", "--json"]))
+        comp = {c["name"]: c for c in d["components"]}
+        self.assertEqual(comp["Savings rate"]["points"], 0)   # negative net
+        self.assertEqual(comp["Budget adherence"]["points"], 0)  # way over
+        self.assertLess(d["score"], 60)
+        self.assertEqual(d["grade"], "F")
+
+    def test_scorecard_empty_month(self):
+        d = json.loads(self._main(["scorecard", "--month", "2020-02", "--json"]))
+        self.assertEqual(d["grade"], "-")
+        self.assertEqual(d["score"], 0)
+        txt = self._main(["scorecard", "--month", "2020-02"])
+        self.assertIn("Nothing recorded", txt)
+
     def test_tagtrend_json(self):
         this = date.today().isoformat()[:7]
         prev = L.add_months(date.today().replace(day=1), -1).isoformat()[:7]
