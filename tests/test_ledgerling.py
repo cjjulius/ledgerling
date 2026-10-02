@@ -1730,6 +1730,39 @@ class CLI(TempAppCase):
         self.assertEqual(d["status"], "on_track")
         self.assertGreater(d["monthly"], 0)
 
+    def test_fire_number(self):
+        # explicit annual spending: 40k at 4% -> 1,000,000 (25x)
+        d = json.loads(self._main(["fire", "--spending", "40000", "--json"]))
+        self.assertEqual(d["rate"], 4.0)
+        self.assertEqual(d["annual_spending"], 40000.0)
+        self.assertEqual(d["fire_number"], 1000000.0)
+        self.assertIsNone(d["projection"])
+        # with savings + contributions -> a bounded projection
+        p = json.loads(self._main(["fire", "--spending", "24000", "--saved",
+                                   "100000", "--monthly", "2000", "--return",
+                                   "6", "--json"]))
+        self.assertEqual(p["fire_number"], 600000.0)
+        self.assertIsNotNone(p["projection"]["months"])
+        self.assertGreater(p["projection"]["years"], 0)
+        # spending derived from the ledger when not given
+        self._main(["add", "500", "food", "x", "--date", "2026-04-10"])
+        led = json.loads(self._main(["fire", "--json"]))
+        self.assertEqual(led["annual_spending"], 6000.0)   # 500/mo * 12
+
+    def test_fire_months_to_fi_pure(self):
+        self.assertEqual(L._months_to_fi(1000, 1000, 0, 0), 0)      # already there
+        self.assertIsNone(L._months_to_fi(1000, 0, 0, 0))          # never
+        self.assertEqual(L._months_to_fi(1200, 0, 100, 0), 12)     # no growth
+
+    def test_rule72(self):
+        d = json.loads(self._main(["rule72", "--rate", "6", "--json"]))
+        self.assertEqual(d["years_to_double"], 12.0)
+        d2 = json.loads(self._main(["rule72", "--years", "9", "--json"]))
+        self.assertEqual(d2["rate_to_double"], 8.0)
+        with self.assertRaises(SystemExit):
+            with contextlib.redirect_stderr(io.StringIO()):
+                L.main(["rule72", "--rate", "6", "--years", "9"])
+
     def test_read_commands_survive_empty_data(self):
         # Every no-argument command must run on an empty store without an
         # unhandled exception (division by zero, max() of empty, etc.).

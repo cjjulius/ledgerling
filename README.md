@@ -186,6 +186,7 @@ use):
   soon (`upcoming`) or scheduled across a month (`bills`), and export them to a
   calendar file.
 - **Calculators**: `tip` splitting, `loan` and compound-`interest` estimates,
+  a `fire` (financial-independence) number and the `rule72` doubling-time rule,
   `roundup` savings, a `target`-date planner, `runway`, and an offline currency
   converter (`fx`).
 - **Data**: `export` and `import` CSV or JSON, `backup` and `restore`,
