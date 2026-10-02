@@ -503,7 +503,8 @@ function toggleGroup(g) {
 // added one) still shows up automatically under "More", so the nav stays
 // comprehensive without per-command edits.
 const GROUP_DEFS = [
-  ['Record', ['add', 'income', 'edit', 'delete', 'split', 'clone', 'note', 'refund']],
+  ['Record', ['add', 'income', 'edit', 'delete', 'split', 'clone', 'note', 'refund',
+    'template use', 'template add', 'template list', 'template remove']],
   ['Analyze', ['today', 'month', 'insights', 'scorecard', 'scoretrend', 'range', 'summary', 'report', 'statement', 'stats', 'week', 'weekly', 'day', 'year', 'years',
     'quarter', 'weekday', 'trend', 'tagtrend', 'matrix', 'tagmatrix', 'cumulative', 'top', 'compare', 'average', 'distribution',
     'balance', 'savings', 'heatmap', 'streak', 'pace', 'forecast', 'sources', 'anomalies', 'cashflow', 'net', 'subscriptions',

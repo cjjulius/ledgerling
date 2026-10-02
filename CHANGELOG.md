@@ -4,6 +4,22 @@ All notable changes to Ledgerling are documented here. The format is based on
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and this project
 adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.146.0] - 2026-10-02
+
+### Added
+
+- `template` command group: save reusable quick-entry presets for common
+  expenses and record them in one step.
+  - `template add NAME AMOUNT CATEGORY [NOTE] [--income]` saves (or updates) a
+    preset; `template list [--json]` shows them; `template remove NAME` deletes.
+  - `template use NAME [--amount N] [--note TEXT] [--date D] [--json]` records a
+    new ledger entry from the preset, carrying over the category/kind and
+    parsing #tags from the note, with optional per-entry overrides.
+  - Templates are distinct from recurring rules (which auto-generate on a
+    schedule); they are on-demand shortcuts. Stored in a new `templates` data
+    section (added to the declarative normalization table, so old files load
+    fine). Grouped under Record in both UIs.
+
 ## [1.145.0] - 2026-10-01
 
 ### Added
@@ -1740,6 +1756,7 @@ file, standard library only, strictly confined to its own folder.
   guard (`_within_app`) that refuses any path escaping the app folder; imports
   and restores are reduced to a basename and looked up only within the folder.
 
+[1.146.0]: #11460---2026-10-02
 [1.145.0]: #11450---2026-10-01
 [1.144.0]: #11440---2026-10-01
 [1.143.0]: #11430---2026-10-01
