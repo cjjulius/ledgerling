@@ -4,6 +4,17 @@ All notable changes to Ledgerling are documented here. The format is based on
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and this project
 adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.152.0] - 2026-10-02
+
+### Added
+
+- Desktop app: the status bar now carries a persistent at-a-glance summary of
+  the current month on its right side — "<month>: spent $X • net $Y • N
+  entries" — refreshed on launch and after every successful command, so the
+  headline figures are always visible while the left side still shows transient
+  run status. The computation is a pure `month_summary_text()` helper (unit
+  tested); the status bar is split into a themed two-label frame.
+
 ## [1.151.0] - 2026-10-02
 
 ### Added
@@ -1829,6 +1840,7 @@ file, standard library only, strictly confined to its own folder.
   guard (`_within_app`) that refuses any path escaping the app folder; imports
   and restores are reduced to a basename and looked up only within the folder.
 
+[1.152.0]: #11520---2026-10-02
 [1.151.0]: #11510---2026-10-02
 [1.150.0]: #11500---2026-10-02
 [1.149.0]: #11490---2026-10-02

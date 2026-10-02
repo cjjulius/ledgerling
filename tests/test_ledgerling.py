@@ -724,6 +724,28 @@ class WebUI(TempAppCase):
         self.assertTrue(gui._cmd_has_json(cmds["summary"]))   # read command
         self.assertFalse(gui._cmd_has_json(cmds["backup"]))   # no --json
 
+    def test_gui_month_summary_text(self):
+        from ledgerling import gui
+        data = {"expenses": [
+            {"amount": 10.0, "date": "2026-07-03", "category": "food",
+             "kind": "expense"},
+            {"amount": 5.5, "date": "2026-07-20", "category": "transit",
+             "kind": "expense"},
+            {"amount": 2000.0, "date": "2026-07-01", "category": "salary",
+             "kind": "income"},
+            {"amount": 99.0, "date": "2026-06-15", "category": "food",
+             "kind": "expense"},            # other month, excluded
+        ]}
+        txt = gui.month_summary_text(data, "2026-07")
+        self.assertIn("2026-07", txt)
+        self.assertIn("spent " + L.money(15.5), txt)
+        self.assertIn("net " + L.money(1984.5), txt)     # 2000 - 15.5
+        self.assertIn("3 entries", txt)
+        # singular entry, and empty months produce no summary
+        one = gui.month_summary_text(data, "2026-06")
+        self.assertIn("1 entry", one)
+        self.assertEqual(gui.month_summary_text(data, "2099-01"), "")
+
     def test_gui_state_roundtrip_and_geometry(self):
         from ledgerling import gui
         self.assertTrue(gui._valid_geometry("1040x660+12+34"))
