@@ -249,6 +249,13 @@ ledgerling goal --amount 500
 ledgerling goal
 ledgerling goal --clear
 
+# Savings pots (sinking funds): save toward named targets with progress bars
+ledgerling pot vacation --target 2000   # create/set a target
+ledgerling pot vacation --add 500       # contribute
+ledgerling pot vacation --take 100      # withdraw (never below zero)
+ledgerling pot                          # list all pots + total saved
+ledgerling pot vacation --remove
+
 # Net worth: track manual account balances (assets and debts) and see your
 # net worth, with the ledger's all-time cash position shown for context.
 ledgerling networth --set checking --amount 2500

@@ -2824,6 +2824,48 @@ class CLI(TempAppCase):
         out = self._main(["statement", "--month", "2099-01"])
         self.assertIn("nothing recorded", out)
 
+    def test_pot_lifecycle(self):
+        self._main(["pot", "vacation", "--target", "2000"])
+        self._main(["pot", "vacation", "--add", "500"])
+        self._main(["pot", "vacation", "--add", "300"])
+        self._main(["pot", "vacation", "--take", "100"])   # 500+300-100 = 700
+        d = json.loads(self._main(["pot", "vacation", "--json"]))
+        p = d["pots"][0]
+        self.assertEqual(p["saved"], 700.0)
+        self.assertEqual(p["target"], 2000.0)
+        self.assertEqual(p["remaining"], 1300.0)
+        self.assertEqual(p["progress_pct"], 35.0)
+        # a second pot, then the list totals across pots
+        self._main(["pot", "laptop", "--add", "250"])
+        allp = json.loads(self._main(["pot", "--json"]))
+        self.assertEqual(allp["total_saved"], 950.0)
+        self.assertEqual([x["name"] for x in allp["pots"]], ["laptop", "vacation"])
+        # take never goes below zero
+        self._main(["pot", "laptop", "--take", "999"])
+        self.assertEqual(L.load()["pots"]["laptop"]["saved"], 0.0)
+        # remove
+        self._main(["pot", "vacation", "--remove"])
+        self.assertNotIn("vacation", L.load()["pots"])
+
+    def test_pot_validation(self):
+        for argv in (["pot", "x", "--add", "-5"],
+                     ["pot", "--target", "100"],      # action without a name
+                     ["pot", "x", "--target", "10", "--add", "5"],  # two actions
+                     ["pot", "nope"]):                # show a missing pot
+            with self.assertRaises(SystemExit):
+                with contextlib.redirect_stdout(io.StringIO()), \
+                        contextlib.redirect_stderr(io.StringIO()):
+                    L.main(argv)
+
+    def test_check_flags_bad_pot(self):
+        L.save({"expenses": [], "budgets": {}, "recurring": [], "goal": None,
+                "pots": {"ok": {"target": 100, "saved": 10.0},
+                         "bad": {"saved": "lots"}}})
+        kinds = [i["kind"] for i in json.loads(self._main(["check", "--json"]))["issues"]]
+        self.assertIn("bad_pot", kinds)
+        self._main(["check", "--fix"])
+        self.assertEqual(list(L.load()["pots"]), ["ok"])
+
     def test_networth_totals_pure(self):
         acc = {"checking": {"amount": 2500.0, "debt": False},
                "card": {"amount": 800.0, "debt": True},
