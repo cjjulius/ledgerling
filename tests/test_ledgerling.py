@@ -2979,6 +2979,40 @@ class CLI(TempAppCase):
         self._main(["pot", "vacation", "--remove"])
         self.assertNotIn("vacation", L.load()["pots"])
 
+    def test_pot_due_date_projection(self):
+        # target + due date set in one call; projection to hit it in time
+        future = (date.today() + timedelta(days=120)).isoformat()
+        self._main(["pot", "vacation", "--target", "1200", "--by", future])
+        self._main(["pot", "vacation", "--add", "200"])      # 1000 to go
+        p = json.loads(self._main(["pot", "vacation", "--json"]))["pots"][0]
+        self.assertEqual(p["due"], future)
+        self.assertEqual(p["status"], "on_target")
+        self.assertGreater(p["months_left"], 0)
+        # required_monthly finishes the remaining balance over the months left
+        self.assertEqual(p["required_monthly"],
+                         round(p["remaining"] / p["months_left"], 2))
+        # fully funded pots report "funded" regardless of the date
+        self._main(["pot", "vacation", "--add", "1000"])
+        self.assertEqual(json.loads(self._main(["pot", "vacation", "--json"]))
+                         ["pots"][0]["status"], "funded")
+
+    def test_pot_due_overdue_and_clear(self):
+        past = (date.today() - timedelta(days=5)).isoformat()
+        self._main(["pot", "car", "--target", "500", "--by", past])
+        self._main(["pot", "car", "--add", "100"])           # still short, past due
+        p = json.loads(self._main(["pot", "car", "--json"]))["pots"][0]
+        self.assertEqual(p["status"], "overdue")
+        self.assertEqual(p["months_left"], 0)
+        # clearing the date drops it and returns to plain "saving"
+        self._main(["pot", "car", "--clear-by"])
+        p2 = json.loads(self._main(["pot", "car", "--json"]))["pots"][0]
+        self.assertIsNone(p2["due"])
+        self.assertEqual(p2["status"], "saving")
+        with self.assertRaises(SystemExit):                  # by + clear-by clash
+            with contextlib.redirect_stdout(io.StringIO()), \
+                    contextlib.redirect_stderr(io.StringIO()):
+                L.main(["pot", "car", "--by", past, "--clear-by"])
+
     def test_transfer_between_pots(self):
         self._main(["pot", "vacation", "--add", "500"])
         self._main(["pot", "laptop", "--add", "100"])

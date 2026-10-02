@@ -133,7 +133,7 @@ import tempfile
 import time
 from datetime import datetime, date, timedelta
 
-__version__ = "1.149.0"
+__version__ = "1.150.0"
 
 # --------------------------------------------------------------------------- #
 # Sandbox + storage
@@ -4770,22 +4770,40 @@ def cmd_worthtrend(args):
           f"{_signed(span)}")
 
 
+def _months_until(due_iso, today=None):
+    """Whole calendar months from today until a target date, rounded up so a
+    partial month still counts (min 1 for any future date). 0 if already due."""
+    today = today or date.today()
+    due = date.fromisoformat(due_iso)
+    days = (due - today).days
+    if days <= 0:
+        return 0
+    return max(1, math.ceil(days / 30.44))
+
+
 def cmd_pot(args):
     """Savings pots (sinking funds): named targets you save toward. With a name
-    and an action (--target/--add/--take/--remove) it edits a pot; with no
-    action it shows the pot's progress; with no name it lists all pots."""
+    and an action (--target/--add/--take/--remove, and/or --by/--clear-by to set
+    a target date) it edits a pot; with no action it shows the pot's progress;
+    with no name it lists all pots. A target date shows the monthly saving needed
+    to hit the target in time."""
     data = load()
     pots = data["pots"]
     name = (getattr(args, "name", None) or "").strip().lower()
     actions = [a for a in ("target", "add", "take", "remove")
                if getattr(args, a, None) not in (None, False)]
+    by = getattr(args, "by", None)
+    clear_by = getattr(args, "clear_by", False)
     if len(actions) > 1:
         sys.exit("error: choose one of --target/--add/--take/--remove")
-    if actions and not name:
+    if by is not None and clear_by:
+        sys.exit("error: choose either --by or --clear-by, not both")
+    edits = bool(actions) or by is not None or clear_by
+    if edits and not name:
         sys.exit("error: name a pot to edit, e.g. `pot vacation --target 2000`")
 
-    if name and actions:
-        action = actions[0]
+    if name and edits:
+        action = actions[0] if actions else None
         pot = pots.get(name, {"target": None, "saved": 0.0})
         if action == "remove":
             if name not in pots:
@@ -4806,16 +4824,38 @@ def cmd_pot(args):
             if args.take <= 0:
                 sys.exit("error: --take must be positive")
             pot["saved"] = round(max(0.0, pot.get("saved", 0.0) - args.take), 2)
+        if by is not None:
+            pot["due"] = parse_date(by)   # validates YYYY-MM-DD/today/yesterday
+        elif clear_by:
+            pot.pop("due", None)
         pots[name] = pot
         save(data)
 
     def view(nm, p):
         saved = round(p.get("saved", 0.0), 2)
         target = p.get("target")
+        due = p.get("due")
         frac = (saved / target) if target else None
-        return {"name": nm, "saved": saved, "target": target,
-                "remaining": round(max(0.0, target - saved), 2) if target else None,
-                "progress_pct": round(frac * 100, 1) if frac is not None else None}
+        remaining = round(max(0.0, target - saved), 2) if target else None
+        months_left = _months_until(due) if due else None
+        required = None
+        if target and due and remaining and remaining > 0:
+            required = round(remaining / months_left, 2) if months_left else None
+        if not target:
+            status = "no_target"
+        elif remaining == 0:
+            status = "funded"
+        elif not due:
+            status = "saving"
+        elif months_left == 0:
+            status = "overdue"
+        else:
+            status = "on_target"
+        return {"name": nm, "saved": saved, "target": target, "due": due,
+                "remaining": remaining,
+                "progress_pct": round(frac * 100, 1) if frac is not None else None,
+                "months_left": months_left, "required_monthly": required,
+                "status": status}
 
     if name:
         if name not in pots:
@@ -4841,8 +4881,20 @@ def cmd_pot(args):
                   f"{money(r['target']):<11} {bar(frac)} {r['progress_pct']:4.0f}%")
             if r["remaining"]:
                 print(f"  {'':<16} {money(r['remaining'])} to go")
+            if r["due"]:
+                if r["status"] == "overdue":
+                    tail = f"target date {r['due']} has passed"
+                elif r["required_monthly"] is not None:
+                    mths = r["months_left"]
+                    tail = (f"by {r['due']}: save {money(r['required_monthly'])}/mo "
+                            f"for {mths} month{'' if mths == 1 else 's'}")
+                else:
+                    tail = f"by {r['due']}"
+                print(f"  {'':<16} {tail}")
         else:
             print(f"  {r['name']:<16} {money(r['saved']):>11}   (no target)")
+            if r["due"]:
+                print(f"  {'':<16} by {r['due']}")
     print("-" * 56)
     print(f"  total saved across pots: {money(total_saved)}")
 
@@ -6680,6 +6732,10 @@ def build_parser():
     pot.add_argument("--add", type=float, help="add this amount to the pot")
     pot.add_argument("--take", type=float, help="withdraw this amount from the pot")
     pot.add_argument("--remove", action="store_true", help="delete the pot")
+    pot.add_argument("--by", help="set a target date, YYYY-MM-DD (shows the "
+                     "monthly saving needed to hit the target in time)")
+    pot.add_argument("--clear-by", dest="clear_by", action="store_true",
+                     help="remove the pot's target date")
     pot.add_argument("--json", action="store_true", help="output JSON instead of text")
     pot.set_defaults(func=cmd_pot)
 
