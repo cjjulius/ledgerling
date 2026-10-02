@@ -4,6 +4,18 @@ All notable changes to Ledgerling are documented here. The format is based on
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and this project
 adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.154.0] - 2026-10-02
+
+### Added
+
+- `bills [--month] [--json]` command: the recurring charges and income
+  scheduled in a calendar month, listed by day with per-item sign, an
+  "(upcoming)" marker for dates still to come, and out/in/net totals. Unlike
+  `upcoming` (a rolling N-day window from today), `bills` covers the whole
+  month — past and future days — so you can see what has already hit and what's
+  still due. Reuses the existing recurring-occurrence engine; paused rules and
+  skipped dates are excluded. Grouped under Budgets & goals in both UIs.
+
 ## [1.153.1] - 2026-10-02
 
 ### Changed
@@ -1863,6 +1875,7 @@ file, standard library only, strictly confined to its own folder.
   guard (`_within_app`) that refuses any path escaping the app folder; imports
   and restores are reduced to a basename and looked up only within the folder.
 
+[1.154.0]: #11540---2026-10-02
 [1.153.1]: #11531---2026-10-02
 [1.153.0]: #11530---2026-10-02
 [1.152.0]: #11520---2026-10-02

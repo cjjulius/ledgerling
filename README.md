@@ -439,6 +439,11 @@ ledgerling tagmatrix --months 6
 ledgerling upcoming
 ledgerling upcoming --days 60
 
+# A whole month's recurring bills, by day, with a total (past + upcoming) -
+# complements `upcoming`'s rolling window with a calendar-month view
+ledgerling bills
+ledgerling bills --month 2026-11
+
 # Export those upcoming charges as an iCalendar (.ics) file you can import
 # into any calendar app (Google / Apple / Outlook). Each charge becomes an
 # all-day event with a stable id, so re-importing updates rather than

@@ -2175,6 +2175,32 @@ class CLI(TempAppCase):
         out = self._main(["upcoming"])
         self.assertIn("nothing scheduled", out)
 
+    def test_bills_month_schedule(self):
+        self._main(["recur", "add", "1200", "rent", "flat", "--every", "month",
+                    "--start", "2026-01-10"])
+        self._main(["recur", "add", "3000", "salary", "pay", "--every", "month",
+                    "--income", "--start", "2026-01-01"])
+        d = json.loads(self._main(["bills", "--month", "2026-07", "--json"]))
+        self.assertEqual(d["month"], "2026-07")
+        when = {i["category"]: i["date"] for i in d["items"]}
+        self.assertEqual(when["rent"], "2026-07-10")
+        self.assertEqual(when["salary"], "2026-07-01")
+        self.assertEqual(d["expense_total"], 1200.0)
+        self.assertEqual(d["income_total"], 3000.0)
+        self.assertEqual(d["net"], 1800.0)
+        # July 2026 is in the past (today is later), so every item has occurred
+        self.assertTrue(all(i["occurred"] for i in d["items"]))
+        # sorted by date: salary (01) before rent (10)
+        self.assertEqual([i["category"] for i in d["items"]], ["salary", "rent"])
+
+    def test_bills_excludes_skipped_and_empty(self):
+        self._main(["recur", "add", "50", "gym", "--every", "month",
+                    "--start", "2026-02-05"])                     # rule id 1
+        self._main(["recur", "skip", "1", "--date", "2026-07-05"])
+        d = json.loads(self._main(["bills", "--month", "2026-07", "--json"]))
+        self.assertEqual(d["items"], [])
+        self.assertIn("no recurring bills", self._main(["bills", "--month", "2026-07"]))
+
     def test_upcoming_ics_writes_file(self):
         self._main(["recur", "add", "10", "coffee", "latte", "--every", "day",
                     "--start", date.today().isoformat()])
