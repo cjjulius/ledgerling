@@ -135,7 +135,7 @@ import tempfile
 import time
 from datetime import datetime, date, timedelta
 
-__version__ = "1.154.0"
+__version__ = "1.154.1"
 
 # --------------------------------------------------------------------------- #
 # Sandbox + storage
@@ -6299,14 +6299,17 @@ def cmd_recur_run(args):
 # --------------------------------------------------------------------------- #
 
 _EXAMPLES = """\
-examples:
-  ledgerling add 12.50 food "lunch #work"      record an expense (with a tag)
-  ledgerling list --month 2026-09              list this month's expenses
-  ledgerling search --tag work --json          machine-readable, filtered
+a few examples:
+  ledgerling add 12.50 food "lunch #work"    record an expense (notes may carry #tags)
+  ledgerling month                           this month at a glance
   ledgerling budget --category food --amount 400   set a monthly budget
-  ledgerling recur add 1200 rent --every month     add a recurring charge
-  ledgerling report --months 12                a year of trend + adherence
-  ledgerling backup                            snapshot your data
+
+There are many more commands, grouped by theme (record, analyze, budgets,
+recurring, calculators, data). Run "ledgerling <command> --help" for any one.
+
+Prefer a friendlier interface? Two are built in:
+  ledgerling gui     a desktop app with icons, menus and themes
+  ledgerling web     the same tools in your browser
 
 All data stays inside this app's folder; nothing is posted or pushed.
 """

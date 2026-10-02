@@ -4,6 +4,19 @@ All notable changes to Ledgerling are documented here. The format is based on
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and this project
 adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.154.1] - 2026-10-02
+
+### Changed
+
+- Documentation: the README's Usage section, previously a ~430-line wall of
+  command examples, is now a short, skimmable overview — a four-line quick
+  start, a themed summary of what each command group does, and a pointer to
+  `ledgerling <command> --help` and the built-in desktop and web interfaces for
+  the rest.
+- CLI: the top-level `--help` epilog is friendlier — a few representative
+  examples, a note that commands are grouped by theme with per-command help,
+  and a pointer to `ledgerling gui` and `ledgerling web`.
+
 ## [1.154.0] - 2026-10-02
 
 ### Added
@@ -1875,6 +1888,7 @@ file, standard library only, strictly confined to its own folder.
   guard (`_within_app`) that refuses any path escaping the app folder; imports
   and restores are reduced to a basename and looked up only within the folder.
 
+[1.154.1]: #11541---2026-10-02
 [1.154.0]: #11540---2026-10-02
 [1.153.1]: #11531---2026-10-02
 [1.153.0]: #11530---2026-10-02
