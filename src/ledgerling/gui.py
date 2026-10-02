@@ -36,7 +36,7 @@ GROUP_DEFS = [
                  "tags", "untagged", "search", "list"]),
     ("Budgets & goals", ["budget", "unbudget", "allowance", "overbudget", "goal",
                          "networth", "pot", "transfer", "savingsplan",
-                         "challenge", "suggest", "autobudget",
+                         "challenge", "achievements", "suggest", "autobudget",
                          "commitments", "upcoming", "bills"]),
     ("Calculators", ["tip", "interest", "loan", "target", "runway", "roundup",
                      "fx convert", "fx set", "fx list", "fx rm"]),

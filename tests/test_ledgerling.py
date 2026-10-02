@@ -1469,6 +1469,29 @@ class CLI(TempAppCase):
                           p["longest_streak"], p["current_streak"]),
                          (31, 29, 21, 21))
 
+    def test_achievements_unlocks(self):
+        # fresh ledger: only the "nothing yet" baseline, nothing unlocked
+        d0 = json.loads(self._main(["achievements", "--json"]))
+        self.assertEqual(d0["unlocked"], 0)
+        self.assertEqual(d0["total"], len(d0["achievements"]))
+        # income + a tagged expense -> first_entry + organized unlock
+        self._main(["income", "3000", "salary", "pay", "--date", "2026-05-01"])
+        self._main(["add", "100", "food", "lunch #work", "--date", "2026-05-02"])
+        d = json.loads(self._main(["achievements", "--json"]))
+        by = {a["key"]: a["unlocked"] for a in d["achievements"]}
+        self.assertTrue(by["first_entry"])
+        self.assertTrue(by["organized"])        # a #tag was used
+        self.assertTrue(by["four_figures"])     # net 2900 >= 1000
+        self.assertTrue(by["super_saver"])      # saved ~97% of income
+        self.assertFalse(by["centurion"])       # not 100 entries
+        self.assertFalse(by["goal_achieved"])   # no funded pot
+        # funding a pot to target unlocks goal_achieved
+        self._main(["pot", "trip", "--target", "50"])
+        self._main(["pot", "trip", "--add", "50"])
+        d2 = json.loads(self._main(["achievements", "--json"]))
+        self.assertTrue(next(a["unlocked"] for a in d2["achievements"]
+                             if a["key"] == "goal_achieved"))
+
     def test_cashflow_projects_and_flags_negative(self):
         # Start from a known balance; one recurring bill pushes it negative.
         self._main(["recur", "add", "100", "rent", "monthly bill",

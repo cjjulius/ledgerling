@@ -4,6 +4,17 @@ All notable changes to Ledgerling are documented here. The format is based on
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and this project
 adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.157.0] - 2026-10-02
+
+### Added
+
+- `achievements` command: a dozen badges you unlock from your own ledger
+  history (first entry, 10 and 100 entries, tracking across 3 months, using a
+  tag, setting a budget, keeping a month within budget, a 7-day no-spend
+  streak, saving 20% of income in a month, reaching 1,000 and 10,000 all-time
+  net, and funding a savings pot to its target). Read-only; `--json` shows the
+  full list with lock state. Grouped under Budgets & goals. (Closes idea #2.)
+
 ## [1.156.1] - 2026-10-02
 
 ### Fixed
@@ -1954,6 +1965,7 @@ file, standard library only, strictly confined to its own folder.
   guard (`_within_app`) that refuses any path escaping the app folder; imports
   and restores are reduced to a basename and looked up only within the folder.
 
+[1.157.0]: #11570---2026-10-02
 [1.156.1]: #11561---2026-10-02
 [1.156.0]: #11560---2026-10-02
 [1.155.1]: #11551---2026-10-02

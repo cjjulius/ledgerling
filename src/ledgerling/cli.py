@@ -64,6 +64,7 @@ Commands:
     anomalies  Flag unusually large expenses within each category
     roundup   Simulate round-up savings (round each expense up to $N)
     challenge  Gamified savings challenges (52-week, no-spend, round-up jar)
+    achievements  Badges you unlock from your ledger history
     tip       Tip calculator and even bill splitter
     interest  Compound-growth / future-value calculator
     loan      Loan payment / amortization calculator
@@ -136,7 +137,7 @@ import tempfile
 import time
 from datetime import datetime, date, timedelta
 
-__version__ = "1.156.1"
+__version__ = "1.157.0"
 
 # --------------------------------------------------------------------------- #
 # Sandbox + storage
@@ -2329,6 +2330,86 @@ def cmd_challenge(args):
           f"{'' if r['month'] == 'all time' else ' this month'}")
     print("-" * 56)
     print("  Run `challenge <name>` for details (52week / nospend / roundup).")
+
+
+def compute_achievements(data, today=None):
+    """Derive the full badge list from the ledger. Each badge is
+    {key, name, description, unlocked}. Pure, so it is unit tested directly."""
+    today = today or date.today()
+    rows = data["expenses"]
+    exp = expenses_only(rows)
+    entries = len(rows)
+    net = all_time_net(data)
+    months = sorted({month_of(e["date"]) for e in rows})
+
+    best_rate = 0.0
+    for _m, v in group_totals(rows, lambda e: month_of(e["date"])).items():
+        if v["income"] > 0:
+            best_rate = max(best_rate, (v["income"] - v["spending"]) / v["income"])
+
+    best_streak = 0
+    for m in months:
+        best_streak = max(best_streak,
+                          _nospend_progress(exp, m, today)["longest_streak"])
+
+    budgets = data["budgets"]
+    on_budget = False
+    if budgets:
+        for m in months:
+            if not any(month_of(e["date"]) == m for e in exp):
+                continue
+            if all(category_spent(data, c, m) <= lim
+                   for c, lim in budgets.items()):
+                on_budget = True
+                break
+
+    pots = data["pots"]
+    pot_funded = any(p.get("target") and p.get("saved", 0.0) >= p["target"]
+                     for p in pots.values())
+    any_tags = any(e.get("tags") for e in exp)
+
+    defs = [
+        ("first_entry", "First step", "Record your first entry", entries >= 1),
+        ("ten_entries", "Getting the hang of it", "Record 10 entries",
+         entries >= 10),
+        ("centurion", "Centurion", "Record 100 entries", entries >= 100),
+        ("regular", "Regular", "Track in 3 different months", len(months) >= 3),
+        ("organized", "Organized", "Tag an entry with a #tag", any_tags),
+        ("budgeter", "Budget-minded", "Set a monthly budget", bool(budgets)),
+        ("under_control", "Under control",
+         "Keep a whole month within budget", on_budget),
+        ("quiet_week", "Quiet week", "Go 7 days with no spending",
+         best_streak >= 7),
+        ("super_saver", "Super saver", "Save 20% of income in a month",
+         best_rate >= 0.20),
+        ("four_figures", "Four figures", "Reach 1,000 in all-time net",
+         net >= 1000),
+        ("five_figures", "Five figures", "Reach 10,000 in all-time net",
+         net >= 10000),
+        ("goal_achieved", "Goal achieved",
+         "Fund a savings pot to its target", pot_funded),
+    ]
+    return [{"key": k, "name": n, "description": d, "unlocked": bool(u)}
+            for k, n, d, u in defs]
+
+
+def cmd_achievements(args):
+    """Badges you unlock from your own ledger history - a light, motivating
+    nudge toward good habits. Read-only; nothing is stored."""
+    data = load()
+    ach = compute_achievements(data)
+    unlocked = sum(1 for a in ach if a["unlocked"])
+
+    if getattr(args, "json", False):
+        print(json.dumps({"achievements": ach, "unlocked": unlocked,
+                          "total": len(ach)}, indent=2))
+        return
+
+    print(f"Achievements   ({unlocked} of {len(ach)} unlocked)")
+    print("=" * 56)
+    for a in ach:
+        mark = "[x]" if a["unlocked"] else "[ ]"
+        print(f"  {mark} {a['name']:<22} {a['description']}")
 
 
 def cmd_tip(args):
@@ -6921,6 +7002,12 @@ def build_parser():
     ch.add_argument("--json", action="store_true", help="output JSON instead of text")
     ch.set_defaults(func=cmd_challenge)
 
+    ach = sub.add_parser("achievements",
+                         help="badges you unlock from your ledger history")
+    ach.add_argument("--json", action="store_true",
+                     help="output JSON instead of text")
+    ach.set_defaults(func=cmd_achievements)
+
     tip = sub.add_parser("tip",
                          help="tip calculator and even bill splitter")
     tip.add_argument("amount", type=float, help="the bill amount (before tip)")
@@ -7375,7 +7462,7 @@ CATCHUP_COMMANDS = frozenset({
     "weekly", "years", "anomalies", "roundup", "cashflow", "target", "runway",
     "net", "subscriptions", "payees", "overbudget", "today", "worthtrend",
     "statement", "reconcile", "scorecard", "scoretrend", "category",
-    "savingsplan", "bills", "challenge",
+    "savingsplan", "bills", "challenge", "achievements",
 })
 MUTATING_COMMANDS = frozenset({
     "add", "income", "edit", "delete", "clone", "refund", "note", "tag",
