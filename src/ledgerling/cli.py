@@ -93,6 +93,7 @@ Commands:
     goal      Set / view a monthly savings goal
     networth  Track account balances (assets/debts) and net worth
     worthtrend  Net-worth snapshots over time
+    pot       Savings pots (sinking funds): save toward named targets
     recur     Recurring rules (add/from/edit/list/remove/run/skip/unskip/pause/resume)
     export    Write entries to CSV/JSON (filter by month/range/category/kind)
     import    Read entries back from a CSV or JSON file (deduped)
@@ -127,7 +128,7 @@ import tempfile
 import time
 from datetime import datetime, date, timedelta
 
-__version__ = "1.141.0"
+__version__ = "1.142.0"
 
 # --------------------------------------------------------------------------- #
 # Sandbox + storage
@@ -180,7 +181,7 @@ def _within_home(path):
 def load():
     if not os.path.exists(DATA_FILE):
         return {"expenses": [], "budgets": {}, "recurring": [], "goal": None,
-                "accounts": {}, "networth_history": []}
+                "accounts": {}, "networth_history": [], "pots": {}}
     try:
         with open(DATA_FILE, "r", encoding="utf-8") as fh:
             data = json.load(fh)
@@ -192,6 +193,7 @@ def load():
     data.setdefault("goal", None)
     data.setdefault("accounts", {})
     data.setdefault("networth_history", [])
+    data.setdefault("pots", {})
     # Coerce the account sections to their container types so a corrupt or
     # hand-edited file can't crash a later command; bad *contents* are left for
     # `check` to report/repair.
@@ -199,6 +201,8 @@ def load():
         data["accounts"] = {}
     if not isinstance(data["networth_history"], list):
         data["networth_history"] = []
+    if not isinstance(data["pots"], dict):
+        data["pots"] = {}
     return data
 
 
@@ -4489,6 +4493,83 @@ def cmd_worthtrend(args):
           f"{_signed(span)}")
 
 
+def cmd_pot(args):
+    """Savings pots (sinking funds): named targets you save toward. With a name
+    and an action (--target/--add/--take/--remove) it edits a pot; with no
+    action it shows the pot's progress; with no name it lists all pots."""
+    data = load()
+    pots = data["pots"]
+    name = (getattr(args, "name", None) or "").strip().lower()
+    actions = [a for a in ("target", "add", "take", "remove")
+               if getattr(args, a, None) not in (None, False)]
+    if len(actions) > 1:
+        sys.exit("error: choose one of --target/--add/--take/--remove")
+    if actions and not name:
+        sys.exit("error: name a pot to edit, e.g. `pot vacation --target 2000`")
+
+    if name and actions:
+        action = actions[0]
+        pot = pots.get(name, {"target": None, "saved": 0.0})
+        if action == "remove":
+            if name not in pots:
+                sys.exit(f"error: no pot '{name}'")
+            del pots[name]
+            save(data)
+            print(f"removed pot '{name}'")
+            return
+        if action == "target":
+            if args.target < 0:
+                sys.exit("error: target cannot be negative")
+            pot["target"] = round(args.target, 2) or None
+        elif action == "add":
+            if args.add <= 0:
+                sys.exit("error: --add must be positive")
+            pot["saved"] = round(pot.get("saved", 0.0) + args.add, 2)
+        elif action == "take":
+            if args.take <= 0:
+                sys.exit("error: --take must be positive")
+            pot["saved"] = round(max(0.0, pot.get("saved", 0.0) - args.take), 2)
+        pots[name] = pot
+        save(data)
+
+    def view(nm, p):
+        saved = round(p.get("saved", 0.0), 2)
+        target = p.get("target")
+        frac = (saved / target) if target else None
+        return {"name": nm, "saved": saved, "target": target,
+                "remaining": round(max(0.0, target - saved), 2) if target else None,
+                "progress_pct": round(frac * 100, 1) if frac is not None else None}
+
+    if name:
+        if name not in pots:
+            sys.exit(f"error: no pot '{name}'")
+        rows = [view(name, pots[name])]
+    else:
+        rows = [view(n, p) for n, p in sorted(pots.items())]
+    total_saved = round(sum(r["saved"] for r in rows), 2)
+
+    if getattr(args, "json", False):
+        print(json.dumps({"pots": rows, "total_saved": total_saved}, indent=2))
+        return
+
+    if not rows:
+        print("no savings pots yet. Try: pot vacation --target 2000")
+        return
+    print("Savings pots")
+    print("=" * 56)
+    for r in rows:
+        if r["target"]:
+            frac = r["saved"] / r["target"] if r["target"] else 0
+            print(f"  {r['name']:<16} {money(r['saved']):>11} / "
+                  f"{money(r['target']):<11} {bar(frac)} {r['progress_pct']:4.0f}%")
+            if r["remaining"]:
+                print(f"  {'':<16} {money(r['remaining'])} to go")
+        else:
+            print(f"  {r['name']:<16} {money(r['saved']):>11}   (no target)")
+    print("-" * 56)
+    print(f"  total saved across pots: {money(total_saved)}")
+
+
 def _completion_spec():
     """Introspect the parser: top-level subcommands and each one's long options
     (plus any nested subcommand names, e.g. for `recur`)."""
@@ -4859,7 +4940,7 @@ def _valid_iso(s):
 # Issue kinds that _autofix can safely repair on its own.
 _FIXABLE_KINDS = frozenset({
     "duplicate_id", "bad_id", "orphan_recur_id", "empty_category", "bad_budget",
-    "bad_account", "bad_snapshot",
+    "bad_account", "bad_snapshot", "bad_pot",
 })
 
 
@@ -4937,6 +5018,13 @@ def _scan_issues(data):
             issues.append({"kind": "bad_snapshot", "id": None,
                            "detail": f"net-worth snapshot #{i} is malformed"})
 
+    for label, pot in data.get("pots", {}).items():
+        saved = pot.get("saved") if isinstance(pot, dict) else None
+        if (not isinstance(pot, dict) or isinstance(saved, bool)
+                or not isinstance(saved, (int, float)) or saved < 0):
+            issues.append({"kind": "bad_pot", "id": None,
+                           "detail": f"pot '{label}' is malformed ({pot!r})"})
+
     return issues
 
 
@@ -4988,6 +5076,14 @@ def _autofix(data):
         data["networth_history"] = kept
         fixed.append(f"dropped {len(hist) - len(kept)} malformed "
                      "net-worth snapshot(s)")
+
+    pots = data.get("pots", {})
+    for label in [k for k, p in list(pots.items())
+                  if not isinstance(p, dict) or isinstance(p.get("saved"), bool)
+                  or not isinstance(p.get("saved"), (int, float))
+                  or p.get("saved") < 0]:
+        del pots[label]
+        fixed.append(f"removed malformed pot '{label}'")
 
     return fixed
 
@@ -6120,6 +6216,16 @@ def build_parser():
     wt.add_argument("--json", action="store_true", help="output JSON instead of text")
     wt.set_defaults(func=cmd_worthtrend)
 
+    pot = sub.add_parser("pot",
+                         help="savings pots (sinking funds): save toward named targets")
+    pot.add_argument("name", nargs="?", default=None, help="pot name (optional)")
+    pot.add_argument("--target", type=float, help="set the pot's savings target")
+    pot.add_argument("--add", type=float, help="add this amount to the pot")
+    pot.add_argument("--take", type=float, help="withdraw this amount from the pot")
+    pot.add_argument("--remove", action="store_true", help="delete the pot")
+    pot.add_argument("--json", action="store_true", help="output JSON instead of text")
+    pot.set_defaults(func=cmd_pot)
+
     bk = sub.add_parser("backup", help="save a timestamped copy of your data")
     bk.add_argument("--list", action="store_true", help="list existing backups")
     bk.set_defaults(func=cmd_backup)
@@ -6335,7 +6441,7 @@ CATCHUP_COMMANDS = frozenset({
 MUTATING_COMMANDS = frozenset({
     "add", "income", "edit", "delete", "clone", "refund", "note", "tag",
     "untag", "retag", "recategorize", "unbudget", "goal", "networth",
-    "autobudget", "clear", "unclear",
+    "autobudget", "clear", "unclear", "pot",
     "import", "restore", "backup", "dedupe", "undo", "config", "recur",
     "completion", "version", "web", "gui", "where", "tip", "split", "fx",
     "check", "interest", "loan",

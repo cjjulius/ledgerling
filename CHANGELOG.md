@@ -4,6 +4,19 @@ All notable changes to Ledgerling are documented here. The format is based on
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and this project
 adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.142.0] - 2026-10-01
+
+### Added
+
+- `pot` command: savings pots (sinking funds) — named targets you save toward,
+  distinct from the single monthly `goal` and from `networth` accounts.
+  `pot NAME --target N` sets a goal, `--add`/`--take` contribute or withdraw
+  (never below zero), `--remove` deletes; `pot NAME` shows one pot's progress
+  and `pot` (no name) lists them all with progress bars and a total saved.
+  `--json` supported; edits are undoable. Pots live in a new `pots` section of
+  the data file (migrated/coerced in on load), and `check`/`check --fix` now
+  validate them (`bad_pot`). Grouped under Budgets & goals in both UIs.
+
 ## [1.141.0] - 2026-10-01
 
 ### Added
@@ -1673,6 +1686,7 @@ file, standard library only, strictly confined to its own folder.
   guard (`_within_app`) that refuses any path escaping the app folder; imports
   and restores are reduced to a basename and looked up only within the folder.
 
+[1.142.0]: #11420---2026-10-01
 [1.141.0]: #11410---2026-10-01
 [1.140.0]: #11400---2026-10-01
 [1.139.1]: #11391---2026-10-01
