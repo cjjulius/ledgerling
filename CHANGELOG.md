@@ -4,6 +4,19 @@ All notable changes to Ledgerling are documented here. The format is based on
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and this project
 adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.156.1] - 2026-10-02
+
+### Fixed
+
+- Desktop app crashed easily (#11) - often on open, or after toggling the
+  theme, clicking around, and pinning. In a windowed build `sys.stderr` is
+  None, so Tkinter's default callback-exception handler raised again and took
+  the whole app down on any minor hiccup. The app now installs its own handler
+  that logs to `gui-errors.log` in the data folder instead of touching stderr,
+  so a stray callback error is non-fatal. Also hardened the hover tooltip
+  against firing on a widget that was already destroyed (e.g. a nav row rebuilt
+  by a theme change).
+
 ## [1.156.0] - 2026-10-02
 
 ### Added
@@ -1941,6 +1954,7 @@ file, standard library only, strictly confined to its own folder.
   guard (`_within_app`) that refuses any path escaping the app folder; imports
   and restores are reduced to a basename and looked up only within the folder.
 
+[1.156.1]: #11561---2026-10-02
 [1.156.0]: #11560---2026-10-02
 [1.155.1]: #11551---2026-10-02
 [1.155.0]: #11550---2026-10-02
