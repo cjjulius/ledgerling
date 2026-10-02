@@ -94,6 +94,7 @@ Commands:
     networth  Track account balances (assets/debts) and net worth
     worthtrend  Net-worth snapshots over time
     pot       Savings pots (sinking funds): save toward named targets
+    transfer  Move money between two savings pots
     recur     Recurring rules (add/from/edit/list/remove/run/skip/unskip/pause/resume)
     export    Write entries to CSV/JSON (filter by month/range/category/kind)
     import    Read entries back from a CSV or JSON file (deduped)
@@ -128,7 +129,7 @@ import tempfile
 import time
 from datetime import datetime, date, timedelta
 
-__version__ = "1.142.1"
+__version__ = "1.143.0"
 
 # --------------------------------------------------------------------------- #
 # Sandbox + storage
@@ -4573,6 +4574,37 @@ def cmd_pot(args):
     print(f"  total saved across pots: {money(total_saved)}")
 
 
+def cmd_transfer(args):
+    """Move money between two savings pots (envelope rebalancing)."""
+    data = load()
+    pots = data["pots"]
+    src = (args.src or "").strip().lower()
+    dst = (args.dst or "").strip().lower()
+    amount = round(args.amount, 2)
+    if amount <= 0:
+        sys.exit("error: amount must be positive")
+    if src == dst:
+        sys.exit("error: source and destination pots must differ")
+    for n in (src, dst):
+        if n not in pots:
+            sys.exit(f"error: no pot '{n}'")
+    have = round(pots[src].get("saved", 0.0), 2)
+    if have < amount:
+        sys.exit(f"error: pot '{src}' only has {money(have)}")
+    pots[src]["saved"] = round(have - amount, 2)
+    pots[dst]["saved"] = round(pots[dst].get("saved", 0.0) + amount, 2)
+    save(data)
+
+    if getattr(args, "json", False):
+        print(json.dumps({"amount": amount, "from": src, "to": dst,
+                          "from_saved": pots[src]["saved"],
+                          "to_saved": pots[dst]["saved"]}, indent=2))
+        return
+    print(f"transferred {money(amount)} from '{src}' to '{dst}'")
+    print(f"  {src:<16} {money(pots[src]['saved'])}")
+    print(f"  {dst:<16} {money(pots[dst]['saved'])}")
+
+
 def _completion_spec():
     """Introspect the parser: top-level subcommands and each one's long options
     (plus any nested subcommand names, e.g. for `recur`)."""
@@ -6229,6 +6261,14 @@ def build_parser():
     pot.add_argument("--json", action="store_true", help="output JSON instead of text")
     pot.set_defaults(func=cmd_pot)
 
+    tf = sub.add_parser("transfer",
+                        help="move money between two savings pots")
+    tf.add_argument("amount", type=float, help="amount to move")
+    tf.add_argument("src", metavar="FROM", help="source pot")
+    tf.add_argument("dst", metavar="TO", help="destination pot")
+    tf.add_argument("--json", action="store_true", help="output JSON instead of text")
+    tf.set_defaults(func=cmd_transfer)
+
     bk = sub.add_parser("backup", help="save a timestamped copy of your data")
     bk.add_argument("--list", action="store_true", help="list existing backups")
     bk.set_defaults(func=cmd_backup)
@@ -6444,7 +6484,7 @@ CATCHUP_COMMANDS = frozenset({
 MUTATING_COMMANDS = frozenset({
     "add", "income", "edit", "delete", "clone", "refund", "note", "tag",
     "untag", "retag", "recategorize", "unbudget", "goal", "networth",
-    "autobudget", "clear", "unclear", "pot",
+    "autobudget", "clear", "unclear", "pot", "transfer",
     "import", "restore", "backup", "dedupe", "undo", "config", "recur",
     "completion", "version", "web", "gui", "where", "tip", "split", "fx",
     "check", "interest", "loan",
