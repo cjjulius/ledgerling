@@ -948,6 +948,39 @@ class CLI(TempAppCase):
         # rent has a budget but no expenses -> still listed
         self.assertEqual(d["rent"], {"count": 0, "total": 0.0, "budget": 800.0})
 
+    def test_category_profile_json(self):
+        this = date.today().isoformat()[:7]
+        self._main(["add", "10", "food", "cheap", "--date", f"{this}-03"])
+        self._main(["add", "30", "food", "big", "--date", f"{this}-20"])
+        self._main(["add", "60", "transit", "pass", "--date", f"{this}-05"])
+        self._main(["budget", "--category", "food", "--amount", "100"])
+        d = json.loads(self._main(["category", "food", "--json"]))
+        self.assertEqual(d["category"], "food")
+        self.assertEqual(d["total"], 40.0)
+        self.assertEqual(d["count"], 2)
+        self.assertEqual(d["average"], 20.0)
+        self.assertEqual(d["median"], 20.0)        # (10 + 30) / 2
+        self.assertEqual(d["min"]["amount"], 10.0)
+        self.assertEqual(d["max"]["amount"], 30.0)
+        self.assertEqual(d["share_pct"], 40.0)     # 40 of 100 total spending
+        self.assertEqual(d["active_months"], 1)
+        self.assertEqual(d["budget"]["limit"], 100.0)
+        self.assertEqual(d["budget"]["spent"], 40.0)
+        # the trend window ends on the current month and includes this month
+        self.assertEqual(d["monthly"][-1], {"month": this, "total": 40.0})
+
+    def test_category_empty_and_budget_only(self):
+        # unknown category with no spend and no budget -> empty, zeroed profile
+        d = json.loads(self._main(["category", "ghost", "--json"]))
+        self.assertEqual((d["total"], d["count"], d["min"], d["max"]),
+                         (0.0, 0, None, None))
+        # a budgeted category with no spend still reports its budget, and the
+        # text view shows it rather than the "no spending" line
+        self._main(["budget", "--category", "rent", "--amount", "800"])
+        txt = self._main(["category", "rent"])
+        self.assertIn("Budget", txt)
+        self.assertNotIn("no spending recorded", txt)
+
     def test_retag(self):
         self._main(["add", "40", "food", "dinner #work #client"])
         self._main(["add", "10", "transit", "bus #Work"])   # different case

@@ -76,6 +76,7 @@ Commands:
     suggest   Suggest per-category budgets from recent average spending
     autobudget  Apply suggested budgets from recent spending (undoable)
     categories  List categories with counts and totals
+    category  A full profile for one category (drill-down)
     payees    Rank spending by payee (merchant), from the note
     tags      List #tags with counts and totals
     untagged  List expenses that have no #tags
@@ -132,7 +133,7 @@ import tempfile
 import time
 from datetime import datetime, date, timedelta
 
-__version__ = "1.148.0"
+__version__ = "1.149.0"
 
 # --------------------------------------------------------------------------- #
 # Sandbox + storage
@@ -3138,6 +3139,87 @@ def cmd_categories(args):
                          reverse=True):
         budget = f"  budget {money(v['budget'])}" if v["budget"] else ""
         print(f"{cat:<14} {v['count']:>3} item(s)  {money(v['total']):>12}{budget}")
+
+
+def cmd_category(args):
+    """A full profile for one category: total spend and its share of all
+    spending, entry count, average/median, smallest/largest entries with dates,
+    the active span, a recent monthly trend, and budget status if one is set."""
+    data = load()
+    cat = clean_category(args.category)
+    months = args.months
+    if months < 1:
+        sys.exit("error: --months must be at least 1")
+
+    exp = expenses_only(data["expenses"])
+    rows = [e for e in exp if e["category"] == cat]
+    total_all = round(sum(e["amount"] for e in exp), 2)
+    total = round(sum(e["amount"] for e in rows), 2)
+    count = len(rows)
+    amounts = [e["amount"] for e in rows]
+    average = round(total / count, 2) if count else 0.0
+    median = round(_median(amounts), 2) if count else 0.0
+    share = round(total / total_all * 100, 1) if total_all else 0.0
+
+    def _extreme(e):
+        return {"amount": round(e["amount"], 2), "date": e["date"],
+                "note": e.get("note", "")} if e else None
+    lo = _extreme(min(rows, key=lambda e: e["amount"])) if rows else None
+    hi = _extreme(max(rows, key=lambda e: e["amount"])) if rows else None
+    dates = sorted(e["date"] for e in rows)
+    first, last = (dates[0], dates[-1]) if dates else (None, None)
+    active_months = len({month_of(e["date"]) for e in rows})
+
+    first_month = date.today().replace(day=1)
+    monthly = [{"month": add_months(first_month, -i).isoformat()[:7],
+                "total": round(category_spent(
+                    data, cat, add_months(first_month, -i).isoformat()[:7]), 2)}
+               for i in range(months - 1, -1, -1)]
+
+    budget = data["budgets"].get(cat)
+    budget_info = None
+    if budget:
+        now = date.today().isoformat()[:7]
+        spent_now = round(category_spent(data, cat, now), 2)
+        budget_info = {"limit": budget, "month": now, "spent": spent_now,
+                       "percent": round(spent_now / budget * 100, 1)
+                       if budget else 0.0}
+
+    if getattr(args, "json", False):
+        print(json.dumps({
+            "category": cat, "total": total, "share_pct": share, "count": count,
+            "average": average, "median": median, "min": lo, "max": hi,
+            "first": first, "last": last, "active_months": active_months,
+            "monthly": monthly, "budget": budget_info}, indent=2))
+        return
+
+    if not count and not budget:
+        print(f"no spending recorded for [{cat}]")
+        return
+
+    print(f"Category: {cat}")
+    print("=" * 56)
+    print(f"  Spent        {money(total):>12}   ({share:g}% of all spending)")
+    print(f"  Entries      {count:>12}   avg {money(average)}, "
+          f"median {money(median)}")
+    if lo and hi:
+        print(f"  Smallest     {money(lo['amount']):>12}   on {lo['date']}")
+        print(f"  Largest      {money(hi['amount']):>12}   on {hi['date']}")
+    if first:
+        print(f"  Active       {active_months:>12} month"
+              f"{'' if active_months == 1 else 's'}   "
+              f"first {first}, last {last}")
+    if budget_info:
+        print(f"  Budget       {money(budget_info['limit']):>12}/mo  "
+              f"this month {money(budget_info['spent'])} "
+              f"({budget_info['percent']:g}%)")
+    nonzero = [m for m in monthly if m["total"]]
+    if nonzero:
+        peak = max(m["total"] for m in monthly) or 1.0
+        print(f"  Last {months} months:")
+        for m in monthly:
+            print(f"    {m['month']}  {money(m['total']):>11}  "
+                  f"{bar(m['total'] / peak, 20)}")
 
 
 _WEEKDAY_NAMES = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"]
@@ -6335,6 +6417,15 @@ def build_parser():
     ct.add_argument("--json", action="store_true", help="output JSON instead of text")
     ct.set_defaults(func=cmd_categories)
 
+    cat1 = sub.add_parser("category",
+                          help="a full profile for one category (drill-down)")
+    cat1.add_argument("category", help="the category to profile, e.g. food")
+    cat1.add_argument("--months", type=int, default=6,
+                      help="months of trend to show (default 6)")
+    cat1.add_argument("--json", action="store_true",
+                      help="output JSON instead of text")
+    cat1.set_defaults(func=cmd_category)
+
     tg = sub.add_parser("tags", help="list #tags with counts and totals")
     tg.add_argument("--month", help="restrict to a month, YYYY-MM")
     tg.add_argument("--json", action="store_true", help="output JSON instead of text")
@@ -6851,7 +6942,7 @@ CATCHUP_COMMANDS = frozenset({
     "tagtrend", "range", "matrix", "cumulative", "allowance", "tagmatrix",
     "weekly", "years", "anomalies", "roundup", "cashflow", "target", "runway",
     "net", "subscriptions", "payees", "overbudget", "today", "worthtrend",
-    "statement", "reconcile", "scorecard", "scoretrend",
+    "statement", "reconcile", "scorecard", "scoretrend", "category",
 })
 MUTATING_COMMANDS = frozenset({
     "add", "income", "edit", "delete", "clone", "refund", "note", "tag",

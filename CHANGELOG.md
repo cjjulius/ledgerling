@@ -4,6 +4,18 @@ All notable changes to Ledgerling are documented here. The format is based on
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and this project
 adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.149.0] - 2026-10-02
+
+### Added
+
+- `category NAME [--months N] [--json]` command: a full drill-down profile for
+  a single category — total spend and its share of all spending, entry count,
+  average and median, smallest/largest entries with their dates, the active
+  span (first/last date and number of months with activity), a recent monthly
+  trend with bars (default 6 months), and budget status if one is set. The
+  natural detail companion to the `categories` list. Grouped under Analyze in
+  both UIs.
+
 ## [1.148.0] - 2026-10-02
 
 ### Added
@@ -1787,6 +1799,7 @@ file, standard library only, strictly confined to its own folder.
   guard (`_within_app`) that refuses any path escaping the app folder; imports
   and restores are reduced to a basename and looked up only within the folder.
 
+[1.149.0]: #11490---2026-10-02
 [1.148.0]: #11480---2026-10-02
 [1.147.1]: #11471---2026-10-02
 [1.147.0]: #11470---2026-10-02

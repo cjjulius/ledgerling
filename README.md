@@ -482,6 +482,9 @@ ledgerling stats
 # Category / tag overviews (all-time, or scoped to a month)
 ledgerling categories
 ledgerling categories --month 2026-09
+ledgerling category food               # drill into one category: total, share,
+                                       # avg/median, min/max, span, monthly trend
+ledgerling category food --months 12   # longer trend window
 ledgerling tags
 ledgerling tags --month 2026-09
 ledgerling recategorize food dining
