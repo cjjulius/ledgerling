@@ -2890,6 +2890,20 @@ class CLI(TempAppCase):
         self.assertEqual(len(income_kind := L.income_only(L.load()["expenses"])), 1)
         self.assertEqual(income_kind[0]["category"], "gift")
 
+    def test_cleared_survives_export_import_roundtrip(self):
+        # cleared status should round-trip through both CSV and JSON
+        self._main(["add", "10", "food", "a"])      # #1
+        self._main(["add", "20", "food", "b"])      # #2 (stays pending)
+        self._main(["clear", "1"])
+        for fmt, fname in (("csv", "rt.csv"), ("json", "rt.json")):
+            self._main(["export", "--format", fmt, "--file", fname])
+            # fresh store, import the file back
+            L.save({"expenses": [], "budgets": {}, "recurring": [], "goal": None})
+            self._main(["import", "--file", fname])
+            rows = {(e["category"], e["amount"]): e for e in L.load()["expenses"]}
+            self.assertTrue(rows[("food", 10.0)].get("cleared"))    # cleared kept
+            self.assertFalse(rows[("food", 20.0)].get("cleared"))   # pending kept
+
 
 if __name__ == "__main__":
     unittest.main(verbosity=2)

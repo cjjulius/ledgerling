@@ -127,7 +127,7 @@ import tempfile
 import time
 from datetime import datetime, date, timedelta
 
-__version__ = "1.139.1"
+__version__ = "1.140.0"
 
 # --------------------------------------------------------------------------- #
 # Sandbox + storage
@@ -1157,10 +1157,11 @@ def cmd_export(args):
             with open(target, "w", encoding="utf-8", newline="") as fh:
                 writer = csv.writer(fh)
                 writer.writerow(["id", "date", "amount", "category", "note",
-                                 "kind", "recurring"])
+                                 "kind", "cleared", "recurring"])
                 for e in rows:
                     writer.writerow([e["id"], e["date"], f"{e['amount']:.2f}",
                                      e["category"], e["note"], kind_of(e),
+                                     "yes" if e.get("cleared") else "no",
                                      "yes" if e.get("recur_id") else "no"])
     except OSError as exc:
         sys.exit(f"error: could not write {target}: {exc}")
@@ -1186,8 +1187,14 @@ def _normalize_import_row(row):
             return None
     except (KeyError, ValueError, AttributeError, TypeError):
         return None
+    raw_cleared = row.get("cleared")
+    if isinstance(raw_cleared, bool):
+        cleared = raw_cleared
+    else:
+        cleared = str(raw_cleared or "").strip().lower() in (
+            "yes", "true", "1", "y", "cleared")
     return {"amount": amount, "category": category, "note": note,
-            "date": d, "kind": kind}
+            "date": d, "kind": kind, "cleared": cleared}
 
 
 def cmd_import(args):
@@ -1233,12 +1240,15 @@ def cmd_import(args):
             continue
         seen.add(key)
         if not getattr(args, "dry_run", False):
-            data["expenses"].append({
+            entry = {
                 "id": next_free, "amount": norm["amount"],
                 "category": norm["category"], "note": norm["note"],
                 "date": norm["date"], "tags": parse_tags(norm["note"]),
                 "kind": norm["kind"],
-            })
+            }
+            if norm.get("cleared"):   # keep lean: only set the flag when true
+                entry["cleared"] = True
+            data["expenses"].append(entry)
             next_free += 1
         added += 1
 
