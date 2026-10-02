@@ -68,6 +68,7 @@ Commands:
     loan      Loan payment / amortization calculator
     fx        Offline currency converter (set/list/rm/convert, user-set rates)
     upcoming  Forecast recurring charges/income due in the next N days
+    bills     Recurring charges/income scheduled in a month, by day
     cashflow  Project a running balance forward (flags if it goes negative)
     target    Estimate how long to reach a lump-sum savings target
     runway    How long a balance lasts at your average monthly net
@@ -134,7 +135,7 @@ import tempfile
 import time
 from datetime import datetime, date, timedelta
 
-__version__ = "1.153.1"
+__version__ = "1.154.0"
 
 # --------------------------------------------------------------------------- #
 # Sandbox + storage
@@ -2987,6 +2988,66 @@ def cmd_upcoming(args):
     print("-" * 52)
     print(f"expenses {money(exp_total)}, income {money(inc_total)}, "
           f"net {money(inc_total - exp_total)}")
+
+
+def cmd_bills(args):
+    """The recurring charges and income scheduled in a month, by day, with a
+    total. Unlike `upcoming` (a rolling N-day window from today), this covers
+    the whole month -- past and future days -- so you can see what has already
+    hit and what is still to come. Paused rules and skipped dates are excluded."""
+    check_month(args.month)
+    data = load()
+    today = date.today()
+    period = args.month or today.isoformat()[:7]
+    year, mon = (int(x) for x in period.split("-"))
+    start = date(year, mon, 1)
+    end = date(year, mon, calendar.monthrange(year, mon)[1])
+
+    items = []
+    for rule in data["recurring"]:
+        if rule.get("paused"):
+            continue
+        skips = set(rule.get("skips", []))
+        for d in _occurrences(rule, end, start):
+            if d.isoformat() in skips:
+                continue
+            items.append({
+                "date": d.isoformat(),
+                "amount": rule["amount"],
+                "category": rule["category"],
+                "kind": rule.get("kind", "expense"),
+                "note": rule["note"],
+                "recur_id": rule["id"],
+                "occurred": d <= today,
+            })
+    items.sort(key=lambda i: (i["date"], i["category"]))
+    exp_total = round(sum(i["amount"] for i in items if i["kind"] == "expense"), 2)
+    inc_total = round(sum(i["amount"] for i in items if i["kind"] == "income"), 2)
+
+    if getattr(args, "json", False):
+        print(json.dumps({
+            "month": period, "items": items, "expense_total": exp_total,
+            "income_total": inc_total, "net": round(inc_total - exp_total, 2),
+        }, indent=2))
+        return
+
+    if not items:
+        print(f"no recurring bills scheduled in {period}")
+        return
+
+    print(f"Bills for {period}")
+    print("=" * 56)
+    for i in items:
+        day = i["date"][8:10]
+        note = f" - {i['note']}" if i["note"] else ""
+        sign = "+" if i["kind"] == "income" else "-"
+        tail = "" if i["occurred"] else "   (upcoming)"
+        print(f"  {day}  {sign}{money(i['amount']):>11}  "
+              f"[{i['category']}]{note}{tail}")
+    print("-" * 56)
+    print(f"  out {money(exp_total)}   in {money(inc_total)}   "
+          f"net {money(inc_total - exp_total)}   ({len(items)} item"
+          f"{'' if len(items) == 1 else 's'})")
 
 
 def cmd_cashflow(args):
@@ -6561,6 +6622,12 @@ def build_parser():
     up.add_argument("--json", action="store_true", help="output JSON instead of text")
     up.set_defaults(func=cmd_upcoming)
 
+    bl = sub.add_parser("bills",
+                        help="recurring charges/income scheduled in a month, by day")
+    bl.add_argument("--month", help="which month, YYYY-MM (default: current)")
+    bl.add_argument("--json", action="store_true", help="output JSON instead of text")
+    bl.set_defaults(func=cmd_bills)
+
     cfw = sub.add_parser("cashflow",
                          help="project a running balance forward from recurring rules")
     cfw.add_argument("--days", type=int, default=30,
@@ -7132,7 +7199,7 @@ CATCHUP_COMMANDS = frozenset({
     "weekly", "years", "anomalies", "roundup", "cashflow", "target", "runway",
     "net", "subscriptions", "payees", "overbudget", "today", "worthtrend",
     "statement", "reconcile", "scorecard", "scoretrend", "category",
-    "savingsplan",
+    "savingsplan", "bills",
 })
 MUTATING_COMMANDS = frozenset({
     "add", "income", "edit", "delete", "clone", "refund", "note", "tag",
