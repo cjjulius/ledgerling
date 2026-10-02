@@ -4,6 +4,19 @@ All notable changes to Ledgerling are documented here. The format is based on
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and this project
 adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.150.0] - 2026-10-02
+
+### Added
+
+- Savings pots can carry a target date: `pot NAME --by YYYY-MM-DD` (and
+  `--clear-by` to drop it). It combines with `--target` in a single call. When a
+  dated pot is shown, Ledgerling computes the monthly saving needed to hit the
+  target in time ("by 2027-06-01: save $250.00/mo for 6 months"), and flags a
+  pot whose date has passed while still short as overdue. The JSON view gains
+  `due`, `months_left`, `required_monthly`, and a `status`
+  (`no_target`/`saving`/`on_target`/`overdue`/`funded`). Existing pots without a
+  date are unaffected.
+
 ## [1.149.0] - 2026-10-02
 
 ### Added
@@ -1799,6 +1812,7 @@ file, standard library only, strictly confined to its own folder.
   guard (`_within_app`) that refuses any path escaping the app folder; imports
   and restores are reduced to a basename and looked up only within the folder.
 
+[1.150.0]: #11500---2026-10-02
 [1.149.0]: #11490---2026-10-02
 [1.148.0]: #11480---2026-10-02
 [1.147.1]: #11471---2026-10-02

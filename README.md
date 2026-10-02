@@ -264,8 +264,11 @@ ledgerling goal --clear
 
 # Savings pots (sinking funds): save toward named targets with progress bars
 ledgerling pot vacation --target 2000   # create/set a target
+ledgerling pot vacation --by 2027-06-01 # set a target date (shows $/mo needed)
+ledgerling pot vacation --target 2000 --by 2027-06-01   # both in one call
 ledgerling pot vacation --add 500       # contribute
 ledgerling pot vacation --take 100      # withdraw (never below zero)
+ledgerling pot vacation --clear-by      # drop the target date
 ledgerling pot                          # list all pots + total saved
 ledgerling pot vacation --remove
 ledgerling transfer 150 vacation laptop # move money between two pots
