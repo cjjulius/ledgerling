@@ -605,8 +605,10 @@ being re-implemented per command — e.g. the all-time net that `cashflow`,
 (`budget`/`pace`/`allowance`/`report`), the date-range bounds for
 `export`/`search`, the `--in` currency conversion for `add`/`income`, the
 per-period income/spending accumulation that `savings` and `years` share, the
-optional `--month` row filter that a dozen read commands apply, and the
-month income/spending/net totals that `compare`, `today`, and `statement` share.
+optional `--month` row filter that a dozen read commands apply, the
+month income/spending/net totals that `compare`, `today`, and `statement` share,
+and the formatted entry line (`#id date amount [category] …` with its markers)
+that `list` and `search` share.
 
 Config loading is defensive: a stored setting is only accepted when its type
 matches the default (a corrupt or hand-edited value falls back to that default

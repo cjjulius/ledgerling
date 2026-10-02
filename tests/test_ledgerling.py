@@ -220,6 +220,24 @@ class PureLogic(unittest.TestCase):
         with self.assertRaises(SystemExit):
             L.clean_category("   ")
 
+    def test_entry_line(self):
+        L._CONFIG.clear(); L._CONFIG.update(L.DEFAULT_CONFIG)
+        base = {"id": 7, "date": "2026-01-05", "amount": 12.5,
+                "category": "food", "note": "lunch"}
+        line = L._entry_line(base)
+        self.assertIn("#7", line)
+        self.assertIn("$12.50", line)
+        self.assertIn("[food] - lunch", line)
+        self.assertNotIn("✓", line)
+        self.assertNotIn("+income", line)
+        # markers appear when the flags are set
+        marked = L._entry_line({**base, "recur_id": 3, "cleared": True,
+                                "kind": "income", "note": ""})
+        self.assertIn("*", marked)
+        self.assertIn("✓", marked)
+        self.assertIn("+income", marked)
+        self.assertNotIn(" - ", marked)   # empty note -> no dash
+
     def test_filter_month(self):
         rows = [{"date": "2026-01-05"}, {"date": "2026-02-10"},
                 {"date": "2026-01-31"}]

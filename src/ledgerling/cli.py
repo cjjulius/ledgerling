@@ -127,7 +127,7 @@ import tempfile
 import time
 from datetime import datetime, date, timedelta
 
-__version__ = "1.139.0"
+__version__ = "1.139.1"
 
 # --------------------------------------------------------------------------- #
 # Sandbox + storage
@@ -701,6 +701,18 @@ def _scope_by_kind(rows, args):
     return expenses_only(rows)
 
 
+def _entry_line(e):
+    """One formatted ledger line shared by list and search:
+    `#id  date  amount  [category] - note` plus markers (* recurring,
+    checkmark cleared, +income)."""
+    note = f" - {e['note']}" if e.get("note") else ""
+    tag = " *" if e.get("recur_id") else ""
+    clr = " ✓" if e.get("cleared") else ""
+    mark = " +income" if kind_of(e) == "income" else ""
+    return (f"#{e['id']:<4} {e['date']}  {money(e['amount']):>12}  "
+            f"[{e['category']}]{note}{tag}{clr}{mark}")
+
+
 def _filter_cleared(rows, args):
     """Apply the optional --cleared / --pending reconciliation filter (the two
     are mutually exclusive). Shared by list and search."""
@@ -749,12 +761,7 @@ def cmd_list(args):
         return
 
     for e in rows:
-        note = f" - {e['note']}" if e["note"] else ""
-        tag = " *" if e.get("recur_id") else ""
-        clr = " ✓" if e.get("cleared") else ""
-        mark = " +income" if kind_of(e) == "income" else ""
-        print(f"#{e['id']:<4} {e['date']}  {money(e['amount']):>12}  "
-              f"[{e['category']}]{note}{tag}{clr}{mark}")
+        print(_entry_line(e))
     print("-" * 50)
     exp_sum = sum(e["amount"] for e in rows if kind_of(e) == "expense")
     inc_sum = sum(e["amount"] for e in rows if kind_of(e) == "income")
@@ -1452,12 +1459,7 @@ def cmd_search(args):
         return
 
     for e in rows:
-        note = f" - {e['note']}" if e["note"] else ""
-        tag = " *" if e.get("recur_id") else ""
-        clr = " ✓" if e.get("cleared") else ""
-        mark = " +income" if kind_of(e) == "income" else ""
-        print(f"#{e['id']:<4} {e['date']}  {money(e['amount']):>12}  "
-              f"[{e['category']}]{note}{tag}{clr}{mark}")
+        print(_entry_line(e))
     print("-" * 50)
     print(f"{len(rows)} match(es), total {money(sum(e['amount'] for e in rows))}")
 
