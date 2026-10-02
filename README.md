@@ -494,6 +494,8 @@ ledgerling category food               # drill into one category: total, share,
 ledgerling category food --months 12   # longer trend window
 ledgerling tags
 ledgerling tags --month 2026-09
+ledgerling tags work                   # drill into one #tag: total, share, span,
+                                       # and the categories it covers
 ledgerling recategorize food dining
 
 # Rank spending by payee/merchant (the note, #tags stripped; category when the

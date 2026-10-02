@@ -78,7 +78,7 @@ Commands:
     categories  List categories with counts and totals
     category  A full profile for one category (drill-down)
     payees    Rank spending by payee (merchant), from the note
-    tags      List #tags with counts and totals
+    tags      List #tags with counts and totals (or profile one: tags NAME)
     untagged  List expenses that have no #tags
     recategorize  Rename a category across all records
     retag     Rename a #tag across all records
@@ -134,7 +134,7 @@ import tempfile
 import time
 from datetime import datetime, date, timedelta
 
-__version__ = "1.152.0"
+__version__ = "1.153.0"
 
 # --------------------------------------------------------------------------- #
 # Sandbox + storage
@@ -2837,6 +2837,12 @@ def cmd_tags(args):
     data = load()
     rows = expenses_only(data["expenses"])
     rows = filter_month(rows, args.month)
+
+    name = (getattr(args, "name", None) or "").lstrip("#").strip().lower()
+    if name:
+        _tags_profile(args, rows, name)
+        return
+
     agg = {}
     for e in rows:
         for t in e.get("tags", []):
@@ -2857,6 +2863,63 @@ def cmd_tags(args):
     print("=" * 48)
     for tag, v in sorted(agg.items(), key=lambda kv: kv[1]["total"], reverse=True):
         print(f"#{tag:<14} {v['count']:>3} item(s)  {money(v['total']):>12}")
+
+
+def _tags_profile(args, rows, name):
+    """Drill-down profile for one #tag over the (optionally month-scoped) expense
+    rows: totals, share, extremes, active span, and the categories it spans."""
+    tagged = [e for e in rows if name in e.get("tags", [])]
+    total_all = round(sum(e["amount"] for e in rows), 2)
+    total = round(sum(e["amount"] for e in tagged), 2)
+    count = len(tagged)
+    amounts = [e["amount"] for e in tagged]
+    average = round(total / count, 2) if count else 0.0
+    median = round(_median(amounts), 2) if count else 0.0
+    share = round(total / total_all * 100, 1) if total_all else 0.0
+
+    def _extreme(e):
+        return {"amount": round(e["amount"], 2), "date": e["date"],
+                "note": e.get("note", "")} if e else None
+    lo = _extreme(min(tagged, key=lambda e: e["amount"])) if tagged else None
+    hi = _extreme(max(tagged, key=lambda e: e["amount"])) if tagged else None
+    dates = sorted(e["date"] for e in tagged)
+    first, last = (dates[0], dates[-1]) if dates else (None, None)
+    active_months = len({month_of(e["date"]) for e in tagged})
+    by_cat = sorted(category_totals(tagged).items(),
+                    key=lambda kv: kv[1], reverse=True)
+
+    if getattr(args, "json", False):
+        print(json.dumps({
+            "tag": name, "scope": args.month or "all time", "total": total,
+            "share_pct": share, "count": count, "average": average,
+            "median": median, "min": lo, "max": hi, "first": first, "last": last,
+            "active_months": active_months,
+            "by_category": [{"category": c, "total": t} for c, t in by_cat],
+        }, indent=2))
+        return
+
+    if not count:
+        where = f" in {args.month}" if args.month else ""
+        print(f"no entries tagged #{name}{where}")
+        return
+
+    print(f"Tag: #{name}" + (f"  ({args.month})" if args.month else ""))
+    print("=" * 56)
+    print(f"  Spent        {money(total):>12}   ({share:g}% of all spending)")
+    print(f"  Entries      {count:>12}   avg {money(average)}, "
+          f"median {money(median)}")
+    if lo and hi:
+        print(f"  Smallest     {money(lo['amount']):>12}   on {lo['date']}")
+        print(f"  Largest      {money(hi['amount']):>12}   on {hi['date']}")
+    if first:
+        print(f"  Active       {active_months:>12} month"
+              f"{'' if active_months == 1 else 's'}   "
+              f"first {first}, last {last}")
+    if by_cat:
+        peak = by_cat[0][1] or 1.0
+        print("  By category:")
+        for c, t in by_cat:
+            print(f"    {c:<14} {money(t):>11}  {bar(t / peak, 20)}")
 
 
 def cmd_upcoming(args):
@@ -6536,7 +6599,10 @@ def build_parser():
                       help="output JSON instead of text")
     cat1.set_defaults(func=cmd_category)
 
-    tg = sub.add_parser("tags", help="list #tags with counts and totals")
+    tg = sub.add_parser("tags",
+                        help="list #tags, or profile one (tags NAME)")
+    tg.add_argument("name", nargs="?",
+                    help="a tag to drill into (its total, span, and categories)")
     tg.add_argument("--month", help="restrict to a month, YYYY-MM")
     tg.add_argument("--json", action="store_true", help="output JSON instead of text")
     tg.set_defaults(func=cmd_tags)
