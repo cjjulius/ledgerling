@@ -98,7 +98,7 @@ Commands:
     pot       Savings pots (sinking funds): save toward named targets
     transfer  Move money between two savings pots
     recur     Recurring rules (add/from/edit/list/remove/run/skip/unskip/pause/resume)
-    template  Quick-entry presets (add/list/remove/use) for common expenses
+    template  Quick-entry presets (add/list/remove/rename/use) for common expenses
     export    Write entries to CSV/JSON (filter by month/range/category/kind)
     import    Read entries back from a CSV or JSON file (deduped)
     backup    Save a timestamped copy of your data
@@ -132,7 +132,7 @@ import tempfile
 import time
 from datetime import datetime, date, timedelta
 
-__version__ = "1.146.0"
+__version__ = "1.147.0"
 
 # --------------------------------------------------------------------------- #
 # Sandbox + storage
@@ -4857,18 +4857,42 @@ def cmd_template_remove(args):
     print(f"removed template '{name}'")
 
 
+def cmd_template_rename(args):
+    """Rename a saved template, keeping its amount/category/note/kind."""
+    data = load()
+    old = _template_name(args.old)
+    new = _template_name(args.new)
+    if old not in data["templates"]:
+        sys.exit(f"error: no template '{old}'")
+    if new == old:
+        sys.exit("error: new name must differ from the old one")
+    if new in data["templates"]:
+        sys.exit(f"error: a template '{new}' already exists")
+    data["templates"][new] = data["templates"].pop(old)
+    save(data)
+    print(f"renamed template '{old}' to '{new}'")
+
+
 def cmd_template_use(args):
     """Record a new entry from a saved template. --amount/--note override the
-    stored values for this one entry; --date sets when (default today)."""
+    stored values for this one entry; --qty N records N units (amount x N);
+    --date sets when (default today)."""
     data = load()
     name = _template_name(args.name)
     tpl = data["templates"].get(name)
     if tpl is None:
         sys.exit(f"error: no template '{name}'")
-    amount = round(args.amount, 2) if args.amount is not None else tpl["amount"]
-    if amount <= 0:
+    qty = getattr(args, "qty", 1)
+    if qty is None:
+        qty = 1
+    if qty < 1:
+        sys.exit("error: --qty must be a positive whole number")
+    unit = round(args.amount, 2) if args.amount is not None else tpl["amount"]
+    if unit <= 0:
         sys.exit("error: amount must be greater than zero")
-    note = tpl["note"] if args.note is None else args.note.strip()
+    amount = round(unit * qty, 2)
+    base_note = tpl["note"] if args.note is None else args.note.strip()
+    note = f"{base_note} (x{qty})".strip() if qty > 1 else base_note
     kind = tpl.get("kind", "expense")
     entry = {
         "id": next_id(data["expenses"]),
@@ -4883,11 +4907,12 @@ def cmd_template_use(args):
     save(data)
 
     if getattr(args, "json", False):
-        print(json.dumps({"template": name, "entry": entry}, indent=2))
+        print(json.dumps({"template": name, "qty": qty, "entry": entry}, indent=2))
         return
     label = "recorded income" if kind == "income" else "added"
+    qnote = f" ({qty} x {money(unit)})" if qty > 1 else ""
     print(f"{label} #{entry['id']} from template '{name}': "
-          f"{money(entry['amount'])} [{entry['category']}]"
+          f"{money(entry['amount'])}{qnote} [{entry['category']}]"
           f"{(' ' + note) if note else ''} on {entry['date']}")
     if kind == "expense":
         line = budget_status_line(data, entry["category"], entry["date"])
@@ -6786,10 +6811,17 @@ def build_parser():
     trm.add_argument("name", help="template name to delete")
     trm.set_defaults(func=cmd_template_remove)
 
+    tre = tsub.add_parser("rename", help="rename a template")
+    tre.add_argument("old", help="current template name")
+    tre.add_argument("new", help="new template name")
+    tre.set_defaults(func=cmd_template_rename)
+
     tu = tsub.add_parser("use", help="record a new entry from a template")
     tu.add_argument("name", help="template name to record")
+    tu.add_argument("--qty", type=int, default=1,
+                    help="record this many units (amount x qty; default 1)")
     tu.add_argument("--amount", type=float,
-                    help="override the template amount for this entry")
+                    help="override the per-unit template amount for this entry")
     tu.add_argument("--note", help="override the template note for this entry")
     tu.add_argument("--date", default="today",
                     help="entry date, YYYY-MM-DD/today/yesterday (default today)")

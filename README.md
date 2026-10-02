@@ -203,7 +203,9 @@ ledgerling template add coffee 4.50 food "flat white #treat"
 ledgerling template add paycheck 3000 salary "monthly pay" --income
 ledgerling template list
 ledgerling template use coffee                       # records a $4.50 food entry today
+ledgerling template use coffee --qty 3               # 3 coffees -> one $13.50 entry
 ledgerling template use coffee --amount 5 --date yesterday  # override for one entry
+ledgerling template rename coffee espresso           # rename, keeping its fields
 ledgerling template remove coffee
 
 # Record income (net + savings rate then show up in stats/report)
