@@ -4,6 +4,17 @@ All notable changes to Ledgerling are documented here. The format is based on
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and this project
 adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.148.0] - 2026-10-02
+
+### Added
+
+- Web UI accessibility: successful command runs are now announced to
+  screen-reader users on a dedicated polite status region (e.g. "Summary
+  completed — 6 lines of output"). Previously only failures were announced (on
+  the assertive region); a success left screen-reader users without explicit
+  confirmation. The polite region is separate from the assertive error line so
+  the two never clobber each other.
+
 ## [1.147.1] - 2026-10-02
 
 ### Changed
@@ -1776,6 +1787,7 @@ file, standard library only, strictly confined to its own folder.
   guard (`_within_app`) that refuses any path escaping the app folder; imports
   and restores are reduced to a basename and looked up only within the folder.
 
+[1.148.0]: #11480---2026-10-02
 [1.147.1]: #11471---2026-10-02
 [1.147.0]: #11470---2026-10-02
 [1.146.0]: #11460---2026-10-02

@@ -742,6 +742,13 @@ function selectCmd(c) {
   status.id = 'runstatus'; status.className = 'sr-only';
   status.setAttribute('role', 'status'); status.setAttribute('aria-live', 'assertive');
   m.appendChild(status);
+  // A polite companion announces a concise success confirmation (what ran, and
+  // roughly how much output), so screen-reader users hear that the command
+  // completed instead of only ever hearing failures.
+  const okstatus = document.createElement('div');
+  okstatus.id = 'runok'; okstatus.className = 'sr-only';
+  okstatus.setAttribute('role', 'status'); okstatus.setAttribute('aria-live', 'polite');
+  m.appendChild(okstatus);
 }
 
 // Open a command, optionally pre-filling fields (by dest) and running it.
@@ -1077,12 +1084,14 @@ async function runCmd(c, form) {
   const btn = form.querySelector('button.run');
   const out = document.getElementById('out');
   const status = document.getElementById('runstatus');
+  const okstatus = document.getElementById('runok');
   const btnLabel = btn ? btn.textContent : '';
   if (btn) { btn.disabled = true; btn.textContent = 'Running…'; }
   // aria-busy holds the polite region quiet until the result is in, so the
   // reader announces the finished output once rather than the interim state.
   if (out) out.setAttribute('aria-busy', 'true');
   if (status) status.textContent = '';
+  if (okstatus) okstatus.textContent = '';
   pre.className = ''; pre.textContent = 'running...';
   tableEl.style.display = 'none'; tabs.innerHTML = '';
   const argv = buildArgv(c, form);
@@ -1102,6 +1111,13 @@ async function runCmd(c, form) {
   if (status && res.code !== 0) {
     const msg = (res.stderr || res.stdout || 'error').trim().split('\n')[0];
     status.textContent = 'Command failed: ' + msg;
+  }
+  if (okstatus && res.code === 0) {
+    const txt = (res.stdout || '').trim();
+    const lines = txt ? txt.split('\n').length : 0;
+    okstatus.textContent = prettyName(c.name) + ' completed'
+      + (lines ? ' — ' + lines + ' line' + (lines === 1 ? '' : 's')
+                 + ' of output' : '');
   }
 
   let data = null;
