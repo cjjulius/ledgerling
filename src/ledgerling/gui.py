@@ -14,6 +14,7 @@ import os
 import queue
 import re
 import threading
+import traceback
 
 from . import cli as L
 from . import web
@@ -283,6 +284,24 @@ def month_summary_text(data, period):
             f"  •  {n} entr{'y' if n == 1 else 'ies'}")
 
 
+def log_gui_exception(exc, val, tb):
+    """Append a formatted traceback to gui-errors.log in the data folder,
+    best-effort and without ever touching sys.stderr (which is None in a
+    windowed build). Returns the formatted text, or "" if formatting failed.
+    Pure except for the best-effort file append, so it is unit tested directly."""
+    try:
+        text = "".join(traceback.format_exception(exc, val, tb))
+    except Exception:
+        return ""
+    try:
+        with open(os.path.join(L.HOME_DIR, "gui-errors.log"), "a",
+                  encoding="utf-8") as fh:
+            fh.write(text + "\n")
+    except Exception:
+        pass
+    return text
+
+
 class LedgerlingGUI:
     def __init__(self, root, theme="dark"):
         import tkinter as tk  # local imports so importing this module is cheap
@@ -311,6 +330,16 @@ class LedgerlingGUI:
                        if n in self.commands]
         self.onboarded = bool(state.get("onboarded"))
         self._initial = state.get("last_command")   # reopen where you left off
+
+        # Make callback errors non-fatal. In a windowed (no-console) build
+        # sys.stderr is None, so Tkinter's default handler - which prints the
+        # traceback to stderr - raises again and takes the whole app down. A
+        # minor hiccup during hover/drag/theme changes should never crash the
+        # window, so route exceptions to a log file instead.
+        try:
+            root.report_callback_exception = self._report_exception
+        except Exception:
+            pass
 
         root.title("Ledgerling")
         root.minsize(940, 580)
@@ -352,6 +381,17 @@ class LedgerlingGUI:
             except Exception:
                 return None
         return None
+
+    def _report_exception(self, exc, val, tb):
+        """Tk callback-exception handler. Never touches sys.stderr (which is
+        None in a windowed build, where the default handler would crash the
+        app); best-effort logs to a file in the data folder and shows a quiet
+        status note."""
+        log_gui_exception(exc, val, tb)
+        try:
+            self._set_status("an error was handled (see gui-errors.log)")
+        except Exception:
+            pass
 
     # ----- menu ------------------------------------------------------------ #
     def _build_menu(self):
@@ -1506,19 +1546,30 @@ class _Tooltip:
         if self.tip or not self.text:
             return
         import tkinter as tk
-        x = self.widget.winfo_rootx() + 16
-        y = self.widget.winfo_rooty() + self.widget.winfo_height() + 4
-        self.tip = tk.Toplevel(self.widget)
-        self.tip.wm_overrideredirect(True)
-        self.tip.wm_geometry(f"+{x}+{y}")
-        tk.Label(self.tip, text=self.text, justify="left", background="#0d2117",
-                 foreground="#e8f3ec", relief="solid", borderwidth=1,
-                 font=("Segoe UI", 9), padx=7, pady=4, wraplength=320).pack()
+        # The widget may have been destroyed (e.g. a nav row rebuilt by a theme
+        # change) between the hover and this callback; fail quietly if so.
+        try:
+            if not self.widget.winfo_exists():
+                return
+            x = self.widget.winfo_rootx() + 16
+            y = self.widget.winfo_rooty() + self.widget.winfo_height() + 4
+            self.tip = tk.Toplevel(self.widget)
+            self.tip.wm_overrideredirect(True)
+            self.tip.wm_geometry(f"+{x}+{y}")
+            tk.Label(self.tip, text=self.text, justify="left",
+                     background="#0d2117", foreground="#e8f3ec", relief="solid",
+                     borderwidth=1, font=("Segoe UI", 9), padx=7, pady=4,
+                     wraplength=320).pack()
+        except Exception:
+            self.tip = None
 
     def _hide(self, _e):
-        if self.tip:
-            self.tip.destroy()
-            self.tip = None
+        try:
+            if self.tip:
+                self.tip.destroy()
+        except Exception:
+            pass
+        self.tip = None
 
 
 class _Placeholder:

@@ -796,6 +796,26 @@ class WebUI(TempAppCase):
         self.assertIn("1 entry", one)
         self.assertEqual(gui.month_summary_text(data, "2099-01"), "")
 
+    def test_gui_exception_logging_is_nonfatal(self):
+        # Regression for the desktop crash (#11): a callback error must not be
+        # fatal, and the handler must not touch sys.stderr (None in a windowed
+        # build, where Tk's default handler would crash the app).
+        from ledgerling import gui
+        saved = sys.stderr
+        sys.stderr = None
+        try:
+            try:
+                raise ValueError("boom-xyz")
+            except ValueError:
+                text = gui.log_gui_exception(*sys.exc_info())
+        finally:
+            sys.stderr = saved
+        self.assertIn("boom-xyz", text)
+        log = os.path.join(L.HOME_DIR, "gui-errors.log")
+        self.assertTrue(os.path.exists(log))
+        with open(log, encoding="utf-8") as fh:
+            self.assertIn("ValueError: boom-xyz", fh.read())
+
     def test_gui_state_roundtrip_and_geometry(self):
         from ledgerling import gui
         self.assertTrue(gui._valid_geometry("1040x660+12+34"))
