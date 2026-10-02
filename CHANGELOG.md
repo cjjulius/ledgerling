@@ -4,6 +4,17 @@ All notable changes to Ledgerling are documented here. The format is based on
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and this project
 adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.155.1] - 2026-10-02
+
+### Changed
+
+- The web UI is now **deprecated and in maintenance mode**. It stays stable and
+  keeps working (and still covers every command automatically, since it
+  generates itself from the CLI), but it will not receive new features. The
+  desktop app is the recommended interface. `ledgerling web` prints a
+  maintenance notice on launch, the top-level `--help` notes it, and the README
+  marks the section accordingly.
+
 ## [1.155.0] - 2026-10-02
 
 ### Changed
@@ -1913,6 +1924,7 @@ file, standard library only, strictly confined to its own folder.
   guard (`_within_app`) that refuses any path escaping the app folder; imports
   and restores are reduced to a basename and looked up only within the folder.
 
+[1.155.1]: #11551---2026-10-02
 [1.155.0]: #11550---2026-10-02
 [1.154.2]: #11542---2026-10-02
 [1.154.1]: #11541---2026-10-02

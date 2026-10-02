@@ -135,7 +135,7 @@ import tempfile
 import time
 from datetime import datetime, date, timedelta
 
-__version__ = "1.155.0"
+__version__ = "1.155.1"
 
 # --------------------------------------------------------------------------- #
 # Sandbox + storage
@@ -5318,6 +5318,9 @@ def cmd_completion(args):
 
 def cmd_web(args):
     from . import web  # lazy import (web imports cli)
+    print("note: the web UI is deprecated and in maintenance mode - it stays "
+          "stable but gets no new features. The desktop app (ledgerling gui) "
+          "is the recommended interface.")
     web.serve(port=args.port, open_browser=not args.no_browser)
 
 
@@ -6312,9 +6315,9 @@ a few examples:
 There are many more commands, grouped by theme (record, analyze, budgets,
 recurring, calculators, data). Run "ledgerling <command> --help" for any one.
 
-Prefer a friendlier interface? Two are built in:
-  ledgerling gui     a desktop app with icons, menus and themes
-  ledgerling web     the same tools in your browser
+Prefer a friendlier interface? The desktop app is the recommended one:
+  ledgerling gui     a desktop app with menus, themes and a command sidebar
+  ledgerling web     browser UI (deprecated; stable but no new features)
 
 All data stays inside this app's folder; nothing is posted or pushed.
 """

@@ -73,58 +73,23 @@ standard library only — no extra dependencies). It opens a real OS window with
 When built as an executable (see below), this is the **double-clickable app**:
 `ledgerling-gui.exe` launches straight into the window with no console.
 
-### Web UI
+### Web UI (deprecated, maintenance mode)
+
+The web UI is **deprecated**. It stays stable and will keep working, but it no
+longer receives new features. Our users prefer the desktop app, so that is now
+the recommended interface; reach for `ledgerling gui` for day-to-day use.
 
 ```bash
 ledgerling web              # opens a local UI at http://127.0.0.1:8730
 ledgerling web --port 9000 --no-browser
 ```
 
-The UI is a local, sandboxed web app (stdlib only; binds to `127.0.0.1`). It
-opens on a **Dashboard** — this month's income, spending, net, an insights
-strip, top categories, budget progress, savings-goal status, an **Upcoming
-(30 days)** card of scheduled recurring items (click any row to open the
-cash-flow projection), and recent activity at a glance, with a month picker. The
-sidebar groups every command (Record / Analyze / Budgets & goals / Calculators /
-Recurring / Data / Settings); it still **generates itself from the CLI**, so every command —
-and every command added in the future — appears automatically as a form with its
-options, and running it shows the output as text, a table, a chart, or (for
-`heatmap`) a calendar. Multi-value arguments (like `split`'s category/amount
-pairs) are entered space-separated in one field and tokenized for you. The
-selected command is reflected in the URL hash, so you can reload, bookmark, or
-use the browser's back/forward buttons to return to a specific command. No data
-leaves your machine.
-
-Some commands get bespoke visualizations: `heatmap` renders a real calendar,
-and `cashflow` renders a **projection chart** — a running-balance line with a
-zero baseline, a start/end/lowest summary strip, and a highlighted warning if
-the balance is projected to go negative.
-
-Each command's output has a **Copy** button to grab the result (text or JSON)
-in one click. Auto-rendered tables format columns by meaning — money as money,
-rates and `_pct` columns as percentages — and are **sortable**: click (or focus
-and press Enter/Space on) any column header to sort by it, numeric-aware, with
-the direction reflected in `aria-sort` for screen readers.
-
-It's built to be **keyboard- and screen-reader-friendly**: a skip link, labeled
-landmarks, visible focus rings, fully keyboard-operable command list and group
-headers (Tab / Enter / Space), form fields with associated labels and
-`aria-required`/`aria-describedby`, a theme toggle that reports its state, and a
-polite live region that announces command output as it updates (held quiet with
-`aria-busy` while a command runs, so the finished result is announced once
-rather than the interim state). A successful run is confirmed on its own polite
-status line (e.g. "Summary completed — 6 lines of output"), and a command
-failure is surfaced on a dedicated assertive status line so screen-reader users
-hear it immediately. The
-result views (Text / Table / Chart / …) are a proper ARIA tablist — arrow keys
-plus Home/End move between tabs with a roving focus, and each tab is wired to its
-panel. Data tables mark their header cells with `scope` (col/row) so screen
-readers announce the right header for each cell. The calendar heatmap is a
-labeled grid whose every day cell carries its own accessible name (e.g.
-"2026-03-10: $40.00", or "no spending"), with the decorative day numbers and
-weekday headers hidden from assistive tech. The whole UI honours
-`prefers-reduced-motion`, dropping transitions and animations for users who ask
-for less motion.
+It remains a local, sandboxed web app (standard library only, binds to
+`127.0.0.1`, nothing leaves your machine). Because it generates itself from the
+CLI, new commands still appear in it automatically, but that automatic coverage
+is the extent of its upkeep. It still offers a dashboard, forms for every
+command, sortable tables, a few charts, and solid keyboard and screen-reader
+support.
 
 ### Standalone executable
 
