@@ -128,7 +128,7 @@ import tempfile
 import time
 from datetime import datetime, date, timedelta
 
-__version__ = "1.142.0"
+__version__ = "1.142.1"
 
 # --------------------------------------------------------------------------- #
 # Sandbox + storage
@@ -178,32 +178,35 @@ def _within_home(path):
     return real
 
 
+# The container sections of the data file and their expected type. Every one is
+# filled if missing and reset to an empty container if its stored value is the
+# wrong type, so a corrupt or hand-edited file can never crash a later command
+# (bad *contents* are left for `check` to report/repair). Adding a new section
+# is a single entry here. `goal` is a scalar and handled separately.
+_CONTAINER_SECTIONS = {
+    "expenses": list, "recurring": list, "networth_history": list,
+    "budgets": dict, "accounts": dict, "pots": dict,
+}
+
+
+def _normalize_sections(data):
+    """Ensure every data section is present and of the right container type."""
+    for key, kind in _CONTAINER_SECTIONS.items():
+        if not isinstance(data.get(key), kind):
+            data[key] = kind()
+    data.setdefault("goal", None)
+    return data
+
+
 def load():
     if not os.path.exists(DATA_FILE):
-        return {"expenses": [], "budgets": {}, "recurring": [], "goal": None,
-                "accounts": {}, "networth_history": [], "pots": {}}
+        return _normalize_sections({})
     try:
         with open(DATA_FILE, "r", encoding="utf-8") as fh:
             data = json.load(fh)
     except (json.JSONDecodeError, OSError) as exc:
         sys.exit(f"error: could not read {DATA_FILE}: {exc}")
-    data.setdefault("expenses", [])
-    data.setdefault("budgets", {})
-    data.setdefault("recurring", [])
-    data.setdefault("goal", None)
-    data.setdefault("accounts", {})
-    data.setdefault("networth_history", [])
-    data.setdefault("pots", {})
-    # Coerce the account sections to their container types so a corrupt or
-    # hand-edited file can't crash a later command; bad *contents* are left for
-    # `check` to report/repair.
-    if not isinstance(data["accounts"], dict):
-        data["accounts"] = {}
-    if not isinstance(data["networth_history"], list):
-        data["networth_history"] = []
-    if not isinstance(data["pots"], dict):
-        data["pots"] = {}
-    return data
+    return _normalize_sections(data)
 
 
 def _atomic_write_json(path, obj):

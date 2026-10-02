@@ -624,7 +624,12 @@ that `list` and `search` share.
 Config loading is defensive: a stored setting is only accepted when its type
 matches the default (a corrupt or hand-edited value falls back to that default
 instead of crashing a later command), and mutable defaults are deep-copied so
-they can't be aliased and changed process-wide.
+they can't be aliased and changed process-wide. Data loading is defensive the
+same way: every container section (expenses, budgets, recurring, accounts,
+net-worth history, pots) is declared in one table and, on load, filled if
+missing and reset to an empty container if its stored value is the wrong type —
+so a corrupt file can't crash a command, and bad *contents* are surfaced by
+`check`.
 
 ## How things behave
 

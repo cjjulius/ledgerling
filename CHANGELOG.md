@@ -4,6 +4,19 @@ All notable changes to Ledgerling are documented here. The format is based on
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and this project
 adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.142.1] - 2026-10-01
+
+### Changed
+
+- Internal: data-section normalization on load is now declarative — every
+  container section (expenses, budgets, recurring, accounts, net-worth history,
+  pots) is listed with its expected type in one table, filled if missing and
+  reset to an empty container if the stored value is the wrong type. This
+  replaces the ad-hoc `setdefault`/coercion lines and extends the same
+  crash-proofing to the older sections (e.g. a corrupt `expenses: null` now
+  becomes `[]` rather than crashing a later command). No behaviour change for
+  valid files; covered by a new test.
+
 ## [1.142.0] - 2026-10-01
 
 ### Added
@@ -1686,6 +1699,7 @@ file, standard library only, strictly confined to its own folder.
   guard (`_within_app`) that refuses any path escaping the app folder; imports
   and restores are reduced to a basename and looked up only within the folder.
 
+[1.142.1]: #11421---2026-10-01
 [1.142.0]: #11420---2026-10-01
 [1.141.0]: #11410---2026-10-01
 [1.140.0]: #11400---2026-10-01
