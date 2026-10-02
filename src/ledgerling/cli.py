@@ -98,6 +98,7 @@ Commands:
     pot       Savings pots (sinking funds): save toward named targets
     transfer  Move money between two savings pots
     recur     Recurring rules (add/from/edit/list/remove/run/skip/unskip/pause/resume)
+    template  Quick-entry presets (add/list/remove/use) for common expenses
     export    Write entries to CSV/JSON (filter by month/range/category/kind)
     import    Read entries back from a CSV or JSON file (deduped)
     backup    Save a timestamped copy of your data
@@ -131,7 +132,7 @@ import tempfile
 import time
 from datetime import datetime, date, timedelta
 
-__version__ = "1.145.0"
+__version__ = "1.146.0"
 
 # --------------------------------------------------------------------------- #
 # Sandbox + storage
@@ -188,7 +189,7 @@ def _within_home(path):
 # is a single entry here. `goal` is a scalar and handled separately.
 _CONTAINER_SECTIONS = {
     "expenses": list, "recurring": list, "networth_history": list,
-    "budgets": dict, "accounts": dict, "pots": dict,
+    "budgets": dict, "accounts": dict, "pots": dict, "templates": dict,
 }
 
 
@@ -4792,6 +4793,108 @@ def cmd_transfer(args):
     print(f"  {dst:<16} {money(pots[dst]['saved'])}")
 
 
+def _template_name(raw):
+    """Normalize a template name (reject an empty one)."""
+    n = (raw or "").strip().lower()
+    if not n:
+        sys.exit("error: template name cannot be empty")
+    return n
+
+
+def cmd_template_add(args):
+    """Save a reusable quick-entry preset (name -> amount/category/note/kind).
+    Overwrites an existing template of the same name."""
+    data = load()
+    name = _template_name(args.name)
+    if args.amount <= 0:
+        sys.exit("error: amount must be greater than zero")
+    note = (args.note or "").strip()
+    tpl = {
+        "amount": round(args.amount, 2),
+        "category": clean_category(args.category),
+        "note": note,
+        "kind": "income" if getattr(args, "income", False) else "expense",
+    }
+    existed = name in data["templates"]
+    data["templates"][name] = tpl
+    save(data)
+    verb = "updated" if existed else "saved"
+    print(f"{verb} template '{name}': {money(tpl['amount'])} [{tpl['category']}]"
+          f"{(' - ' + note) if note else ''}"
+          f"{' (income)' if tpl['kind'] == 'income' else ''}")
+
+
+def cmd_template_list(args):
+    """List saved quick-entry templates."""
+    data = load()
+    rows = [{"name": n, **t} for n, t in sorted(data["templates"].items())]
+    if getattr(args, "json", False):
+        print(json.dumps({"templates": rows}, indent=2))
+        return
+    if not rows:
+        print("no templates yet. Try: template add coffee 4.50 food \"flat white\"")
+        return
+    print("Quick-entry templates")
+    print("=" * 56)
+    for r in rows:
+        note = f" - {r['note']}" if r["note"] else ""
+        kind = " (income)" if r["kind"] == "income" else ""
+        print(f"  {r['name']:<16} {money(r['amount']):>11} [{r['category']}]"
+              f"{note}{kind}")
+    print("-" * 56)
+    print(f"  {len(rows)} template{'' if len(rows) == 1 else 's'}."
+          "  Use one with: template use NAME")
+
+
+def cmd_template_remove(args):
+    """Delete a saved template by name."""
+    data = load()
+    name = _template_name(args.name)
+    if name not in data["templates"]:
+        sys.exit(f"error: no template '{name}'")
+    del data["templates"][name]
+    save(data)
+    print(f"removed template '{name}'")
+
+
+def cmd_template_use(args):
+    """Record a new entry from a saved template. --amount/--note override the
+    stored values for this one entry; --date sets when (default today)."""
+    data = load()
+    name = _template_name(args.name)
+    tpl = data["templates"].get(name)
+    if tpl is None:
+        sys.exit(f"error: no template '{name}'")
+    amount = round(args.amount, 2) if args.amount is not None else tpl["amount"]
+    if amount <= 0:
+        sys.exit("error: amount must be greater than zero")
+    note = tpl["note"] if args.note is None else args.note.strip()
+    kind = tpl.get("kind", "expense")
+    entry = {
+        "id": next_id(data["expenses"]),
+        "amount": amount,
+        "category": tpl["category"],
+        "note": note,
+        "date": parse_date(args.date),
+        "tags": parse_tags(note),
+        "kind": kind,
+    }
+    data["expenses"].append(entry)
+    save(data)
+
+    if getattr(args, "json", False):
+        print(json.dumps({"template": name, "entry": entry}, indent=2))
+        return
+    label = "recorded income" if kind == "income" else "added"
+    print(f"{label} #{entry['id']} from template '{name}': "
+          f"{money(entry['amount'])} [{entry['category']}]"
+          f"{(' ' + note) if note else ''} on {entry['date']}")
+    if kind == "expense":
+        line = budget_status_line(data, entry["category"], entry["date"])
+        if line:
+            print(line)
+
+
 def _completion_spec():
     """Introspect the parser: top-level subcommands and each one's long options
     (plus any nested subcommand names, e.g. for `recur`)."""
@@ -6661,6 +6764,40 @@ def build_parser():
 
     r.set_defaults(func=lambda args: r.print_help())
 
+    tpl = sub.add_parser("template",
+                         help="save and reuse quick-entry presets")
+    tsub = tpl.add_subparsers(dest="template_command")
+
+    ta = tsub.add_parser("add", help="save a quick-entry template")
+    ta.add_argument("name", help="short template name, e.g. coffee")
+    ta.add_argument("amount", type=float, help="amount to record")
+    ta.add_argument("category", help="category, e.g. food")
+    ta.add_argument("note", nargs="?", default="",
+                    help="optional note (may include #tags)")
+    ta.add_argument("--income", action="store_true",
+                    help="record as income instead of an expense")
+    ta.set_defaults(func=cmd_template_add)
+
+    tl = tsub.add_parser("list", help="list saved templates")
+    tl.add_argument("--json", action="store_true", help="output JSON instead of text")
+    tl.set_defaults(func=cmd_template_list)
+
+    trm = tsub.add_parser("remove", help="delete a template by name")
+    trm.add_argument("name", help="template name to delete")
+    trm.set_defaults(func=cmd_template_remove)
+
+    tu = tsub.add_parser("use", help="record a new entry from a template")
+    tu.add_argument("name", help="template name to record")
+    tu.add_argument("--amount", type=float,
+                    help="override the template amount for this entry")
+    tu.add_argument("--note", help="override the template note for this entry")
+    tu.add_argument("--date", default="today",
+                    help="entry date, YYYY-MM-DD/today/yesterday (default today)")
+    tu.add_argument("--json", action="store_true", help="output JSON instead of text")
+    tu.set_defaults(func=cmd_template_use)
+
+    tpl.set_defaults(func=lambda args: tpl.print_help())
+
     return p
 
 
@@ -6687,7 +6824,7 @@ MUTATING_COMMANDS = frozenset({
     "autobudget", "clear", "unclear", "pot", "transfer",
     "import", "restore", "backup", "dedupe", "undo", "config", "recur",
     "completion", "version", "web", "gui", "where", "tip", "split", "fx",
-    "check", "interest", "loan",
+    "check", "interest", "loan", "template",
     "fortune", "horoscope", "weather", "eightball",   # almanac modes
 })
 

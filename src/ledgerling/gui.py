@@ -22,7 +22,8 @@ from . import web
 # into "More", so a newly added command can never be lost from the nav.
 GROUP_DEFS = [
     ("Record", ["add", "income", "edit", "delete", "split", "clone", "note",
-                "refund"]),
+                "refund", "template use", "template add", "template list",
+                "template remove"]),
     ("Analyze", ["today", "month", "insights", "scorecard", "scoretrend", "range", "summary", "report",
                  "statement", "stats",
                  "week", "weekly", "day", "year", "years", "quarter", "weekday",

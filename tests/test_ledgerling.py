@@ -2963,6 +2963,56 @@ class CLI(TempAppCase):
                         contextlib.redirect_stderr(io.StringIO()):
                     L.main(argv)
 
+    def test_template_add_list_use(self):
+        self._main(["template", "add", "Coffee", "4.50", "Food", "flat white #treat"])
+        d = json.loads(self._main(["template", "list", "--json"]))
+        self.assertEqual(len(d["templates"]), 1)
+        t = d["templates"][0]
+        self.assertEqual(t["name"], "coffee")          # normalized lowercase
+        self.assertEqual(t["amount"], 4.5)
+        self.assertEqual(t["category"], "food")
+        self.assertEqual(t["kind"], "expense")
+        # use it: creates a real expense entry carrying the note's tags
+        u = json.loads(self._main(["template", "use", "coffee",
+                                   "--date", "2026-05-10", "--json"]))
+        e = u["entry"]
+        self.assertEqual(e["amount"], 4.5)
+        self.assertEqual(e["category"], "food")
+        self.assertEqual(e["date"], "2026-05-10")
+        self.assertEqual(e["kind"], "expense")
+        self.assertEqual(e["tags"], ["treat"])
+        self.assertEqual(L.kind_of(L.load()["expenses"][-1]), "expense")
+
+    def test_template_overrides_and_income(self):
+        self._main(["template", "add", "paycheck", "2000", "salary",
+                    "monthly pay", "--income"])
+        # per-entry overrides for amount and note; income kind is preserved
+        u = json.loads(self._main(["template", "use", "paycheck",
+                                   "--amount", "2100", "--note", "bonus month",
+                                   "--date", "2026-06-01", "--json"]))
+        e = u["entry"]
+        self.assertEqual(e["amount"], 2100.0)
+        self.assertEqual(e["note"], "bonus month")
+        self.assertEqual(e["kind"], "income")
+        # adding the same name again updates in place (no duplicate)
+        self._main(["template", "add", "paycheck", "2500", "salary"])
+        d = json.loads(self._main(["template", "list", "--json"]))
+        self.assertEqual(len(d["templates"]), 1)
+        self.assertEqual(d["templates"][0]["amount"], 2500.0)
+
+    def test_template_remove_and_validation(self):
+        self._main(["template", "add", "lunch", "12", "food"])
+        self._main(["template", "remove", "lunch"])
+        self.assertEqual(json.loads(self._main(["template", "list", "--json"]))
+                         ["templates"], [])
+        for argv in (["template", "add", "x", "-1", "food"],   # bad amount
+                     ["template", "use", "ghost"],              # missing template
+                     ["template", "remove", "ghost"]):          # missing template
+            with self.assertRaises(SystemExit):
+                with contextlib.redirect_stdout(io.StringIO()), \
+                        contextlib.redirect_stderr(io.StringIO()):
+                    L.main(argv)
+
     def test_check_flags_bad_pot(self):
         L.save({"expenses": [], "budgets": {}, "recurring": [], "goal": None,
                 "pots": {"ok": {"target": 100, "saved": 10.0},

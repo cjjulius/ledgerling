@@ -197,6 +197,15 @@ ledgerling clone 1                    # duplicate entry #1 dated today
 ledgerling refund 1                   # record a full refund of expense #1
 ledgerling refund 1 --amount 12.50    # a partial refund
 
+# Quick-entry templates: save presets for common expenses, then record in one
+# step (distinct from recurring rules, which auto-generate on a schedule)
+ledgerling template add coffee 4.50 food "flat white #treat"
+ledgerling template add paycheck 3000 salary "monthly pay" --income
+ledgerling template list
+ledgerling template use coffee                       # records a $4.50 food entry today
+ledgerling template use coffee --amount 5 --date yesterday  # override for one entry
+ledgerling template remove coffee
+
 # Record income (net + savings rate then show up in stats/report)
 ledgerling income 3000 salary "march pay"
 ledgerling sources                    # income broken down by source
