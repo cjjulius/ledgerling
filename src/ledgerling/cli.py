@@ -66,6 +66,7 @@ Commands:
     challenge  Gamified savings challenges (52-week, no-spend, round-up jar)
     achievements  Badges you unlock from your ledger history
     onthisday  Flashback: entries on this day-of-month in earlier months
+    mascot    An ASCII companion whose mood reflects your month's health
     tip       Tip calculator and even bill splitter
     interest  Compound-growth / future-value calculator
     loan      Loan payment / amortization calculator
@@ -138,7 +139,7 @@ import tempfile
 import time
 from datetime import datetime, date, timedelta
 
-__version__ = "1.158.0"
+__version__ = "1.159.0"
 
 # --------------------------------------------------------------------------- #
 # Sandbox + storage
@@ -2468,6 +2469,58 @@ def cmd_onthisday(args):
     print(f"  {n} entr{'y' if n == 1 else 'ies'} across {len(res['months'])} "
           f"month{'' if len(res['months']) == 1 else 's'}; "
           f"spent {money(res['total_spent'])} on the {ordn}")
+
+
+# (score cutoff, mood, ASCII face, one-line reaction) - highest cutoff first.
+_MASCOT_MOODS = [
+    (90, "ecstatic", "( ^o^ )", "Thriving. Keep it up!"),
+    (80, "happy", "( ^-^ )", "Looking good this month."),
+    (70, "content", "( -.- )", "Doing okay, with room to grow."),
+    (60, "worried", "( o_o )", "Getting tight, watch the spending."),
+    (0, "sad", "( T_T )", "Rough month. Let's regroup."),
+]
+
+
+def _mascot_for(result):
+    """Pick the mascot's mood from a `_score_month` result dict: returns
+    {mood, face, line, score, grade}. Pure, so it is unit tested."""
+    if not result["has_data"]:
+        return {"mood": "sleepy", "face": "( -.- ) z",
+                "line": "Nothing recorded yet. Wake me with an entry.",
+                "score": None, "grade": result["grade"]}
+    score = result["score"]
+    for cutoff, mood, face, line in _MASCOT_MOODS:
+        if score >= cutoff:
+            return {"mood": mood, "face": face, "line": line,
+                    "score": score, "grade": result["grade"]}
+    return {"mood": "sad", "face": "( T_T )", "line": "Rough month.",
+            "score": score, "grade": result["grade"]}
+
+
+def cmd_mascot(args):
+    """Penny the ledger cat: a little ASCII companion whose mood reflects this
+    month's financial-health score (see `scorecard`). Read-only and offline."""
+    check_month(args.month)
+    data = load()
+    today = date.today()
+    period = args.month or today.isoformat()[:7]
+    result = _score_month(data, period, today)
+    m = _mascot_for(result)
+
+    if getattr(args, "json", False):
+        print(json.dumps({"month": period, "mood": m["mood"],
+                          "grade": m["grade"], "score": m["score"],
+                          "message": m["line"]}, indent=2))
+        return
+
+    for line in ("   /\\_/\\ ", "  " + m["face"], "   > ~ <  "):
+        print(line)
+    print()
+    if m["score"] is not None:
+        print(f"  {period}: grade {m['grade']} ({m['score']}/100)")
+    print(f"  {m['line']}")
+    if result["has_data"] and result["tips"]:
+        print(f"  Tip: {result['tips'][0]}")
 
 
 def cmd_tip(args):
@@ -7074,6 +7127,13 @@ def build_parser():
                      help="output JSON instead of text")
     otd.set_defaults(func=cmd_onthisday)
 
+    msc = sub.add_parser("mascot",
+                         help="an ASCII companion whose mood tracks your month")
+    msc.add_argument("--month", help="which month, YYYY-MM (default: current)")
+    msc.add_argument("--json", action="store_true",
+                     help="output JSON instead of text")
+    msc.set_defaults(func=cmd_mascot)
+
     tip = sub.add_parser("tip",
                          help="tip calculator and even bill splitter")
     tip.add_argument("amount", type=float, help="the bill amount (before tip)")
@@ -7528,7 +7588,7 @@ CATCHUP_COMMANDS = frozenset({
     "weekly", "years", "anomalies", "roundup", "cashflow", "target", "runway",
     "net", "subscriptions", "payees", "overbudget", "today", "worthtrend",
     "statement", "reconcile", "scorecard", "scoretrend", "category",
-    "savingsplan", "bills", "challenge", "achievements", "onthisday",
+    "savingsplan", "bills", "challenge", "achievements", "onthisday", "mascot",
 })
 MUTATING_COMMANDS = frozenset({
     "add", "income", "edit", "delete", "clone", "refund", "note", "tag",

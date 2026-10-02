@@ -197,8 +197,9 @@ and most accept `--month YYYY-MM` to scope to a single month.
 
 ### The almanac
 
-A few light daily readings round out the app: a `fortune`, a `horoscope`, an
-`eightball`, and local `weather`. They are self-contained and deterministic
+A few light touches round out the app: a `fortune`, a `horoscope`, an
+`eightball`, local `weather`, and `mascot` - a small ASCII companion whose mood
+tracks your month's health. The readings are self-contained and deterministic
 given a `--seed`. `weather` is the only command that may reach the network (the
 free, keyless Open-Meteo service), and only when you pass a place name;
 `--offline` keeps it fully local.
