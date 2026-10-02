@@ -1401,6 +1401,54 @@ class CLI(TempAppCase):
         self.assertEqual(d["expenses"], 2)
         self.assertEqual(d["total_saved"], 3.00)
 
+    def test_challenge_nospend_and_roundup(self):
+        # a past month so the whole month counts (days_considered = 31)
+        self._main(["add", "1.01", "food", "a", "--date", "2026-07-05"])
+        self._main(["add", "2.50", "food", "b", "--date", "2026-07-10"])
+        d = json.loads(self._main(["challenge", "nospend", "--month", "2026-07",
+                                   "--json"]))
+        self.assertEqual(d["month"], "2026-07")
+        self.assertEqual(d["days_considered"], 31)
+        self.assertEqual(d["no_spend_days"], 29)           # 31 - 2 spend days
+        self.assertEqual(d["target"], 10)                  # default
+        self.assertEqual(d["longest_streak"], 21)          # days 11-31
+        r = json.loads(self._main(["challenge", "roundup", "--month", "2026-07",
+                                   "--json"]))
+        self.assertEqual(r["jar"], 1.49)                   # 0.99 + 0.50
+        self.assertEqual(r["expenses"], 2)
+
+    def test_challenge_52week_and_list(self):
+        d = json.loads(self._main(["challenge", "52week",
+                                   "--start", "2026-01-01", "--json"]))
+        self.assertEqual(d["total"], 1378.0)               # 1 + 2 + ... + 52
+        self.assertTrue(1 <= d["week"] <= 52)
+        self.assertEqual(d["cumulative_target"],
+                         float(d["week"] * (d["week"] + 1) // 2))
+        # list mode: one entry per challenge
+        allc = json.loads(self._main(["challenge", "--json"]))
+        self.assertEqual(set(allc), {"52week", "nospend", "roundup"})
+
+    def test_week52_plan_pure(self):
+        start = date(2026, 1, 1)
+        self.assertEqual(L._week52_plan(start, date(2025, 12, 1))["week"], 0)
+        p1 = L._week52_plan(start, date(2026, 1, 1))
+        self.assertEqual((p1["week"], p1["week_amount"], p1["cumulative_target"]),
+                         (1, 1.0, 1.0))
+        self.assertEqual(L._week52_plan(start, date(2026, 1, 8))["week"], 2)
+        done = L._week52_plan(start, date(2027, 6, 1))
+        self.assertEqual((done["week"], done["cumulative_target"], done["done"]),
+                         (52, 1378.0, True))
+
+    def test_nospend_progress_pure(self):
+        rows = [{"date": "2026-07-05", "amount": 5.0, "category": "food",
+                 "kind": "expense"},
+                {"date": "2026-07-10", "amount": 5.0, "category": "food",
+                 "kind": "expense"}]
+        p = L._nospend_progress(rows, "2026-07", date(2026, 8, 1))
+        self.assertEqual((p["days_considered"], p["no_spend_days"],
+                          p["longest_streak"], p["current_streak"]),
+                         (31, 29, 21, 21))
+
     def test_cashflow_projects_and_flags_negative(self):
         # Start from a known balance; one recurring bill pushes it negative.
         self._main(["recur", "add", "100", "rent", "monthly bill",
