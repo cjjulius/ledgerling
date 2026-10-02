@@ -288,6 +288,26 @@ class PureLogic(unittest.TestCase):
         # a None key drops the entry
         self.assertEqual(L.group_totals(rows, lambda e: None), {})
 
+    def test_profile_stats(self):
+        rows = [
+            {"amount": 10.0, "date": "2026-07-03", "category": "food", "note": "a"},
+            {"amount": 30.0, "date": "2026-08-20", "category": "food", "note": "b"},
+        ]
+        s = L._profile_stats(rows, universe_total=100.0)
+        self.assertEqual(s["total"], 40.0)
+        self.assertEqual(s["count"], 2)
+        self.assertEqual(s["average"], 20.0)
+        self.assertEqual(s["median"], 20.0)
+        self.assertEqual(s["share_pct"], 40.0)       # 40 of a 100 universe
+        self.assertEqual(s["min"]["amount"], 10.0)
+        self.assertEqual(s["max"]["amount"], 30.0)
+        self.assertEqual((s["first"], s["last"]), ("2026-07-03", "2026-08-20"))
+        self.assertEqual(s["active_months"], 2)
+        # empty input and a zero universe are safe (no division by zero)
+        z = L._profile_stats([], universe_total=0.0)
+        self.assertEqual((z["total"], z["count"], z["min"], z["share_pct"]),
+                         (0.0, 0, None, 0.0))
+
     def test_category_totals(self):
         rows = [
             {"category": "food", "amount": 10.0},

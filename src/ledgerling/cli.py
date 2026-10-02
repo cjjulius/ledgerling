@@ -134,7 +134,7 @@ import tempfile
 import time
 from datetime import datetime, date, timedelta
 
-__version__ = "1.153.0"
+__version__ = "1.153.1"
 
 # --------------------------------------------------------------------------- #
 # Sandbox + storage
@@ -1507,6 +1507,30 @@ def _median(values):
     return s[mid] if n % 2 else (s[mid - 1] + s[mid]) / 2
 
 
+def _profile_stats(rows, universe_total):
+    """Shared summary stats for a drill-down profile (category / tag): total,
+    entry count, average, median, share of a universe total, smallest/largest
+    entries (with dates), first/last date, and number of active months. The
+    `category` and `tags NAME` commands both build on this."""
+    total = round(sum(e["amount"] for e in rows), 2)
+    count = len(rows)
+    average = round(total / count, 2) if count else 0.0
+    median = round(_median([e["amount"] for e in rows]), 2) if count else 0.0
+    share = round(total / universe_total * 100, 1) if universe_total else 0.0
+
+    def _extreme(e):
+        return {"amount": round(e["amount"], 2), "date": e["date"],
+                "note": e.get("note", "")} if e else None
+    lo = _extreme(min(rows, key=lambda e: e["amount"])) if rows else None
+    hi = _extreme(max(rows, key=lambda e: e["amount"])) if rows else None
+    dates = sorted(e["date"] for e in rows)
+    first, last = (dates[0], dates[-1]) if dates else (None, None)
+    return {"total": total, "count": count, "average": average,
+            "median": median, "share_pct": share, "min": lo, "max": hi,
+            "first": first, "last": last,
+            "active_months": len({month_of(e["date"]) for e in rows})}
+
+
 def cmd_stats(args):
     data = load()
     exp = expenses_only(data["expenses"])
@@ -2870,21 +2894,11 @@ def _tags_profile(args, rows, name):
     rows: totals, share, extremes, active span, and the categories it spans."""
     tagged = [e for e in rows if name in e.get("tags", [])]
     total_all = round(sum(e["amount"] for e in rows), 2)
-    total = round(sum(e["amount"] for e in tagged), 2)
-    count = len(tagged)
-    amounts = [e["amount"] for e in tagged]
-    average = round(total / count, 2) if count else 0.0
-    median = round(_median(amounts), 2) if count else 0.0
-    share = round(total / total_all * 100, 1) if total_all else 0.0
-
-    def _extreme(e):
-        return {"amount": round(e["amount"], 2), "date": e["date"],
-                "note": e.get("note", "")} if e else None
-    lo = _extreme(min(tagged, key=lambda e: e["amount"])) if tagged else None
-    hi = _extreme(max(tagged, key=lambda e: e["amount"])) if tagged else None
-    dates = sorted(e["date"] for e in tagged)
-    first, last = (dates[0], dates[-1]) if dates else (None, None)
-    active_months = len({month_of(e["date"]) for e in tagged})
+    stats = _profile_stats(tagged, total_all)
+    total, count = stats["total"], stats["count"]
+    average, median, share = stats["average"], stats["median"], stats["share_pct"]
+    lo, hi = stats["min"], stats["max"]
+    first, last, active_months = stats["first"], stats["last"], stats["active_months"]
     by_cat = sorted(category_totals(tagged).items(),
                     key=lambda kv: kv[1], reverse=True)
 
@@ -3218,21 +3232,11 @@ def cmd_category(args):
     exp = expenses_only(data["expenses"])
     rows = [e for e in exp if e["category"] == cat]
     total_all = round(sum(e["amount"] for e in exp), 2)
-    total = round(sum(e["amount"] for e in rows), 2)
-    count = len(rows)
-    amounts = [e["amount"] for e in rows]
-    average = round(total / count, 2) if count else 0.0
-    median = round(_median(amounts), 2) if count else 0.0
-    share = round(total / total_all * 100, 1) if total_all else 0.0
-
-    def _extreme(e):
-        return {"amount": round(e["amount"], 2), "date": e["date"],
-                "note": e.get("note", "")} if e else None
-    lo = _extreme(min(rows, key=lambda e: e["amount"])) if rows else None
-    hi = _extreme(max(rows, key=lambda e: e["amount"])) if rows else None
-    dates = sorted(e["date"] for e in rows)
-    first, last = (dates[0], dates[-1]) if dates else (None, None)
-    active_months = len({month_of(e["date"]) for e in rows})
+    stats = _profile_stats(rows, total_all)
+    total, count = stats["total"], stats["count"]
+    average, median, share = stats["average"], stats["median"], stats["share_pct"]
+    lo, hi = stats["min"], stats["max"]
+    first, last, active_months = stats["first"], stats["last"], stats["active_months"]
 
     first_month = date.today().replace(day=1)
     monthly = [{"month": add_months(first_month, -i).isoformat()[:7],
