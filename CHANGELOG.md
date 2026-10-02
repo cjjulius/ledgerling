@@ -4,6 +4,24 @@ All notable changes to Ledgerling are documented here. The format is based on
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and this project
 adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.145.0] - 2026-10-01
+
+### Added
+
+- `scoretrend [--months N]` command: charts the `scorecard` financial-health
+  grade over the last N months (default 6), one line per month with its letter
+  grade, score out of 100 and a bar, plus an average over the active months —
+  so you can see whether your money habits are trending up or down. Months with
+  no activity are shown but excluded from the average. `--json` supported;
+  grouped under Analyze in both UIs.
+
+### Changed
+
+- Internal: the per-month scoring behind `scorecard` is extracted into a shared
+  `_score_month()` helper, now reused by both `scorecard` and `scoretrend`
+  (single source of truth for the grading formula). No behaviour change to
+  `scorecard`.
+
 ## [1.144.0] - 2026-10-01
 
 ### Added
@@ -1722,6 +1740,7 @@ file, standard library only, strictly confined to its own folder.
   guard (`_within_app`) that refuses any path escaping the app folder; imports
   and restores are reduced to a basename and looked up only within the folder.
 
+[1.145.0]: #11450---2026-10-01
 [1.144.0]: #11440---2026-10-01
 [1.143.0]: #11430---2026-10-01
 [1.142.1]: #11421---2026-10-01

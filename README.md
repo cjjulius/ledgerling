@@ -341,6 +341,10 @@ ledgerling insights --month 2026-08
 ledgerling scorecard
 ledgerling scorecard --month 2026-08
 
+# The same grade charted over the last N months (is it trending up or down?)
+ledgerling scoretrend
+ledgerling scoretrend --months 12
+
 # Income, expenses, net and savings rate (all-time, or one month)
 ledgerling net
 ledgerling net --month 2026-09

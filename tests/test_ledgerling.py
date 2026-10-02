@@ -2319,6 +2319,34 @@ class CLI(TempAppCase):
         txt = self._main(["scorecard", "--month", "2020-02"])
         self.assertIn("Nothing recorded", txt)
 
+    def test_scoretrend_window_and_average(self):
+        # Build two strong months, then chart a window that includes them plus
+        # an empty leading month. The window ends at the current month, so we
+        # record into the two months immediately before it.
+        prev1 = L.add_months(date.today().replace(day=1), -1).isoformat()[:7]
+        prev2 = L.add_months(date.today().replace(day=1), -2).isoformat()[:7]
+        for m in (prev1, prev2):
+            self._main(["income", "2000", "salary", "pay", "--date", f"{m}-01"])
+            self._main(["add", "100", "food", "g", "--date", f"{m}-02"])
+        d = json.loads(self._main(["scoretrend", "--months", "3", "--json"]))
+        self.assertEqual(len(d["months"]), 3)
+        by = {r["month"]: r for r in d["months"]}
+        # Both recorded months: 95% saved (40) + neutral budgets (24.5) + lots
+        # of no-spend days (25) = 89.5 -> 90, grade A.
+        self.assertEqual(by[prev1]["grade"], "A")
+        self.assertEqual(by[prev2]["grade"], "A")
+        self.assertEqual(by[prev1]["score"], 90)
+        # Average counts only the two active months.
+        self.assertEqual(d["average_grade"], "A")
+        self.assertEqual(d["average_score"], 90.0)
+
+    def test_scoretrend_empty_window(self):
+        d = json.loads(self._main(["scoretrend", "--months", "2", "--json"]))
+        self.assertEqual(len(d["months"]), 2)
+        self.assertIsNone(d["average_score"])
+        self.assertEqual(d["average_grade"], "-")
+        self.assertTrue(all(not r["has_data"] for r in d["months"]))
+
     def test_tagtrend_json(self):
         this = date.today().isoformat()[:7]
         prev = L.add_months(date.today().replace(day=1), -1).isoformat()[:7]
