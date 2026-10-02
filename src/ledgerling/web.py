@@ -504,7 +504,7 @@ function toggleGroup(g) {
 // comprehensive without per-command edits.
 const GROUP_DEFS = [
   ['Record', ['add', 'income', 'edit', 'delete', 'split', 'clone', 'note', 'refund']],
-  ['Analyze', ['today', 'month', 'insights', 'range', 'summary', 'report', 'statement', 'stats', 'week', 'weekly', 'day', 'year', 'years',
+  ['Analyze', ['today', 'month', 'insights', 'scorecard', 'range', 'summary', 'report', 'statement', 'stats', 'week', 'weekly', 'day', 'year', 'years',
     'quarter', 'weekday', 'trend', 'tagtrend', 'matrix', 'tagmatrix', 'cumulative', 'top', 'compare', 'average', 'distribution',
     'balance', 'savings', 'heatmap', 'streak', 'pace', 'forecast', 'sources', 'anomalies', 'cashflow', 'net', 'subscriptions',
     'categories', 'payees', 'worthtrend', 'tags', 'untagged', 'search', 'list']],
