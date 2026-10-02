@@ -175,7 +175,8 @@ use):
   `refund`, and reusable quick-entry `template`s.
 - **Analyze** it: a month `dashboard`, plain-language `insights`, an A-to-F
   health `scorecard` and its `scoretrend`, per-`category` and per-`tag`
-  profiles, `search`, and rollups by week, month, quarter, year, and weekday.
+  profiles, an `onthisday` flashback, `search`, and rollups by week, month,
+  quarter, year, and weekday.
 - **Budgets and goals**: monthly `budget`s with `pace` and daily `allowance`, a
   savings `goal`, `networth` tracking, savings `pot`s (sinking funds) with
   optional target dates and a combined `savingsplan`, gamified savings
