@@ -63,6 +63,7 @@ Commands:
     distribution  Histogram of expense sizes
     anomalies  Flag unusually large expenses within each category
     roundup   Simulate round-up savings (round each expense up to $N)
+    challenge  Gamified savings challenges (52-week, no-spend, round-up jar)
     tip       Tip calculator and even bill splitter
     interest  Compound-growth / future-value calculator
     loan      Loan payment / amortization calculator
@@ -135,7 +136,7 @@ import tempfile
 import time
 from datetime import datetime, date, timedelta
 
-__version__ = "1.155.1"
+__version__ = "1.156.0"
 
 # --------------------------------------------------------------------------- #
 # Sandbox + storage
@@ -2133,6 +2134,20 @@ def cmd_anomalies(args):
           f"(category mean +/- SD shown in --json)")
 
 
+def _roundup_cents(rows, step_cents):
+    """Sum of per-expense round-ups to the next `step_cents` boundary, in
+    integer cents, plus the largest single bump. Pure; shared by `roundup` and
+    the round-up `challenge`."""
+    total = largest = 0
+    for e in rows:
+        cents = round(e["amount"] * 100)
+        bump = (-cents) % step_cents  # 0 when already on a step boundary
+        total += bump
+        if bump > largest:
+            largest = bump
+    return total, largest
+
+
 def cmd_roundup(args):
     """Simulate a round-up savings rule: how much you'd set aside if every
     expense were rounded up to the nearest --to dollars.
@@ -2150,14 +2165,7 @@ def cmd_roundup(args):
     rows = filter_month(rows, args.month)
 
     count = len(rows)
-    total_cents = 0
-    largest_cents = 0
-    for e in rows:
-        cents = round(e["amount"] * 100)
-        bump = (-cents) % step_cents  # 0 when already on a step boundary
-        total_cents += bump
-        if bump > largest_cents:
-            largest_cents = bump
+    total_cents, largest_cents = _roundup_cents(rows, step_cents)
     total = round(total_cents / 100, 2)
     average = round((total_cents / count) / 100, 2) if count else 0.0
     largest = round(largest_cents / 100, 2)
@@ -2179,6 +2187,148 @@ def cmd_roundup(args):
     print(f"{'total saved':<16} {money(total)}")
     print(f"{'average / item':<16} {money(average)}")
     print(f"{'largest bump':<16} {money(largest)}")
+
+
+def _week52_plan(start, today=None):
+    """52-week savings challenge: in week N you set aside $N. Returns the
+    current week (1-52, or 0 before the start date), this week's amount, the
+    cumulative target through that week, the grand total ($1,378), and whether
+    the 52 weeks are complete. Pure."""
+    today = today or date.today()
+    days = (today - start).days
+    week = 0 if days < 0 else min(52, days // 7 + 1)
+    total = 52 * 53 // 2  # 1 + 2 + ... + 52 = 1378
+    return {
+        "week": week,
+        "week_amount": float(week) if 1 <= week <= 52 else 0.0,
+        "cumulative_target": float(week * (week + 1) // 2),
+        "total": float(total),
+        "done": days >= 52 * 7,
+    }
+
+
+def _nospend_progress(rows, period, today=None):
+    """No-spend-day tally for a month: days considered (through today for the
+    current month), no-spend days, and the longest/current no-spend streaks.
+    Pure; `rows` are expense entries."""
+    today = today or date.today()
+    year, mon = (int(x) for x in period.split("-"))
+    dim = calendar.monthrange(year, mon)[1]
+    last = today.day if period == today.isoformat()[:7] else dim
+    last = max(1, last)
+    spend_dates = {e["date"] for e in rows if month_of(e["date"]) == period}
+    no_spend = longest = current = 0
+    for day in range(1, last + 1):
+        if f"{year:04d}-{mon:02d}-{day:02d}" in spend_dates:
+            current = 0
+        else:
+            no_spend += 1
+            current += 1
+            longest = max(longest, current)
+    return {"days_considered": last, "no_spend_days": no_spend,
+            "longest_streak": longest, "current_streak": current}
+
+
+_CHALLENGES = ("52week", "nospend", "roundup")
+
+
+def cmd_challenge(args):
+    """Gamified savings challenges tracked against your ledger, all offline:
+    the classic 52-week plan, a no-spend-days challenge for a month, and a
+    round-up jar. With no name, lists each with a one-line status."""
+    check_month(getattr(args, "month", None))
+    data = load()
+    today = date.today()
+    exp = expenses_only(data["expenses"])
+    name = getattr(args, "name", None)
+    want_json = getattr(args, "json", False)
+
+    def week52():
+        start_iso = parse_date(getattr(args, "start", None) or
+                               f"{today.year}-01-01")
+        plan = _week52_plan(date.fromisoformat(start_iso), today)
+        plan["start"] = start_iso
+        return plan
+
+    def nospend():
+        period = getattr(args, "month", None) or today.isoformat()[:7]
+        target = getattr(args, "target", None) or 10
+        p = _nospend_progress(exp, period, today)
+        p.update({"month": period, "target": target})
+        return p
+
+    def roundup():
+        period = getattr(args, "month", None)
+        step = getattr(args, "to", None) or 1.0
+        rows = filter_month(exp, period)
+        total_cents, _ = _roundup_cents(rows, max(1, round(step * 100)))
+        return {"month": period or "all time", "to": step,
+                "jar": round(total_cents / 100, 2), "expenses": len(rows)}
+
+    if name == "52week":
+        d = week52()
+        if want_json:
+            print(json.dumps(d, indent=2))
+            return
+        frac = d["cumulative_target"] / d["total"] if d["total"] else 0
+        print("52-week savings challenge")
+        print("=" * 56)
+        if d["week"] == 0:
+            print(f"  starts {d['start']} - not begun yet")
+        else:
+            print(f"  Week {d['week']} of 52"
+                  + ("   (complete)" if d["done"] else ""))
+            print(f"  Save this week   {money(d['week_amount'])}")
+        print(f"  Saved so far     {money(d['cumulative_target'])} of "
+              f"{money(d['total'])}  {bar(frac)} {round(frac * 100)}%")
+        return
+
+    if name == "nospend":
+        d = nospend()
+        if want_json:
+            print(json.dumps(d, indent=2))
+            return
+        frac = (d["no_spend_days"] / d["target"]) if d["target"] else 0
+        print(f"No-spend challenge - {d['month']}")
+        print("=" * 56)
+        print(f"  No-spend days    {d['no_spend_days']} of "
+              f"{d['days_considered']} days so far")
+        print(f"  Target {d['target']}        {bar(min(1.0, frac))} "
+              f"{round(frac * 100)}%")
+        print(f"  Best streak      {d['longest_streak']} day"
+              f"{'' if d['longest_streak'] == 1 else 's'}")
+        return
+
+    if name == "roundup":
+        d = roundup()
+        if want_json:
+            print(json.dumps(d, indent=2))
+            return
+        print(f"Round-up jar challenge - {d['month']} "
+              f"(to nearest {money(d['to'])})")
+        print("=" * 56)
+        print(f"  Jar so far       {money(d['jar'])} from {d['expenses']} "
+              "expense" + ("" if d["expenses"] == 1 else "s"))
+        print("  Round every purchase up to the next step and stash the change.")
+        return
+
+    # No name: a one-line status for each challenge.
+    w, n, r = week52(), nospend(), roundup()
+    if want_json:
+        print(json.dumps({"52week": w, "nospend": n, "roundup": r}, indent=2))
+        return
+    print("Savings challenges")
+    print("=" * 56)
+    wk = (f"not started (begins {w['start']})" if w["week"] == 0
+          else f"week {w['week']}/52, save {money(w['week_amount'])} this week")
+    print(f"  52week    {wk}")
+    print(f"  nospend   {n['no_spend_days']} no-spend day"
+          f"{'' if n['no_spend_days'] == 1 else 's'} this month "
+          f"(target {n['target']})")
+    print(f"  roundup   {money(r['jar'])} in the jar"
+          f"{'' if r['month'] == 'all time' else ' this month'}")
+    print("-" * 56)
+    print("  Run `challenge <name>` for details (52week / nospend / roundup).")
 
 
 def cmd_tip(args):
@@ -6756,6 +6906,21 @@ def build_parser():
     ru2.add_argument("--json", action="store_true", help="output JSON instead of text")
     ru2.set_defaults(func=cmd_roundup)
 
+    ch = sub.add_parser("challenge",
+                        help="gamified savings challenges (52week/nospend/roundup)")
+    ch.add_argument("name", nargs="?", choices=list(_CHALLENGES),
+                    help="which challenge to show (omit to list all)")
+    ch.add_argument("--start", help="52week: start date, YYYY-MM-DD "
+                    "(default Jan 1 this year)")
+    ch.add_argument("--target", type=int,
+                    help="nospend: target number of no-spend days (default 10)")
+    ch.add_argument("--to", type=float, default=1.0,
+                    help="roundup: round each expense up to the nearest this "
+                         "many dollars (default 1.0)")
+    ch.add_argument("--month", help="nospend/roundup: restrict to a month, YYYY-MM")
+    ch.add_argument("--json", action="store_true", help="output JSON instead of text")
+    ch.set_defaults(func=cmd_challenge)
+
     tip = sub.add_parser("tip",
                          help="tip calculator and even bill splitter")
     tip.add_argument("amount", type=float, help="the bill amount (before tip)")
@@ -7210,7 +7375,7 @@ CATCHUP_COMMANDS = frozenset({
     "weekly", "years", "anomalies", "roundup", "cashflow", "target", "runway",
     "net", "subscriptions", "payees", "overbudget", "today", "worthtrend",
     "statement", "reconcile", "scorecard", "scoretrend", "category",
-    "savingsplan", "bills",
+    "savingsplan", "bills", "challenge",
 })
 MUTATING_COMMANDS = frozenset({
     "add", "income", "edit", "delete", "clone", "refund", "note", "tag",

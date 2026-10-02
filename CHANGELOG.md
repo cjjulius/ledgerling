@@ -4,6 +4,23 @@ All notable changes to Ledgerling are documented here. The format is based on
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and this project
 adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.156.0] - 2026-10-02
+
+### Added
+
+- `challenge` command: gamified savings challenges tracked against the ledger,
+  all offline. `challenge 52week [--start]` runs the classic 52-week plan (save
+  $N in week N) and shows the current week and cumulative target; `challenge
+  nospend [--month] [--target]` tracks no-spend days against a goal with the
+  best streak; `challenge roundup [--month] [--to]` shows the round-up jar
+  total. With no name it lists all three with a one-line status. `--json`
+  supported; grouped under Budgets & goals. (Closes the first roadmap idea.)
+
+### Changed
+
+- Internal: the round-up computation is extracted into a shared
+  `_roundup_cents()` helper used by both `roundup` and the round-up challenge.
+
 ## [1.155.1] - 2026-10-02
 
 ### Changed
@@ -1924,6 +1941,7 @@ file, standard library only, strictly confined to its own folder.
   guard (`_within_app`) that refuses any path escaping the app folder; imports
   and restores are reduced to a basename and looked up only within the folder.
 
+[1.156.0]: #11560---2026-10-02
 [1.155.1]: #11551---2026-10-02
 [1.155.0]: #11550---2026-10-02
 [1.154.2]: #11542---2026-10-02
