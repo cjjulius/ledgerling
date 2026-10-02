@@ -307,6 +307,23 @@ def _has_required_args(cmd):
                for a in cmd.get("args", []))
 
 
+def month_summary_text(data, period):
+    """A one-line at-a-glance summary of a month for the status bar:
+    "<period>:  spent $X  •  net $Y  •  N entries". Pure (no Tk), so it is unit
+    tested directly. Returns "" if the month has no activity."""
+    exp = [e for e in L.expenses_only(data.get("expenses", []))
+           if L.month_of(e["date"]) == period]
+    inc = [e for e in L.income_only(data.get("expenses", []))
+           if L.month_of(e["date"]) == period]
+    n = len(exp) + len(inc)
+    if not n:
+        return ""
+    spent = round(sum(e["amount"] for e in exp), 2)
+    net = round(sum(e["amount"] for e in inc) - spent, 2)
+    return (f"{period}:  spent {L.money(spent)}  •  net {L.money(net)}"
+            f"  •  {n} entr{'y' if n == 1 else 'ies'}")
+
+
 class LedgerlingGUI:
     def __init__(self, root, theme="dark"):
         import tkinter as tk  # local imports so importing this module is cheap
@@ -620,10 +637,30 @@ class LedgerlingGUI:
 
     def _build_statusbar(self):
         ttk = self.ttk
+        bar = ttk.Frame(self.root, style="Status.TFrame")
+        bar.pack(side="bottom", fill="x")
         self.status = ttk.Label(
-            self.root, style="Status.TLabel", anchor="w",
+            bar, style="Status.TLabel", anchor="w",
             text=f"Ready  •  currency {self.currency}")
-        self.status.pack(side="bottom", fill="x")
+        self.status.pack(side="left", fill="x", expand=True)
+        # A persistent at-a-glance summary of the current month, kept on the
+        # right so the transient run-status messages on the left never hide it.
+        self.summary = ttk.Label(bar, style="Status.TLabel", anchor="e", text="")
+        self.summary.pack(side="right")
+        self._refresh_summary()
+
+    def _refresh_summary(self):
+        """Update the right-hand status summary with this month's figures."""
+        from datetime import date
+        txt = ""
+        try:
+            txt = month_summary_text(L.load(), date.today().isoformat()[:7])
+        except Exception:
+            txt = ""
+        try:
+            self.summary.config(text=txt)
+        except Exception:
+            pass
 
     # ----- nav (icon buttons) --------------------------------------------- #
     def _filter_query(self):
@@ -879,6 +916,8 @@ class LedgerlingGUI:
         self._populate_table(data if ok else None)
         verb = "done" if ok else f"failed (exit {res['code']})"
         self._set_status(f"{' '.join(argv)}  —  {verb}")
+        if ok:
+            self._refresh_summary()   # keep the month summary current after edits
 
     def _set_output(self, text, err=False):
         self.output.config(state="normal")
@@ -1025,6 +1064,7 @@ class LedgerlingGUI:
         style.configure("Field.TCheckbutton", background=c["bg"])
         style.configure("Status.TLabel", background=c["panel"],
                         foreground=c["muted"], padding=(12, 5))
+        style.configure("Status.TFrame", background=c["panel"])
         style.configure("Tool.TButton", padding=(10, 5), relief="flat",
                         background=c["panel"], foreground=c["ink"])
         style.map("Tool.TButton",

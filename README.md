@@ -60,7 +60,9 @@ standard library only — no extra dependencies). It opens a real OS window with
 - a **schema-driven form** for the selected command (it generates itself from
   the CLI, so every current and future command appears automatically), a
   results area with an **Output** tab (text, with a Copy button) and a
-  **Table** tab, and a **status bar**;
+  **Table** tab, and a **status bar** whose right side always shows an
+  at-a-glance summary of the current month (spent, net, entry count) that
+  refreshes after every command;
 - a **sortable results table**: for any command that supports `--json`, the
   Table tab fills from its structured output — money and percent columns are
   formatted, and clicking a column header sorts by it (numeric-aware);
