@@ -23,7 +23,7 @@ from . import web
 GROUP_DEFS = [
     ("Record", ["add", "income", "edit", "delete", "split", "clone", "note",
                 "refund"]),
-    ("Analyze", ["today", "month", "insights", "scorecard", "range", "summary", "report",
+    ("Analyze", ["today", "month", "insights", "scorecard", "scoretrend", "range", "summary", "report",
                  "statement", "stats",
                  "week", "weekly", "day", "year", "years", "quarter", "weekday",
                  "trend", "tagtrend", "matrix", "tagmatrix", "cumulative", "top",
@@ -67,7 +67,7 @@ ICONS = {
     "upcoming": "\U0001f4c5", "overbudget": "⚠️", "trend": "\U0001f4c8",
     "top": "\U0001f51d", "compare": "⚖️", "net": "\U0001f9ee",
     "savings": "\U0001f437", "forecast": "\U0001f52e", "insights": "\U0001f4a1",
-    "scorecard": "\U0001f4cb",
+    "scorecard": "\U0001f4cb", "scoretrend": "\U0001f4ca",
     "budget": "\U0001f3af", "goal": "\U0001f945", "networth": "\U0001f3e6",
     "worthtrend": "\U0001f4b9", "pot": "\U0001fad9", "transfer": "\U0001f501",
     "allowance": "\U0001fa99",

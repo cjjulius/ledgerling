@@ -44,6 +44,7 @@ Commands:
     today     A daily briefing: this month, what's due soon, and a fortune
     insights  Plain-language observations about a month
     scorecard  A financial-health grade (A-F) for a month with a breakdown
+    scoretrend  Financial-health grade over the last N months
     range     Totals over an arbitrary date range (start [end])
     forecast  Project this year's spending/income/net to year-end
     quarter   Quarterly rollup (Q1-Q4) for a year
@@ -130,7 +131,7 @@ import tempfile
 import time
 from datetime import datetime, date, timedelta
 
-__version__ = "1.144.0"
+__version__ = "1.145.0"
 
 # --------------------------------------------------------------------------- #
 # Sandbox + storage
@@ -4014,15 +4015,12 @@ def _grade_for(score):
     return "F", "Needs work"
 
 
-def cmd_scorecard(args):
-    """A single financial-health grade (A-F) for a month, combining three
-    weighted components: savings rate (40), budget adherence (35) and spending
-    habits / no-spend days (25). Shows the breakdown plus one actionable tip."""
-    check_month(args.month)
-    data = load()
-    today = date.today()
-    period = args.month or today.isoformat()[:7]
-
+def _score_month(data, period, today=None):
+    """Compute a month's financial-health score from three weighted components
+    (savings rate 40, budget adherence 35, spending habits 25). Returns a dict
+    {month, grade, score, has_data, components:[{name,points,max,detail}], tips}.
+    Shared by `scorecard` (one month) and `scoretrend` (many months)."""
+    today = today or date.today()
     exp = [e for e in expenses_only(data["expenses"]) if month_of(e["date"]) == period]
     inc = [e for e in income_only(data["expenses"]) if month_of(e["date"]) == period]
     spending = round(sum(e["amount"] for e in exp), 2)
@@ -4081,7 +4079,7 @@ def cmd_scorecard(args):
     has_data = bool(exp or inc)
     if not has_data:
         score = 0
-    grade, label = _grade_for(score) if has_data else ("-", "No data")
+    grade, _label = _grade_for(score) if has_data else ("-", "No data")
 
     components = [
         {"name": "Savings rate", "points": sav_pts, "max": 40, "detail": sav_detail},
@@ -4106,6 +4104,27 @@ def cmd_scorecard(args):
     else:
         tips.append(f"Record some activity for {period} to get a grade.")
 
+    return {"month": period, "grade": grade, "score": score,
+            "has_data": has_data, "components": components, "tips": tips}
+
+
+def cmd_scorecard(args):
+    """A single financial-health grade (A-F) for a month, combining three
+    weighted components: savings rate (40), budget adherence (35) and spending
+    habits / no-spend days (25). Shows the breakdown plus one actionable tip."""
+    check_month(args.month)
+    data = load()
+    today = date.today()
+    period = args.month or today.isoformat()[:7]
+
+    result = _score_month(data, period, today)
+    grade = result["grade"]
+    score = result["score"]
+    has_data = result["has_data"]
+    components = result["components"]
+    tips = result["tips"]
+    _, label = _grade_for(score) if has_data else ("-", "No data")
+
     if getattr(args, "json", False):
         print(json.dumps({"month": period, "grade": grade, "score": score,
                           "components": components, "tips": tips}, indent=2))
@@ -4125,6 +4144,49 @@ def cmd_scorecard(args):
     print("-" * 56)
     for t in tips:
         print(f"  Tip: {t}")
+
+
+def cmd_scoretrend(args):
+    """Financial-health grade over the last N months: one line per month with
+    its letter grade, score out of 100 and a bar, so you can see whether your
+    money habits are trending up or down. Months with no activity are skipped
+    in the average."""
+    months = max(1, min(60, args.months))
+    data = load()
+    today = date.today()
+    start = date.fromisoformat(f"{today.isoformat()[:7]}-01")
+
+    rows = []
+    for i in range(months - 1, -1, -1):
+        period = add_months(start, -i).isoformat()[:7]
+        r = _score_month(data, period, today)
+        rows.append({"month": period, "grade": r["grade"], "score": r["score"],
+                     "has_data": r["has_data"]})
+
+    scored = [r for r in rows if r["has_data"]]
+    avg = round(sum(r["score"] for r in scored) / len(scored), 1) if scored else None
+    avg_grade = _grade_for(round(avg))[0] if avg is not None else "-"
+
+    if getattr(args, "json", False):
+        print(json.dumps({"months": rows, "average_score": avg,
+                          "average_grade": avg_grade}, indent=2))
+        return
+
+    print(f"Scorecard trend - last {months} month{'' if months == 1 else 's'}")
+    print("=" * 56)
+    for r in rows:
+        if r["has_data"]:
+            frac = r["score"] / 100
+            print(f"  {r['month']}  {r['grade']:<2} {r['score']:>3}/100  "
+                  f"{bar(frac, 20)}")
+        else:
+            print(f"  {r['month']}  -    --/100  {'(no activity)'}")
+    print("-" * 56)
+    if avg is not None:
+        print(f"  average: {avg_grade} ({avg}/100) over "
+              f"{len(scored)} active month{'' if len(scored) == 1 else 's'}")
+    else:
+        print("  no activity recorded in this window")
 
 
 def cmd_range(args):
@@ -6084,6 +6146,13 @@ def build_parser():
     scd.add_argument("--json", action="store_true", help="output JSON instead of text")
     scd.set_defaults(func=cmd_scorecard)
 
+    sct = sub.add_parser("scoretrend",
+                         help="financial-health grade over the last N months")
+    sct.add_argument("--months", type=int, default=6,
+                     help="how many months back to chart (default 6)")
+    sct.add_argument("--json", action="store_true", help="output JSON instead of text")
+    sct.set_defaults(func=cmd_scoretrend)
+
     rg = sub.add_parser("range", help="totals over an arbitrary date range")
     rg.add_argument("start", help="start date: YYYY-MM-DD, 'today', or 'yesterday'")
     rg.add_argument("end", nargs="?",
@@ -6610,7 +6679,7 @@ CATCHUP_COMMANDS = frozenset({
     "tagtrend", "range", "matrix", "cumulative", "allowance", "tagmatrix",
     "weekly", "years", "anomalies", "roundup", "cashflow", "target", "runway",
     "net", "subscriptions", "payees", "overbudget", "today", "worthtrend",
-    "statement", "reconcile", "scorecard",
+    "statement", "reconcile", "scorecard", "scoretrend",
 })
 MUTATING_COMMANDS = frozenset({
     "add", "income", "edit", "delete", "clone", "refund", "note", "tag",
