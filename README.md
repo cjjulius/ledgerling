@@ -30,20 +30,19 @@ ledgerling gui --theme light
 Ledgerling ships a **native desktop application** built on Tkinter (still
 standard library only — no extra dependencies). It opens a real OS window with:
 
-- two polished **themes** — a light theme with a **green accent**, and a deep
-  **green dark theme with a light (mint) accent** — toggled with an animated
-  colour crossfade, plus a gently **animated header** and an animated run
-  spinner so the app feels alive rather than flat;
+- two clean **themes** — a light theme and a dark theme, both built on neutral
+  surfaces with green used only as an accent — toggled with a short colour
+  crossfade;
 - a **menu bar** — File (Run, open web UI, Quit), a **Commands** menu with every
   command organized into submenus, View (toggle light/dark, focus search), and
   Help;
 - a **toolbar** of quick-access buttons for the common actions;
-- a **sidebar** of **icon buttons** — every command, grouped (Record / Analyze /
-  Budgets & goals / Calculators / Recurring / Data / Settings / Almanac), each
-  with an icon, a hover animation, and a tooltip of its help — with a live
-  **filter** box and a pulsing active-command highlight. The filter is
-  keyboard-first: **Ctrl+K** focuses it, **Enter** opens the first match,
-  **↑/↓** step through matches, and **Esc** clears it;
+- a **sidebar** listing every command, grouped (Record / Analyze /
+  Budgets & goals / Calculators / Recurring / Data / Settings / Almanac), with a
+  clear accent marker on the active one and a tooltip of each command's help,
+  plus a live **filter** box. The filter is keyboard-first: **Ctrl+K** focuses
+  it, **Enter** opens the first match, **↑/↓** step through matches, and **Esc**
+  clears it;
 - a **Pinned bar** with **drag-and-drop**: drag any command from the sidebar
   onto it to pin a favourite, drag the chips to reorder, right-click to unpin;
   your pins persist between launches;
@@ -53,7 +52,7 @@ standard library only — no extra dependencies). It opens a real OS window with
   schema-driven form logic, so they behave identically;
 - a **getting-started assistant** — a short guided tour that greets new users on
   first launch and is reopenable any time from Help → Getting started (or the
-  toolbar's **? guide**);
+  toolbar's **Guide** button);
 - it **opens where you left off** — the app reopens your last-viewed command
   (new users land on today's briefing, auto-run so real numbers show right
   away), and the window title reflects the current command;

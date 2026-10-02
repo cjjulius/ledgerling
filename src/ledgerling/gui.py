@@ -49,46 +49,6 @@ GROUP_DEFS = [
     ("Almanac", ["fortune", "horoscope", "weather", "eightball"]),
 ]
 
-# A glyph per group (fallback) and per command (when a specific one reads well).
-GROUP_ICONS = {
-    "Record": "✍️", "Analyze": "\U0001f4ca",
-    "Budgets & goals": "\U0001f3af", "Calculators": "\U0001f9ee",
-    "Recurring": "\U0001f501", "Data": "\U0001f5c4️",
-    "Settings": "⚙️", "Almanac": "\U0001f4d6", "More": "•",
-}
-ICONS = {
-    "add": "➕", "income": "\U0001f4b0", "edit": "✏️",
-    "delete": "\U0001f5d1️", "split": "✂️", "clone": "⧉",
-    "note": "\U0001f4dd", "refund": "↩️",
-    "today": "\U0001f305", "statement": "\U0001f9fe", "summary": "\U0001f4ca",
-    "stats": "\U0001f4c8",
-    "search": "\U0001f50d",
-    "categories": "\U0001f3f7️", "category": "\U0001f50d", "tags": "#️⃣",
-    "payees": "\U0001f3ea", "subscriptions": "\U0001f501",
-    "heatmap": "\U0001f5d3️", "cashflow": "\U0001f4c9",
-    "upcoming": "\U0001f4c5", "overbudget": "⚠️", "trend": "\U0001f4c8",
-    "top": "\U0001f51d", "compare": "⚖️", "net": "\U0001f9ee",
-    "savings": "\U0001f437", "forecast": "\U0001f52e", "insights": "\U0001f4a1",
-    "scorecard": "\U0001f4cb", "scoretrend": "\U0001f4ca",
-    "budget": "\U0001f3af", "goal": "\U0001f945", "networth": "\U0001f3e6",
-    "worthtrend": "\U0001f4b9", "pot": "\U0001fad9", "transfer": "\U0001f501",
-    "savingsplan": "\U0001f5d3️",
-    "allowance": "\U0001fa99",
-    "suggest": "\U0001f4a1", "autobudget": "\U0001f916",
-    "commitments": "\U0001f4cc", "bills": "\U0001f9fe",
-    "tip": "\U0001f9ee", "interest": "\U0001f4c8",
-    "loan": "\U0001f3e6", "target": "\U0001f3af", "runway": "\U0001f6eb",
-    "roundup": "\U0001fa99", "export": "⬆️", "import": "⬇️",
-    "backup": "\U0001f4be", "restore": "♻️", "dedupe": "\U0001f9f9",
-    "duplicates": "\U0001f46f", "check": "✅", "undo": "↶",
-    "clear": "☑️", "unclear": "☐", "reconcile": "⚖️",
-    "retag": "\U0001f516", "recategorize": "\U0001f504", "config": "⚙️",
-    "where": "\U0001f4c1", "version": "ℹ️", "completion": "⌨️",
-    "web": "\U0001f310", "gui": "\U0001f5a5️",
-    "fortune": "\U0001f960", "horoscope": "✨", "weather": "⛅",
-    "eightball": "\U0001f3b1",
-}
-
 # Quick-access toolbar: (command, tooltip).
 TOOLBAR = [
     ("add", "Record an expense"),
@@ -99,20 +59,22 @@ TOOLBAR = [
     ("upcoming", "Upcoming recurring charges"),
 ]
 
-# Two palettes. Light = light surface + green accent. Dark = deep green surface
-# + light (mint) accent. Toggled at runtime with an animated colour crossfade.
+# Two palettes, toggled at runtime with a short colour crossfade. Both keep
+# neutral surfaces with green reserved strictly as an accent -- a calmer, more
+# modern look than tinting every panel green. "sel" is the soft selection /
+# active-row wash; "hover" is a near-invisible row hover.
 THEMES = {
     "light": {
-        "bg": "#eef3ee", "panel": "#ffffff", "ink": "#13241a",
-        "muted": "#5f7068", "line": "#d6e0d8", "accent": "#1f9d55",
-        "accent2": "#34c47a", "accent_ink": "#ffffff", "err": "#b23b2e",
-        "field": "#ffffff", "sel": "#d6f0e0",
+        "bg": "#f4f5f7", "panel": "#ffffff", "ink": "#1b2026",
+        "muted": "#6b7480", "line": "#e5e8ec", "accent": "#15a34a",
+        "accent2": "#1bb457", "accent_ink": "#ffffff", "err": "#c23a2b",
+        "field": "#ffffff", "sel": "#e7f6ee", "hover": "#f0f1f4",
     },
     "dark": {
-        "bg": "#0e1c14", "panel": "#13271b", "ink": "#e8f3ec",
-        "muted": "#9ab8a6", "line": "#1f3a2a", "accent": "#7fe3a6",
-        "accent2": "#a7f0c4", "accent_ink": "#06160d", "err": "#ff9b8a",
-        "field": "#0b1710", "sel": "#1c3a28",
+        "bg": "#0f1216", "panel": "#171b21", "ink": "#e7eaee",
+        "muted": "#9099a3", "line": "#272c34", "accent": "#2fbf6b",
+        "accent2": "#45d884", "accent_ink": "#06130b", "err": "#ff8f7d",
+        "field": "#12161c", "sel": "#18271d", "hover": "#1c222a",
     },
 }
 
@@ -122,10 +84,6 @@ def _group_of(name):
         if name in names:
             return g
     return "More"
-
-
-def _icon_for(name):
-    return ICONS.get(name) or GROUP_ICONS.get(_group_of(name), "•")
 
 
 def ordered_commands(commands, query=""):
@@ -341,12 +299,10 @@ class LedgerlingGUI:
         self._nav = {}            # command -> {row, bar, gl, tx}
         self._nav_order = []      # flat, filtered command order (keyboard nav)
         self._alive = True
-        self._comet = 0.0
         self._spin = 0
         self._spinning = False
         self._windows = []        # secondary command windows
         self._drag = None         # in-flight drag {name, ghost, kind}
-        self._pulse = 0.0
 
         state = _load_state()
         self.theme_name = state.get("theme") or theme
@@ -373,8 +329,6 @@ class LedgerlingGUI:
         self.apply_theme(self.theme_name, animate=False)
         self._bind_shortcuts()
         self._poll_results()
-        self._animate_header()
-        self._animate_pulse()
         root.protocol("WM_DELETE_WINDOW", self._on_close)
 
         # Reopen the last-viewed command, else land on today's briefing.
@@ -474,27 +428,6 @@ class LedgerlingGUI:
         except Exception:
             pass
 
-    def _animate_header(self):
-        if not self._alive:
-            return
-        c, h = self.colors, self.header
-        try:
-            w = h.winfo_width() or 1100
-            h.delete("comet")
-            self._comet = (self._comet + 0.006) % 1.0
-            # ease-in-out so the dot glides rather than scrolls linearly
-            t = self._comet
-            ease = 0.5 - 0.5 * __import__("math").cos(t * 2 * 3.14159265)
-            x = 20 + ease * (w - 40)
-            for i, (dx, r, mix) in enumerate(
-                    [(-18, 2, .15), (-12, 3, .3), (-6, 4, .55), (0, 5, 1.0)]):
-                col = _lerp(c["panel"], c["accent2"], mix)
-                h.create_oval(x + dx - r, 70 - r, x + dx + r, 70 + r,
-                              fill=col, outline="", tags="comet")
-        except Exception:
-            pass
-        self._hdr_after = self._after(40, self._animate_header)
-
     # ----- toolbar --------------------------------------------------------- #
     def _build_toolbar(self):
         ttk = self.ttk
@@ -504,20 +437,20 @@ class LedgerlingGUI:
         for name, tip in TOOLBAR:
             if name not in self.commands:
                 continue
-            b = ttk.Button(self.toolbar, text=f"{_icon_for(name)}  {name}",
+            b = ttk.Button(self.toolbar, text=name,
                            style="Tool.TButton",
                            command=lambda n=name: self.open_command(n))
-            b.pack(side="left", padx=(0, 6))
+            b.pack(side="left", padx=(0, 4))
             _Tooltip(b, tip)
-        self.theme_btn = ttk.Button(self.toolbar, text="◑  theme",
+        self.theme_btn = ttk.Button(self.toolbar, text="Theme",
                                     style="Tool.TButton", command=self.toggle_theme)
         self.theme_btn.pack(side="right")
         _Tooltip(self.theme_btn, "Toggle light / dark  (Ctrl+T)")
-        gbtn = ttk.Button(self.toolbar, text="❓  guide",
+        gbtn = ttk.Button(self.toolbar, text="Guide",
                           style="Tool.TButton", command=self.show_assistant)
         gbtn.pack(side="right", padx=(0, 6))
         _Tooltip(gbtn, "Getting-started guide")
-        nbtn = ttk.Button(self.toolbar, text="\U0001f5d7  new window",
+        nbtn = ttk.Button(self.toolbar, text="New window",
                           style="Tool.TButton", command=self.new_window)
         nbtn.pack(side="right", padx=(0, 6))
         _Tooltip(nbtn, "Open another command window  (Ctrl+N)")
@@ -691,10 +624,10 @@ class LedgerlingGUI:
             listed = [n for n in names if n in shown]
             if not listed:
                 continue
-            hdr = tk.Label(self.nav_inner, text=f"{GROUP_ICONS.get(group, '')}  "
-                           f"{group.upper()}", bg=c["panel"], fg=c["muted"],
-                           font=("Segoe UI", 8, "bold"), anchor="w")
-            hdr.pack(fill="x", padx=8, pady=(10, 2))
+            hdr = tk.Label(self.nav_inner, text=group.upper(),
+                           bg=c["panel"], fg=c["muted"],
+                           font=("Segoe UI Semibold", 8), anchor="w")
+            hdr.pack(fill="x", padx=(16, 8), pady=(14, 4))
             self._bind_wheel(hdr)
             for n in listed:
                 self._make_nav_button(n)
@@ -736,16 +669,13 @@ class LedgerlingGUI:
         row = tk.Frame(self.nav_inner, bg=c["panel"], cursor="hand2")
         bar = tk.Frame(row, bg=c["panel"], width=3)
         bar.pack(side="left", fill="y")
-        gl = tk.Label(row, text=_icon_for(name), bg=c["panel"], fg=c["ink"],
-                      font=("Segoe UI Emoji", 12), width=2)
-        gl.pack(side="left", padx=(6, 4), pady=5)
         tx = tk.Label(row, text=name, bg=c["panel"], fg=c["ink"],
                       font=("Segoe UI", 10), anchor="w")
-        tx.pack(side="left", fill="x", expand=True)
-        row.pack(fill="x", padx=6, pady=1)
-        btn = {"row": row, "bar": bar, "gl": gl, "tx": tx, "base": c["panel"]}
+        tx.pack(side="left", fill="x", expand=True, padx=(13, 8), pady=6)
+        row.pack(fill="x", padx=(6, 6), pady=1)
+        btn = {"row": row, "bar": bar, "tx": tx, "base": c["panel"]}
         self._nav[name] = btn
-        for w in (row, bar, gl, tx):
+        for w in (row, bar, tx):
             w.bind("<ButtonPress-1>",
                    lambda e, n=name: self._drag_start(n, e, "nav"))
             w.bind("<B1-Motion>", self._drag_motion)
@@ -758,7 +688,7 @@ class LedgerlingGUI:
             _Tooltip(row, tip)
 
     def _nav_set_bg(self, btn, color):
-        for key in ("row", "gl", "tx"):
+        for key in ("row", "tx"):
             try:
                 btn[key].configure(bg=color)
             except Exception:
@@ -770,8 +700,8 @@ class LedgerlingGUI:
         btn = self._nav.get(name)
         if not btn:
             return
-        target = _lerp(self.colors["panel"], self.colors["accent"],
-                       0.16) if entering else self.colors["panel"]
+        target = self.colors.get("hover", self.colors["panel"]) if entering \
+            else self.colors["panel"]
         self._animate_nav_bg(btn, target)
 
     def _animate_nav_bg(self, btn, target, step=0):
@@ -789,8 +719,7 @@ class LedgerlingGUI:
     def _highlight_nav(self, name):
         for n, btn in self._nav.items():
             active = n == name
-            bg = _lerp(self.colors["panel"], self.colors["accent"],
-                       0.22) if active else self.colors["panel"]
+            bg = self.colors["sel"] if active else self.colors["panel"]
             btn["_bg"] = bg
             self._nav_set_bg(btn, bg)
             try:
@@ -808,7 +737,7 @@ class LedgerlingGUI:
             return
         self.current = name
         cmd = self.commands[name]
-        self.cmd_title.config(text=f"{_icon_for(name)}  {name}")
+        self.cmd_title.config(text=name)
         self.cmd_help.config(text=cmd.get("help", ""))
         try:
             self.root.title(f"Ledgerling — {name}")
@@ -843,24 +772,24 @@ class LedgerlingGUI:
         req = a["kind"] == "positional" and not a.get("optional")
         ttk.Label(parent, style="Field.TLabel",
                   text=label + (" *" if req else "")).grid(
-            row=row, column=0, sticky="w", padx=(0, 12), pady=5)
+            row=row, column=0, sticky="w", padx=(0, 16), pady=7)
 
         if a.get("type") == "bool":
             var = tk.BooleanVar(value=False)
             chk = ttk.Checkbutton(parent, variable=var, style="Field.TCheckbutton")
-            chk.grid(row=row, column=1, sticky="w", pady=5)
+            chk.grid(row=row, column=1, sticky="w", pady=7)
             chk._var = var
             return chk
         if a.get("type") == "choice":
             var = tk.StringVar(value="")
             combo = ttk.Combobox(parent, textvariable=var, state="readonly",
                                  values=[""] + [str(c) for c in a["choices"]])
-            combo.grid(row=row, column=1, sticky="ew", pady=5)
+            combo.grid(row=row, column=1, sticky="ew", pady=7)
             combo._var = var
             return combo
         var = tk.StringVar(value="")
         ent = ttk.Entry(parent, textvariable=var)
-        ent.grid(row=row, column=1, sticky="ew", pady=5)
+        ent.grid(row=row, column=1, sticky="ew", pady=7)
         ent._var = var
         if a.get("help"):
             _Tooltip(ent, a["help"])
@@ -1053,42 +982,75 @@ class LedgerlingGUI:
         except Exception:
             pass
         self.root.configure(background=c["bg"])
+        base_font = ("Segoe UI", 10)
         style.configure(".", background=c["bg"], foreground=c["ink"],
-                        fieldbackground=c["field"], bordercolor=c["line"])
+                        fieldbackground=c["field"], bordercolor=c["line"],
+                        font=base_font)
         style.configure("Toolbar.TFrame", background=c["panel"])
         style.configure("Side.TFrame", background=c["panel"])
         style.configure("Main.TFrame", background=c["bg"])
         style.configure("Title.TLabel", background=c["bg"], foreground=c["ink"],
-                        font=("Segoe UI Semibold", 16))
+                        font=("Segoe UI Semibold", 17))
         style.configure("Muted.TLabel", background=c["bg"], foreground=c["muted"])
         style.configure("Field.TLabel", background=c["bg"], foreground=c["ink"])
         style.configure("Field.TCheckbutton", background=c["bg"])
+        style.map("Field.TCheckbutton",
+                  background=[("active", c["bg"])])
         style.configure("Status.TLabel", background=c["panel"],
-                        foreground=c["muted"], padding=(12, 5))
+                        foreground=c["muted"], padding=(14, 6))
         style.configure("Status.TFrame", background=c["panel"])
-        style.configure("Tool.TButton", padding=(10, 5), relief="flat",
-                        background=c["panel"], foreground=c["ink"])
+        # Toolbar buttons: quiet, flat, text-only; tint toward the accent wash
+        # on hover rather than turning solid green.
+        style.configure("Tool.TButton", padding=(12, 7), relief="flat",
+                        background=c["panel"], foreground=c["ink"],
+                        borderwidth=0, font=base_font)
         style.map("Tool.TButton",
-                  background=[("active", _lerp(c["panel"], c["accent"], 0.2))])
-        style.configure("Accent.TButton", padding=(16, 7), relief="flat",
+                  background=[("active", c["sel"]), ("pressed", c["sel"])],
+                  foreground=[("active", c["accent"])])
+        # Primary action button: solid accent, generous padding.
+        style.configure("Accent.TButton", padding=(20, 9), relief="flat",
                         background=c["accent"], foreground=c["accent_ink"],
-                        font=("Segoe UI Semibold", 10))
+                        borderwidth=0, font=("Segoe UI Semibold", 10))
         style.map("Accent.TButton",
-                  background=[("active", c["accent2"]),
-                             ("disabled", c["line"])])
+                  background=[("active", c["accent2"]), ("pressed", c["accent2"]),
+                             ("disabled", c["line"])],
+                  foreground=[("disabled", c["muted"])])
+        # Inputs: flat, padded, with an accent border on focus.
+        for cls in ("TEntry", "TCombobox"):
+            style.configure(cls, fieldbackground=c["field"], foreground=c["ink"],
+                            bordercolor=c["line"], lightcolor=c["line"],
+                            darkcolor=c["line"], borderwidth=1, relief="flat",
+                            padding=6, arrowcolor=c["muted"])
+            style.map(cls,
+                      bordercolor=[("focus", c["accent"])],
+                      lightcolor=[("focus", c["accent"])],
+                      darkcolor=[("focus", c["accent"])],
+                      fieldbackground=[("readonly", c["field"])])
+        style.configure("TCheckbutton", background=c["bg"], foreground=c["ink"])
         style.configure("Data.Treeview", background=c["field"],
                         fieldbackground=c["field"], foreground=c["ink"],
-                        borderwidth=0, rowheight=25)
+                        borderwidth=0, rowheight=30, font=base_font)
         style.configure("Data.Treeview.Heading", background=c["panel"],
-                        foreground=c["muted"], relief="flat",
+                        foreground=c["muted"], relief="flat", padding=(10, 8),
                         font=("Segoe UI Semibold", 9))
+        style.map("Data.Treeview.Heading",
+                  background=[("active", c["hover"])])
         style.map("Data.Treeview", background=[("selected", c["sel"])],
                   foreground=[("selected", c["ink"])])
-        style.configure("TNotebook", background=c["bg"], borderwidth=0)
-        style.configure("TNotebook.Tab", background=c["panel"],
-                        foreground=c["muted"], padding=(16, 7))
-        style.map("TNotebook.Tab", background=[("selected", c["bg"])],
-                  foreground=[("selected", c["accent"])])
+        style.configure("TNotebook", background=c["bg"], borderwidth=0,
+                        tabmargins=(0, 6, 0, 0))
+        style.configure("TNotebook.Tab", background=c["bg"],
+                        foreground=c["muted"], padding=(18, 9), borderwidth=0,
+                        font=base_font)
+        style.map("TNotebook.Tab",
+                  background=[("selected", c["bg"])],
+                  foreground=[("selected", c["accent"]), ("active", c["ink"])])
+        # Flatter scrollbars that read as part of the surface, not chrome.
+        for cls in ("Vertical.TScrollbar", "Horizontal.TScrollbar"):
+            style.configure(cls, background=c["line"], troughcolor=c["panel"],
+                            bordercolor=c["panel"], arrowcolor=c["muted"],
+                            relief="flat", borderwidth=0)
+            style.map(cls, background=[("active", c["muted"])])
         if hasattr(self, "output"):
             self.output.configure(background=c["field"], foreground=c["ink"],
                                   insertbackground=c["ink"],
@@ -1143,9 +1105,9 @@ class LedgerlingGUI:
             ch.destroy()
         self._pin_chips = {}
         self.pinbar.configure(background=c["panel"])
-        tk.Label(self.pinbar, text="\U0001f4cc Pinned", background=c["panel"],
-                 foreground=c["muted"], font=("Segoe UI", 8, "bold")).pack(
-            side="left", padx=(12, 8), pady=5)
+        tk.Label(self.pinbar, text="PINNED", background=c["panel"],
+                 foreground=c["muted"], font=("Segoe UI Semibold", 8)).pack(
+            side="left", padx=(14, 8), pady=5)
         if not self.pinned:
             tk.Label(self.pinbar, text="drag a command here to pin it",
                      background=c["panel"], foreground=c["muted"],
@@ -1156,18 +1118,13 @@ class LedgerlingGUI:
 
     def _make_pin_chip(self, name):
         tk, c = self.tk, self.colors
-        chip = tk.Frame(self.pinbar, background=_lerp(c["panel"], c["accent"], .14),
-                        cursor="hand2")
-        gl = tk.Label(chip, text=_icon_for(name),
-                      background=chip["background"], foreground=c["ink"],
-                      font=("Segoe UI Emoji", 10))
-        gl.pack(side="left", padx=(8, 2), pady=2)
-        tx = tk.Label(chip, text=name, background=chip["background"],
+        chip = tk.Frame(self.pinbar, background=c["sel"], cursor="hand2")
+        tx = tk.Label(chip, text=name, background=c["sel"],
                       foreground=c["ink"], font=("Segoe UI", 9))
-        tx.pack(side="left", padx=(0, 8), pady=2)
-        chip.pack(side="left", padx=3, pady=4)
+        tx.pack(side="left", padx=(10, 10), pady=3)
+        chip.pack(side="left", padx=3, pady=5)
         self._pin_chips[name] = chip
-        for w in (chip, gl, tx):
+        for w in (chip, tx):
             w.bind("<ButtonPress-1>",
                    lambda e, n=name: self._drag_start(n, e, "pin"))
             w.bind("<B1-Motion>", self._drag_motion)
@@ -1259,9 +1216,9 @@ class LedgerlingGUI:
             g.attributes("-topmost", True)
         except Exception:
             pass
-        tk.Label(g, text=f"{_icon_for(name)}  {name}", background=c["accent"],
+        tk.Label(g, text=name, background=c["accent"],
                  foreground=c["accent_ink"], font=("Segoe UI Semibold", 10),
-                 padx=10, pady=5).pack()
+                 padx=12, pady=6).pack()
         return g
 
     def _over_pinbar(self, e):
@@ -1274,23 +1231,6 @@ class LedgerlingGUI:
                     and y <= e.y_root <= y + w.winfo_height())
         except Exception:
             return False
-
-    # ----- pulse animation on the active command -------------------------- #
-    def _animate_pulse(self):
-        if not self._alive:
-            return
-        import math
-        self._pulse = (self._pulse + 0.07) % 1.0
-        mix = 0.5 - 0.5 * math.cos(self._pulse * 2 * math.pi)
-        btn = self._nav.get(self.current)
-        if btn:
-            try:
-                btn["bar"].configure(
-                    background=_lerp(self.colors["accent"],
-                                     self.colors["accent2"], mix))
-            except Exception:
-                pass
-        self._after(90, self._animate_pulse)
 
     # ----- multiple windows + onboarding ---------------------------------- #
     def new_window(self, name=None):

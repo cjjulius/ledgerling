@@ -4,6 +4,21 @@ All notable changes to Ledgerling are documented here. The format is based on
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and this project
 adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.155.0] - 2026-10-02
+
+### Changed
+
+- Desktop app: a visual overhaul for a cleaner, more modern look.
+  - Neutral light and dark palettes, with green used strictly as an accent
+    rather than tinting every surface.
+  - Removed the decorative header animation and the pulsing active-item effect;
+    the theme toggle keeps a short, tasteful colour crossfade.
+  - Dropped the emoji glyphs from the sidebar, toolbar, pinned chips and command
+    title; the active command is marked with an accent bar and tint instead.
+  - More generous spacing and typography: padded, flat inputs with an accent
+    focus ring, taller table rows and tabs, flatter scrollbars, and a larger
+    primary action button.
+
 ## [1.154.2] - 2026-10-02
 
 ### Changed
@@ -1898,6 +1913,7 @@ file, standard library only, strictly confined to its own folder.
   guard (`_within_app`) that refuses any path escaping the app folder; imports
   and restores are reduced to a basename and looked up only within the folder.
 
+[1.155.0]: #11550---2026-10-02
 [1.154.2]: #11542---2026-10-02
 [1.154.1]: #11541---2026-10-02
 [1.154.0]: #11540---2026-10-02
