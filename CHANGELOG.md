@@ -4,6 +4,17 @@ All notable changes to Ledgerling are documented here. The format is based on
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and this project
 adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.147.0] - 2026-10-02
+
+### Added
+
+- `template use --qty N`: record N units from a template in one entry (amount x
+  N), annotating the note with `(xN)`. Combines with the per-unit `--amount`
+  override, and rejects a non-positive quantity.
+- `template rename OLD NEW`: rename a saved template, preserving its
+  amount/category/note/kind. Guards against renaming a missing template,
+  colliding with an existing name, or renaming to the same name.
+
 ## [1.146.0] - 2026-10-02
 
 ### Added
@@ -1756,6 +1767,7 @@ file, standard library only, strictly confined to its own folder.
   guard (`_within_app`) that refuses any path escaping the app folder; imports
   and restores are reduced to a basename and looked up only within the folder.
 
+[1.147.0]: #11470---2026-10-02
 [1.146.0]: #11460---2026-10-02
 [1.145.0]: #11450---2026-10-01
 [1.144.0]: #11440---2026-10-01

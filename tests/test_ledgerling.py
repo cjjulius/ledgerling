@@ -3000,6 +3000,45 @@ class CLI(TempAppCase):
         self.assertEqual(len(d["templates"]), 1)
         self.assertEqual(d["templates"][0]["amount"], 2500.0)
 
+    def test_template_use_quantity(self):
+        self._main(["template", "add", "coffee", "4.50", "food", "latte"])
+        u = json.loads(self._main(["template", "use", "coffee", "--qty", "3",
+                                   "--date", "2026-05-11", "--json"]))
+        self.assertEqual(u["qty"], 3)
+        e = u["entry"]
+        self.assertEqual(e["amount"], 13.5)              # 4.50 x 3
+        self.assertEqual(e["note"], "latte (x3)")        # quantity annotated
+        # qty combines with a per-unit --amount override
+        u2 = json.loads(self._main(["template", "use", "coffee", "--qty", "2",
+                                    "--amount", "5", "--json"]))
+        self.assertEqual(u2["entry"]["amount"], 10.0)
+        # qty 1 leaves the note untouched
+        u3 = json.loads(self._main(["template", "use", "coffee", "--json"]))
+        self.assertEqual(u3["entry"]["note"], "latte")
+        with self.assertRaises(SystemExit):
+            with contextlib.redirect_stdout(io.StringIO()), \
+                    contextlib.redirect_stderr(io.StringIO()):
+                L.main(["template", "use", "coffee", "--qty", "0"])
+
+    def test_template_rename(self):
+        self._main(["template", "add", "coffee", "4.50", "food", "latte"])
+        self._main(["template", "rename", "coffee", "espresso"])
+        names = [t["name"] for t in
+                 json.loads(self._main(["template", "list", "--json"]))["templates"]]
+        self.assertEqual(names, ["espresso"])
+        # fields are preserved under the new name
+        t = json.loads(self._main(["template", "list", "--json"]))["templates"][0]
+        self.assertEqual((t["amount"], t["category"], t["note"]),
+                         (4.5, "food", "latte"))
+        self._main(["template", "add", "tea", "2", "food"])
+        for argv in (["template", "rename", "ghost", "x"],       # missing source
+                     ["template", "rename", "espresso", "tea"],  # target exists
+                     ["template", "rename", "tea", "tea"]):       # same name
+            with self.assertRaises(SystemExit):
+                with contextlib.redirect_stdout(io.StringIO()), \
+                        contextlib.redirect_stderr(io.StringIO()):
+                    L.main(argv)
+
     def test_template_remove_and_validation(self):
         self._main(["template", "add", "lunch", "12", "food"])
         self._main(["template", "remove", "lunch"])

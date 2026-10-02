@@ -23,7 +23,7 @@ from . import web
 GROUP_DEFS = [
     ("Record", ["add", "income", "edit", "delete", "split", "clone", "note",
                 "refund", "template use", "template add", "template list",
-                "template remove"]),
+                "template remove", "template rename"]),
     ("Analyze", ["today", "month", "insights", "scorecard", "scoretrend", "range", "summary", "report",
                  "statement", "stats",
                  "week", "weekly", "day", "year", "years", "quarter", "weekday",
