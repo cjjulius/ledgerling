@@ -4,6 +4,19 @@ All notable changes to Ledgerling are documented here. The format is based on
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and this project
 adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.160.0] - 2026-10-02
+
+### Added
+
+- `fire` command: estimate your financial-independence number - the nest egg
+  that covers annual spending at a safe withdrawal rate (default 4%, i.e. 25x).
+  Annual spending is read from the ledger unless `--spending` is given, and
+  `--saved`/`--monthly`/`--return` add a years-to-FI projection.
+- `rule72` command: the rule-of-72 doubling-time estimate - pass `--rate` for
+  years to double, or `--years` for the rate you would need.
+  Both are pure calculators (not investment advice); `--json` supported;
+  grouped under Calculators. (Closes idea #5.)
+
 ## [1.159.0] - 2026-10-02
 
 ### Added
@@ -1983,6 +1996,7 @@ file, standard library only, strictly confined to its own folder.
   guard (`_within_app`) that refuses any path escaping the app folder; imports
   and restores are reduced to a basename and looked up only within the folder.
 
+[1.160.0]: #11600---2026-10-02
 [1.159.0]: #11590---2026-10-02
 [1.158.0]: #11580---2026-10-02
 [1.157.0]: #11570---2026-10-02

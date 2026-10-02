@@ -70,6 +70,8 @@ Commands:
     tip       Tip calculator and even bill splitter
     interest  Compound-growth / future-value calculator
     loan      Loan payment / amortization calculator
+    fire      Estimate your financial-independence (FIRE) number
+    rule72    Rule of 72: doubling time from a rate (or vice versa)
     fx        Offline currency converter (set/list/rm/convert, user-set rates)
     upcoming  Forecast recurring charges/income due in the next N days
     bills     Recurring charges/income scheduled in a month, by day
@@ -139,7 +141,7 @@ import tempfile
 import time
 from datetime import datetime, date, timedelta
 
-__version__ = "1.159.0"
+__version__ = "1.160.0"
 
 # --------------------------------------------------------------------------- #
 # Sandbox + storage
@@ -2793,6 +2795,111 @@ def cmd_runway(args):
     else:
         label = "month" if months == 1 else "months"
         print(f"about {months:g} {label} of runway -> ~{depletion}")
+
+
+def _months_to_fi(target, saved, monthly, annual_return):
+    """Months of monthly contributions (compounded at annual_return/12) for
+    `saved` to reach `target`. Returns an int, or None if unreachable within
+    100 years. Pure."""
+    if saved >= target:
+        return 0
+    if monthly <= 0 and annual_return <= 0:
+        return None
+    r = annual_return / 100 / 12
+    bal = saved
+    for m in range(1, 1200 + 1):
+        bal = bal * (1 + r) + monthly
+        if bal >= target:
+            return m
+    return None
+
+
+def cmd_fire(args):
+    """Estimate your FIRE number - the nest egg that covers your annual spending
+    at a safe withdrawal rate (default 4%, i.e. 25x). Annual spending comes from
+    the ledger unless you pass --spending. With --saved/--monthly it also
+    estimates how long to get there. Pure projection; not investment advice."""
+    data = load()
+    rate = args.rate if args.rate and args.rate > 0 else 4.0
+    if args.spending is not None:
+        if args.spending <= 0:
+            sys.exit("error: --spending must be greater than zero")
+        annual = round(args.spending, 2)
+        basis = "given"
+    else:
+        exp = expenses_only(data["expenses"])
+        months = {month_of(e["date"]) for e in exp}
+        if not exp:
+            sys.exit("error: no expense history yet - pass --spending ANNUAL")
+        annual = round(sum(e["amount"] for e in exp) / len(months) * 12, 2)
+        basis = f"ledger: {len(months)} month(s) annualized"
+
+    target = round(annual / (rate / 100), 2)
+
+    proj = None
+    if args.saved is not None or args.monthly is not None:
+        saved = round(args.saved or 0.0, 2)
+        monthly = round(args.monthly or 0.0, 2)
+        g = args.ret if args.ret is not None else 5.0
+        months_needed = _months_to_fi(target, saved, monthly, g)
+        proj = {"saved": saved, "monthly": monthly, "return": g,
+                "months": months_needed,
+                "years": round(months_needed / 12, 1)
+                if months_needed is not None else None}
+
+    if getattr(args, "json", False):
+        print(json.dumps({"annual_spending": annual, "rate": rate,
+                          "fire_number": target, "projection": proj}, indent=2))
+        return
+
+    print(f"FIRE number ({rate:g}% withdrawal rule)")
+    print("=" * 48)
+    print(f"{'annual spending':<18} {money(annual):>14}  ({basis})")
+    print(f"{'FIRE number':<18} {money(target):>14}  "
+          f"({round(100 / rate, 1):g}x spending)")
+    if proj is not None:
+        print(f"{'starting from':<18} {money(proj['saved']):>14}")
+        print(f"{'saving / month':<18} {money(proj['monthly']):>14}  "
+              f"at {proj['return']:g}%/yr")
+        if proj["months"] is None:
+            print("  not reachable within 100 years at this rate")
+        elif proj["months"] == 0:
+            print("  already there")
+        else:
+            print(f"  about {proj['years']:g} years to financial independence")
+
+
+def cmd_rule72(args):
+    """Rule of 72: a quick doubling-time estimate. Give --rate to get the years
+    to double, or --years to get the rate you'd need. Pure arithmetic."""
+    if args.rate is not None and args.years is not None:
+        sys.exit("error: give --rate or --years, not both")
+    rate = args.rate
+    years = args.years
+    if rate is None and years is None:
+        rate = 7.0  # a sensible default annual return
+    if rate is not None and rate <= 0:
+        sys.exit("error: --rate must be greater than zero")
+    if years is not None and years <= 0:
+        sys.exit("error: --years must be greater than zero")
+
+    if rate is not None:
+        out = {"rate": rate, "years_to_double": round(72 / rate, 1)}
+    else:
+        out = {"years": years, "rate_to_double": round(72 / years, 1)}
+
+    if getattr(args, "json", False):
+        print(json.dumps(out, indent=2))
+        return
+
+    print("Rule of 72")
+    print("=" * 48)
+    if rate is not None:
+        print(f"  at {rate:g}%/yr, money roughly doubles in "
+              f"{out['years_to_double']:g} years")
+    else:
+        print(f"  to double in {years:g} years, you need about "
+              f"{out['rate_to_double']:g}%/yr")
 
 
 def cmd_net(args):
@@ -7166,6 +7273,31 @@ def build_parser():
     ln.add_argument("--json", action="store_true", help="output JSON instead of text")
     ln.set_defaults(func=cmd_loan)
 
+    fr = sub.add_parser("fire",
+                        help="estimate your financial-independence (FIRE) number")
+    fr.add_argument("--spending", type=float,
+                    help="annual spending (default: estimated from the ledger)")
+    fr.add_argument("--rate", type=float, default=4.0,
+                    help="safe withdrawal rate in %% (default 4)")
+    fr.add_argument("--saved", type=float,
+                    help="current savings, to also project years to FI")
+    fr.add_argument("--monthly", type=float,
+                    help="monthly contribution, to project years to FI")
+    fr.add_argument("--return", type=float, dest="ret",
+                    help="assumed annual return in %% for the projection "
+                         "(default 5)")
+    fr.add_argument("--json", action="store_true", help="output JSON instead of text")
+    fr.set_defaults(func=cmd_fire)
+
+    r72 = sub.add_parser("rule72",
+                         help="rule of 72: doubling time from a rate (or vice versa)")
+    r72.add_argument("--rate", type=float,
+                     help="annual rate in %% -> years to double")
+    r72.add_argument("--years", type=float,
+                     help="years -> rate needed to double")
+    r72.add_argument("--json", action="store_true", help="output JSON instead of text")
+    r72.set_defaults(func=cmd_rule72)
+
     tgt = sub.add_parser("target",
                          help="estimate how long to reach a savings target")
     tgt.add_argument("amount", type=float, help="the savings amount to reach")
@@ -7589,6 +7721,7 @@ CATCHUP_COMMANDS = frozenset({
     "net", "subscriptions", "payees", "overbudget", "today", "worthtrend",
     "statement", "reconcile", "scorecard", "scoretrend", "category",
     "savingsplan", "bills", "challenge", "achievements", "onthisday", "mascot",
+    "fire",
 })
 MUTATING_COMMANDS = frozenset({
     "add", "income", "edit", "delete", "clone", "refund", "note", "tag",
@@ -7596,7 +7729,7 @@ MUTATING_COMMANDS = frozenset({
     "autobudget", "clear", "unclear", "pot", "transfer",
     "import", "restore", "backup", "dedupe", "undo", "config", "recur",
     "completion", "version", "web", "gui", "where", "tip", "split", "fx",
-    "check", "interest", "loan", "template",
+    "check", "interest", "loan", "rule72", "template",
     "fortune", "horoscope", "weather", "eightball",   # almanac modes
 })
 
