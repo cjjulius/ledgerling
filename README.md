@@ -185,435 +185,56 @@ Python 3.7+. Version history is in [CHANGELOG.md](CHANGELOG.md).
 
 MIT — see [LICENSE](LICENSE).
 
-## Usage
+## Using Ledgerling
+
+New here? These four cover most days:
 
 ```bash
-# Record / edit / delete expenses
-ledgerling add 12.50 food "lunch burrito"
-ledgerling add 45 food "groceries" --date yesterday
-ledgerling config --home-code USD      # one-time: your home currency's fx code
-ledgerling add 100 travel "paris" --in EUR   # entered in EUR, stored in home $
-ledgerling edit 1 --amount 13.75 --note "lunch (with tip)"
-ledgerling delete 2
-ledgerling split 1 groceries 70 household 30   # one receipt -> two categories
-ledgerling split 1 --pct groceries 60 household 40   # ...or split by percentage
-ledgerling clone 1                    # duplicate entry #1 dated today
-ledgerling refund 1                   # record a full refund of expense #1
-ledgerling refund 1 --amount 12.50    # a partial refund
-
-# Quick-entry templates: save presets for common expenses, then record in one
-# step (distinct from recurring rules, which auto-generate on a schedule)
-ledgerling template add coffee 4.50 food "flat white #treat"
-ledgerling template add paycheck 3000 salary "monthly pay" --income
-ledgerling template list
-ledgerling template use coffee                       # records a $4.50 food entry today
-ledgerling template use coffee --qty 3               # 3 coffees -> one $13.50 entry
-ledgerling template use coffee --amount 5 --date yesterday  # override for one entry
-ledgerling template rename coffee espresso           # rename, keeping its fields
-ledgerling template remove coffee
-
-# Record income (net + savings rate then show up in stats/report)
-ledgerling income 3000 salary "march pay"
-ledgerling sources                    # income broken down by source
-ledgerling sources --month 2026-09    # scoped to one month
-
-# See recent expenses (filter by category or month); * marks recurring items
-ledgerling list                       # expenses only (default)
-ledgerling list --income              # income only
-ledgerling list --all                 # both, income marked +income
-ledgerling list --category food --month 2026-09
-ledgerling list --tag work                       # filter by a #tag
-ledgerling list --sort amount --desc --limit 5   # your 5 biggest recent entries
-
-# Totals by category, ASCII bar chart (defaults to this month)
-ledgerling summary
-ledgerling summary --month 2026-08
-ledgerling summary --json             # category breakdown as JSON
-
-# Monthly budgets
-ledgerling budget --category food --amount 200
-ledgerling budget                      # usage per category: spent / limit / left
-ledgerling budget --month 2026-09 --json
-ledgerling unbudget food               # remove one budget (undoable)
-ledgerling unbudget --all              # clear every budget
-
-# Suggest budgets from recent average spending (last 3 months by default)
-ledgerling suggest
-ledgerling suggest --months 6
-
-# Apply those suggestions as actual budgets in one step (undoable)
-ledgerling autobudget --dry-run       # preview
-ledgerling autobudget                 # set budgets for categories without one
-ledgerling autobudget --replace       # also overwrite existing budgets
-
-# Budget pace: are you ahead or behind, and projected end-of-month?
-ledgerling pace
-
-# Budget allowance: how much you can still spend per day to stay on budget
-ledgerling allowance
-
-# Budget breaches across your whole history: applying your current budgets to
-# every month, which categories went over and by how much. (report shows only
-# the latest month; pace shows only the current one.)
-ledgerling overbudget
-ledgerling overbudget --month 2026-09        # just one month
-ledgerling overbudget --category food        # just one category
-
-# Monthly savings goal (net vs goal shows up in goal/stats/report)
-ledgerling goal --amount 500
-ledgerling goal
-ledgerling goal --clear
-
-# Savings pots (sinking funds): save toward named targets with progress bars
-ledgerling pot vacation --target 2000   # create/set a target
-ledgerling pot vacation --by 2027-06-01 # set a target date (shows $/mo needed)
-ledgerling pot vacation --target 2000 --by 2027-06-01   # both in one call
-ledgerling pot vacation --add 500       # contribute
-ledgerling pot vacation --take 100      # withdraw (never below zero)
-ledgerling pot vacation --clear-by      # drop the target date
-ledgerling pot                          # list all pots + total saved
-ledgerling pot vacation --remove
-ledgerling savingsplan                  # total $/month to hit all dated goals,
-                                        # ordered by urgency (overdue first)
-ledgerling transfer 150 vacation laptop # move money between two pots
-
-# Net worth: track manual account balances (assets and debts) and see your
-# net worth, with the ledger's all-time cash position shown for context.
-ledgerling networth --set checking --amount 2500
-ledgerling networth --set "car loan" --amount 12000 --debt   # a liability
-ledgerling networth                                          # the summary
-ledgerling networth --remove "car loan"
-ledgerling networth --json
-
-# Record today's net worth to build a history, then chart it over time
-ledgerling networth --snapshot      # one per day (same-day re-snapshots replace)
-ledgerling worthtrend               # net worth per snapshot, with the change
-ledgerling worthtrend --json
-
-# Export to CSV or JSON (saved in exports/; a path is reduced to its file name).
-# The CSV includes a `cleared` column, and both formats round-trip the
-# cleared/pending reconciliation status back through `import`.
-ledgerling export
-ledgerling export --file august.csv --month 2026-08
-ledgerling export --format json --file data.json
-ledgerling export --start 2026-08-01 --end 2026-08-15   # an arbitrary range
-ledgerling export --income --format json                # only income entries
-ledgerling export --category rent --file rent.csv       # only one category
-
-# Import a CSV or JSON file (looked up in exports/ then the data folder; dedupes)
-ledgerling import --file august.csv
-ledgerling import --file data.json              # re-import a JSON export
-ledgerling import --file august.csv --dry-run   # preview counts, import nothing
-
-# Month-over-month trend + budget adherence
-ledgerling report
-ledgerling report --months 12
-ledgerling report --json              # trend/income/net as JSON
-
-# Tags: add #tags in the note; they're parsed automatically
-ledgerling add 40 food "client dinner #work #reimbursable"
-
-# Search by keyword (matches note or category) with optional filters
-ledgerling search coffee
-ledgerling search lunch --month 2026-09
-ledgerling search --tag work --month 2026-09
-ledgerling search --min 50 --max 200 --category food
-ledgerling search --since 2026-08-01 --until 2026-08-15   # an arbitrary range
-ledgerling search coffee --sort amount --desc   # largest matches first
-
-# Entries for a single day (today by default)
-ledgerling day
-ledgerling day --date yesterday
-
-# This week's spending by day (Mon-Sun); --offset N for weeks back
-ledgerling week
-ledgerling week --offset 1
-
-# Weekly spending trend over the last N weeks
-ledgerling weekly --weeks 8
-
-# No-spend-day streaks for a month
-ledgerling streak
-ledgerling streak --month 2026-08
-
-# Spending by day of week (which days you spend most)
-ledgerling weekday
-ledgerling weekday --month 2026-09
-
-# Daily-spending calendar for a month (ASCII grid; a real calendar in the web UI)
-ledgerling heatmap
-ledgerling heatmap --month 2026-08
-
-# Cumulative (running) spending by day within a month
-ledgerling cumulative
-ledgerling cumulative --month 2026-08
-
-# One-screen dashboard for a month (income, spend, net, top cats, budgets, goal)
-ledgerling month
-ledgerling month --month 2026-08
-
-# Plain-language insights about a month (savings, top category, vs last month...)
-ledgerling insights
-ledgerling insights --month 2026-08
-
-# A financial-health grade (A-F) for a month, with a scored breakdown
-# (savings rate / budget adherence / spending habits) and one tip
-ledgerling scorecard
-ledgerling scorecard --month 2026-08
-
-# The same grade charted over the last N months (is it trending up or down?)
-ledgerling scoretrend
-ledgerling scoretrend --months 12
-
-# Income, expenses, net and savings rate (all-time, or one month)
-ledgerling net
-ledgerling net --month 2026-09
-
-# Totals over an arbitrary date range (end defaults to today)
-ledgerling range 2026-08-01 2026-08-15
-ledgerling range 2026-09-01            # 2026-09-01 through today
-
-# Quarterly and calendar-year rollups, and a year-end forecast
-ledgerling quarter 2026
-ledgerling year
-ledgerling year 2026
-ledgerling years                      # every year, side by side
-ledgerling forecast
-
-# Running cumulative net (income - spending) month over month
-ledgerling balance
-
-# Monthly savings rate (net / income) trend
-ledgerling savings
-
-# Compare two months side by side (defaults to last month vs this month)
-ledgerling compare
-ledgerling compare 2026-08 2026-09
-
-# Your largest expenses (optionally by month/category)
-ledgerling top --limit 10
-ledgerling top --month 2026-09 --category food
-ledgerling top --income                # your largest income entries
-ledgerling top --all                   # largest across expenses and income
-
-# Average spending per day / week / month across your records
-ledgerling average
-
-# Histogram of expense sizes ($0-10, $10-25, ... $250+)
-ledgerling distribution
-
-# Flag unusually large expenses within each category (statistical outliers)
-ledgerling anomalies                        # > 2 SD above the category mean
-ledgerling anomalies --z 1.5 --month 2026-09
-ledgerling anomalies --category groceries --min-count 6
-
-# Simulate round-up savings (how much you'd set aside rounding each expense up)
-ledgerling roundup                          # to the nearest $1.00
-ledgerling roundup --to 5 --month 2026-09   # to the nearest $5.00
-
-# Tip calculator and even bill splitter (pure math; touches no stored data)
-ledgerling tip 84.50 --pct 20               # tip + total
-ledgerling tip 100 --pct 18 --split 3       # split evenly; cents always sum back
-
-# Offline currency converter with your own rates (no network; stays sandboxed)
-ledgerling fx set USD 1                      # pick a reference, then set others
-ledgerling fx set EUR 1.09                   # 1 EUR = 1.09 reference units
-ledgerling fx list
-ledgerling fx convert 100 EUR USD            # -> 109.00 USD
-ledgerling fx convert 100 USD                # omit the target -> every currency
-ledgerling fx rm EUR
-
-# Monthly spending trend for one category
-ledgerling trend food --months 6
-
-# Monthly spending trend for one #tag (spans categories)
-ledgerling tagtrend work --months 6
-
-# Category x month spending grid (pivot table)
-ledgerling matrix --months 6
-
-# #tag x month spending grid (pivot table)
-ledgerling tagmatrix --months 6
-
-# Forecast recurring charges/income coming up (default 30 days)
-ledgerling upcoming
-ledgerling upcoming --days 60
-
-# A whole month's recurring bills, by day, with a total (past + upcoming) -
-# complements `upcoming`'s rolling window with a calendar-month view
-ledgerling bills
-ledgerling bills --month 2026-11
-
-# Export those upcoming charges as an iCalendar (.ics) file you can import
-# into any calendar app (Google / Apple / Outlook). Each charge becomes an
-# all-day event with a stable id, so re-importing updates rather than
-# duplicates. The file is written inside the data folder's exports/ dir.
-ledgerling upcoming --days 60 --ics            # -> exports/upcoming.ics
-ledgerling upcoming --days 90 --ics bills.ics  # custom filename
-
-# Project a running balance forward from your recurring rules (register view);
-# flags if/when the balance dips below zero. Starts from your all-time net.
-ledgerling cashflow --days 45
-ledgerling cashflow --days 60 --start-balance 2500
-
-# How long to reach a lump-sum savings target (uses your recent average net)
-ledgerling target 10000
-ledgerling target 10000 --monthly 750 --start 2500
-
-# Runway: how long a balance lasts at your average monthly net (burn rate)
-ledgerling runway
-ledgerling runway --balance 8000 --monthly-net -1200
-
-# Compound-growth / future-value calculator (pure math; not investment advice)
-ledgerling interest 10000 --rate 6 --years 20
-ledgerling interest 10000 --rate 6 --years 20 --monthly 200
-
-# Loan payment / amortization estimate (monthly payment + total interest)
-ledgerling loan 25000 --rate 7.5 --years 6
-
-# Recurring rules normalized to monthly / annual cost (your fixed obligations)
-ledgerling commitments
-
-# Detect subscription-like charges from your actual spending history
-# (a payee billed on a regular cadence with a stable amount), with an
-# estimated monthly/annual cost -- surfaces recurring spend you never
-# formalized as a recurring rule.
-ledgerling subscriptions
-ledgerling subscriptions --min-count 4   # require more charges before flagging
-
-# A consolidated monthly statement (income, spending by category, budget
-# adherence, largest expenses, savings rate). Prints by default; --json for the
-# structured form; --save writes a shareable Markdown file to exports/.
-ledgerling statement
-ledgerling statement --month 2026-09
-ledgerling statement --month 2026-09 --save   # -> exports/statement_2026-09.md
-
-# Analytics: extremes, averages, and end-of-month projection
-ledgerling stats
-
-# Category / tag overviews (all-time, or scoped to a month)
-ledgerling categories
-ledgerling categories --month 2026-09
-ledgerling category food               # drill into one category: total, share,
-                                       # avg/median, min/max, span, monthly trend
-ledgerling category food --months 12   # longer trend window
-ledgerling tags
-ledgerling tags --month 2026-09
-ledgerling tags work                   # drill into one #tag: total, share, span,
-                                       # and the categories it covers
-ledgerling recategorize food dining
-
-# Rank spending by payee/merchant (the note, #tags stripped; category when the
-# note is blank) with count, total, average and first/last seen -- the merchant
-# complement to the category-based `categories`/`top`.
-ledgerling payees
-ledgerling payees --month 2026-09 --limit 10
-
-# Rename a #tag everywhere; find expenses that still need tags
-ledgerling retag work business
-ledgerling untagged
-
-# Add or remove #tags on a single entry (without rewriting the note)
-ledgerling tag 1 work reimbursable
-ledgerling untag 1 reimbursable
-
-# Set, append to, or clear an entry's note (tags re-parsed)
-ledgerling note 1 "team lunch #work"
-ledgerling note 1 "#reimbursable" --append
-ledgerling note 1 --clear
-
-# Find likely double-entered records (same date/amount/category/note)
-ledgerling duplicates
-
-# Remove those duplicates (keeps one per group; preview with --dry-run, undoable)
-ledgerling dedupe --dry-run
-ledgerling dedupe
-
-# Undo the last data change (run it again to redo)
-ledgerling undo
-
-# Machine-readable output for piping into other local tools
-ledgerling list --json
-ledgerling search --tag work --json
-ledgerling stats --json
-
-# Daily briefing: this month so far, what's due in the next few days, any
-# budgets already over, and a fortune for the day (ties the fun modes to real
-# data). --days sets the look-ahead window (default 7).
-ledgerling today
-ledgerling today --days 14 --json
-
-# Version
-ledgerling version
-ledgerling --version
-
-# Where does my data live? (folder + files with sizes)
-ledgerling where
-
-# Scan your data for integrity problems (duplicate ids, bad dates, orphans,
-# invalid budgets, malformed accounts / net-worth snapshots, ...)
-ledgerling check          # in the web UI this renders as a grouped Health panel
-ledgerling check --fix    # repair the safe ones (undoable); leaves judgment calls
-
-# Settings (currency symbol, default list size)
-ledgerling config
-ledgerling config --currency "€" --list-limit 50
-ledgerling config --currency kr --symbol-position after   # -> 12.50 kr
-# Negative amounts print the sign first: -$5.00 (or -5.00 kr), matching the web UI
-ledgerling config --reset
-
-# Reconcile against your bank: mark entries cleared (posted) vs pending, then
-# see the cleared balance, what's still outstanding, and the projected total.
-ledgerling clear 12 13 14      # mark these entry ids cleared
-ledgerling unclear 13          # put one back to pending
-ledgerling reconcile
-ledgerling reconcile --json
-ledgerling list --pending      # find what still needs clearing (✓ marks cleared)
-ledgerling search rent --cleared   # filters also work on search
-
-# Backup / restore (all copies live in backups/)
-ledgerling backup
-ledgerling backup --list
-ledgerling restore --file ledgerling_data_20260929_173016.json
-
-# Recurring expenses (rent, subscriptions, ...) — or recurring income
-ledgerling recur add 1200 rent "apartment" --every month --start 2026-08-01
-ledgerling recur add 15 subscriptions "music" --every month
-ledgerling recur add 3000 salary "paycheck" --every month --income
-ledgerling recur add 450 loan "car" --every month --until 2027-06-30  # fixed term
-ledgerling recur add 450 loan "car" --every month --count 12          # 12 payments
-ledgerling recur from 5 --every month   # turn entry #5 into a recurring rule
-ledgerling recur list
-ledgerling recur list --json          # structured rows (id, next, until, status)
-ledgerling recur edit 1 --amount 1350 --note "rent increase"
-ledgerling recur edit 1 --until 2027-01-31   # add/change an end date
-ledgerling recur edit 1 --no-until           # make it open-ended again
-ledgerling recur edit 1 --count 24           # or cap by number of occurrences
-ledgerling recur edit 1 --no-count           # remove the count cap
-ledgerling recur remove 1
-ledgerling recur run
-ledgerling recur skip 1               # skip the next occurrence (e.g. paused)
-ledgerling recur skip 1 --date 2026-12-01
-ledgerling recur unskip 1 --date 2026-12-01   # cancel that skip
-ledgerling recur unskip 1 --all               # clear all skips on the rule
-ledgerling recur pause 1              # stop a rule until resumed
-ledgerling recur resume 1             # resume (no backfill of the paused gap)
-
-# Almanac — daily companion readings. The fortune/horoscope/eightball modes are
-# self-contained (no network, no stored data touched) and deterministic given
-# --seed; the daily ones otherwise vary by date.
-ledgerling fortune                    # a daily fortune + lucky numbers
-ledgerling horoscope leo              # finance-flavoured daily horoscope
-ledgerling eightball "will I save money this month"   # yes/no decision helper
-ledgerling fortune --seed 42 --json   # reproducible; all support --json
-
-# weather is the one command that may use the network: with a place name it
-# fetches live current conditions from Open-Meteo (free, no API key); with
-# --offline (or no place) it gives a local deterministic estimate instead.
-ledgerling weather --where "Dublin"
-ledgerling weather --where "Tokyo" --json
-ledgerling weather --offline          # never touches the network
+ledgerling add 12.50 food "lunch #work"   # record a spend (notes can carry #tags)
+ledgerling month                          # this month at a glance
+ledgerling budget --category food --amount 400   # set a monthly budget
+ledgerling list                           # recent entries
 ```
+
+Everything else is discoverable without hunting through this file. Run
+`ledgerling` on its own for the full command list, and `ledgerling <command>
+--help` for a command's options. Prefer not to type? `ledgerling gui` opens the
+desktop app and `ledgerling web` opens the browser version, and both expose
+every command.
+
+### What it can do
+
+Commands are grouped by theme (the same groups the desktop and web interfaces
+use):
+
+- **Record** your money: `add`, `income`, `edit`, `delete`, `split`, `clone`,
+  `refund`, and reusable quick-entry `template`s.
+- **Analyze** it: a month `dashboard`, plain-language `insights`, an A-to-F
+  health `scorecard` and its `scoretrend`, per-`category` and per-`tag`
+  profiles, `search`, and rollups by week, month, quarter, year, and weekday.
+- **Budgets and goals**: monthly `budget`s with `pace` and daily `allowance`, a
+  savings `goal`, `networth` tracking, and savings `pot`s (sinking funds) with
+  optional target dates and a combined `savingsplan`.
+- **Recurring and bills**: define `recur`ring charges or income, see what is due
+  soon (`upcoming`) or scheduled across a month (`bills`), and export them to a
+  calendar file.
+- **Calculators**: `tip` splitting, `loan` and compound-`interest` estimates,
+  `roundup` savings, a `target`-date planner, `runway`, and an offline currency
+  converter (`fx`).
+- **Data**: `export` and `import` CSV or JSON, `backup` and `restore`,
+  `reconcile` against your bank, find and remove `duplicates`, and `undo` the
+  last change. `check` scans your data for problems.
+
+Most read commands accept `--json` (handy for piping into other local tools),
+and most accept `--month YYYY-MM` to scope to a single month.
+
+### The almanac
+
+A few light daily readings round out the app: a `fortune`, a `horoscope`, an
+`eightball`, and local `weather`. They are self-contained and deterministic
+given a `--seed`. `weather` is the only command that may reach the network (the
+free, keyless Open-Meteo service), and only when you pass a place name;
+`--offline` keeps it fully local.
 
 ## Tests
 
