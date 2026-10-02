@@ -178,8 +178,9 @@ use):
   profiles, `search`, and rollups by week, month, quarter, year, and weekday.
 - **Budgets and goals**: monthly `budget`s with `pace` and daily `allowance`, a
   savings `goal`, `networth` tracking, savings `pot`s (sinking funds) with
-  optional target dates and a combined `savingsplan`, and gamified savings
-  `challenge`s (52-week, no-spend, round-up jar).
+  optional target dates and a combined `savingsplan`, gamified savings
+  `challenge`s (52-week, no-spend, round-up jar), and `achievements` badges
+  you unlock from your history.
 - **Recurring and bills**: define `recur`ring charges or income, see what is due
   soon (`upcoming`) or scheduled across a month (`bills`), and export them to a
   calendar file.
