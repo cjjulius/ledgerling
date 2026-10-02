@@ -255,6 +255,7 @@ ledgerling pot vacation --add 500       # contribute
 ledgerling pot vacation --take 100      # withdraw (never below zero)
 ledgerling pot                          # list all pots + total saved
 ledgerling pot vacation --remove
+ledgerling transfer 150 vacation laptop # move money between two pots
 
 # Net worth: track manual account balances (assets and debts) and see your
 # net worth, with the ledger's all-time cash position shown for context.

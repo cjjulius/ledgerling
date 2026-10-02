@@ -2864,6 +2864,29 @@ class CLI(TempAppCase):
         self._main(["pot", "vacation", "--remove"])
         self.assertNotIn("vacation", L.load()["pots"])
 
+    def test_transfer_between_pots(self):
+        self._main(["pot", "vacation", "--add", "500"])
+        self._main(["pot", "laptop", "--add", "100"])
+        d = json.loads(self._main(["transfer", "150", "vacation", "laptop",
+                                   "--json"]))
+        self.assertEqual(d["from_saved"], 350.0)
+        self.assertEqual(d["to_saved"], 250.0)
+        self.assertEqual(L.load()["pots"]["vacation"]["saved"], 350.0)
+
+    def test_transfer_validation(self):
+        self._main(["pot", "a", "--add", "50"])
+        self._main(["pot", "b", "--add", "10"])
+        for argv in (["transfer", "100", "a", "b"],    # insufficient funds
+                     ["transfer", "10", "a", "a"],     # same pot
+                     ["transfer", "-5", "a", "b"],     # non-positive
+                     ["transfer", "10", "a", "nope"]):  # unknown pot
+            with self.assertRaises(SystemExit):
+                with contextlib.redirect_stdout(io.StringIO()), \
+                        contextlib.redirect_stderr(io.StringIO()):
+                    L.main(argv)
+        # nothing changed after the failed attempts
+        self.assertEqual(L.load()["pots"]["a"]["saved"], 50.0)
+
     def test_pot_validation(self):
         for argv in (["pot", "x", "--add", "-5"],
                      ["pot", "--target", "100"],      # action without a name

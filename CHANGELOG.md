@@ -4,6 +4,16 @@ All notable changes to Ledgerling are documented here. The format is based on
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and this project
 adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.143.0] - 2026-10-01
+
+### Added
+
+- `transfer AMOUNT FROM TO` command: move money between two savings pots
+  (envelope rebalancing). Validates that both pots exist, the amount is
+  positive, the pots differ, and the source has enough saved — and nothing
+  changes if any check fails. `--json` supported; undoable. Grouped under
+  Budgets & goals in both UIs.
+
 ## [1.142.1] - 2026-10-01
 
 ### Changed
@@ -1699,6 +1709,7 @@ file, standard library only, strictly confined to its own folder.
   guard (`_within_app`) that refuses any path escaping the app folder; imports
   and restores are reduced to a basename and looked up only within the folder.
 
+[1.143.0]: #11430---2026-10-01
 [1.142.1]: #11421---2026-10-01
 [1.142.0]: #11420---2026-10-01
 [1.141.0]: #11410---2026-10-01
