@@ -606,6 +606,10 @@ class WebUI(TempAppCase):
         self.assertIn("'Daily spending for '", html)
         self.assertIn("c.setAttribute('role', 'img')", html)
         self.assertIn("c.setAttribute('aria-label', label)", html)
+        # data tables are sortable: focusable headers with an aria-sort state
+        self.assertIn("th.setAttribute('aria-sort', 'none')", html)
+        self.assertIn("'ascending'", html)
+        self.assertIn("function sortValue", html)
 
     def test_gui_groups_every_command(self):
         # The desktop app's sidebar tree must list every command (anything

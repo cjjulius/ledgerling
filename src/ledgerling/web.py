@@ -364,6 +364,9 @@ INDEX_HTML = r"""<!doctype html>
     border-bottom:1px solid var(--line); }
   table.data thead th { background:var(--panel2); position:sticky; top:0; font-weight:700;
     color:var(--muted); font-size:12px; text-transform:uppercase; letter-spacing:.04em; }
+  table.data th.sortable { cursor:pointer; user-select:none; }
+  table.data th.sortable:hover { color:var(--ink); }
+  table.data th.sortable .arrow { color:var(--accent); font-size:10px; }
   table.data tbody tr:hover { background:var(--panel2); }
   table.data td.num { text-align:right; font-variant-numeric:tabular-nums;
     font-family:ui-monospace,Menlo,Consolas,monospace; }
@@ -1549,21 +1552,71 @@ function renderData(data) {
   return fieldTable(data);
 }
 
+// Coerce a cell value into something sortable: numbers (and money/percent
+// strings) compare numerically, everything else case-insensitively.
+function sortValue(v) {
+  if (v === null || v === undefined) return '';
+  if (typeof v === 'number') return v;
+  if (typeof v === 'boolean') return v ? 1 : 0;
+  const s = String(v);
+  const n = parseFloat(s.replace(/[$,%\s]/g, ''));
+  return isNaN(n) ? s.toLowerCase() : n;
+}
+
 function objArrayTable(rows) {
   const cols = [];
   rows.forEach(r => Object.keys(r).forEach(k => { if (!cols.includes(k)) cols.push(k); }));
   const t = document.createElement('table'); t.className = 'data';
   const thead = document.createElement('thead'); const htr = document.createElement('tr');
-  cols.forEach(c => { const th = document.createElement('th');
-    th.scope = 'col'; th.textContent = colLabel(c); htr.appendChild(th); });
-  thead.appendChild(htr); t.appendChild(thead);
+  const ths = {};
+  let sortCol = null, sortDir = 1;
   const tb = document.createElement('tbody');
-  rows.forEach(r => { const tr = document.createElement('tr');
-    cols.forEach(c => { const td = document.createElement('td');
-      const cell = fmtValue(c, r[c]); td.textContent = cell.text;
-      if (cell.num) td.className = 'num';
-      tr.appendChild(td); });
-    tb.appendChild(tr); });
+
+  function fill(data) {
+    tb.innerHTML = '';
+    data.forEach(r => { const tr = document.createElement('tr');
+      cols.forEach(c => { const td = document.createElement('td');
+        const cell = fmtValue(c, r[c]); td.textContent = cell.text;
+        if (cell.num) td.className = 'num';
+        tr.appendChild(td); });
+      tb.appendChild(tr); });
+  }
+  function sortBy(c) {
+    sortDir = (sortCol === c) ? -sortDir : 1;
+    sortCol = c;
+    const copy = rows.slice().sort((a, b) => {
+      const av = sortValue(a[c]), bv = sortValue(b[c]);
+      if (av < bv) return -sortDir;
+      if (av > bv) return sortDir;
+      return 0;
+    });
+    fill(copy);
+    cols.forEach(k => {
+      const on = k === c;
+      ths[k].setAttribute('aria-sort', on ? (sortDir > 0 ? 'ascending'
+        : 'descending') : 'none');
+      ths[k].querySelector('.arrow').textContent =
+        on ? (sortDir > 0 ? ' ▲' : ' ▼') : '';
+    });
+  }
+
+  cols.forEach(c => {
+    const th = document.createElement('th');
+    th.scope = 'col'; th.tabIndex = 0; th.className = 'sortable';
+    th.setAttribute('aria-sort', 'none');
+    th.title = 'Sort by ' + colLabel(c);
+    th.appendChild(document.createTextNode(colLabel(c)));
+    const arrow = document.createElement('span');
+    arrow.className = 'arrow'; arrow.setAttribute('aria-hidden', 'true');
+    th.appendChild(arrow);
+    th.onclick = () => sortBy(c);
+    th.onkeydown = (e) => {
+      if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); sortBy(c); }
+    };
+    ths[c] = th; htr.appendChild(th);
+  });
+  thead.appendChild(htr); t.appendChild(thead);
+  fill(rows);
   t.appendChild(tb); return t;
 }
 

@@ -101,7 +101,9 @@ the balance is projected to go negative.
 
 Each command's output has a **Copy** button to grab the result (text or JSON)
 in one click. Auto-rendered tables format columns by meaning — money as money,
-rates and `_pct` columns as percentages.
+rates and `_pct` columns as percentages — and are **sortable**: click (or focus
+and press Enter/Space on) any column header to sort by it, numeric-aware, with
+the direction reflected in `aria-sort` for screen readers.
 
 It's built to be **keyboard- and screen-reader-friendly**: a skip link, labeled
 landmarks, visible focus rings, fully keyboard-operable command list and group

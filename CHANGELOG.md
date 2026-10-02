@@ -4,6 +4,16 @@ All notable changes to Ledgerling are documented here. The format is based on
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and this project
 adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.141.0] - 2026-10-01
+
+### Added
+
+- Web UI: auto-rendered data tables are now **sortable** — click any column
+  header (or focus it and press Enter/Space) to sort by that column, toggling
+  ascending/descending. Sorting is numeric-aware (money/percent strings sort as
+  numbers), and the headers expose the state via `aria-sort` for assistive
+  tech, mirroring the desktop app's Table view.
+
 ## [1.140.0] - 2026-10-01
 
 ### Added
@@ -1663,6 +1673,7 @@ file, standard library only, strictly confined to its own folder.
   guard (`_within_app`) that refuses any path escaping the app folder; imports
   and restores are reduced to a basename and looked up only within the folder.
 
+[1.141.0]: #11410---2026-10-01
 [1.140.0]: #11400---2026-10-01
 [1.139.1]: #11391---2026-10-01
 [1.139.0]: #11390---2026-10-01
