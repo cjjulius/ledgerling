@@ -4,6 +4,18 @@ All notable changes to Ledgerling are documented here. The format is based on
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and this project
 adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.153.0] - 2026-10-02
+
+### Added
+
+- `tags NAME` now profiles a single #tag (the `tags` command gained an optional
+  tag-name argument, mirroring the `categories`/`category` pair). The profile
+  shows the tag's total and share of all spending, entry count, average and
+  median, smallest/largest entries with dates, the active span, and — the
+  distinctive bit for a tag — a breakdown of the categories it spans. Honours
+  the optional `--month` scope and `--json`; a leading `#` is accepted. `tags`
+  with no name still lists every tag as before.
+
 ## [1.152.0] - 2026-10-02
 
 ### Added
@@ -1840,6 +1852,7 @@ file, standard library only, strictly confined to its own folder.
   guard (`_within_app`) that refuses any path escaping the app folder; imports
   and restores are reduced to a basename and looked up only within the folder.
 
+[1.153.0]: #11530---2026-10-02
 [1.152.0]: #11520---2026-10-02
 [1.151.0]: #11510---2026-10-02
 [1.150.0]: #11500---2026-10-02

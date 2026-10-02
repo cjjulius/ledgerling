@@ -2106,6 +2106,32 @@ class CLI(TempAppCase):
         out = self._main(["tags"])
         self.assertIn("no tags yet", out)
 
+    def test_tag_profile(self):
+        # #work spans two categories; coffee is untagged (share denominator)
+        self._main(["add", "40", "food", "dinner #work", "--date", "2026-07-02"])
+        self._main(["add", "60", "travel", "cab #work", "--date", "2026-08-03"])
+        self._main(["add", "100", "food", "coffee run"])      # untagged
+        d = json.loads(self._main(["tags", "work", "--json"]))
+        self.assertEqual(d["tag"], "work")
+        self.assertEqual(d["total"], 100.0)              # 40 + 60
+        self.assertEqual(d["count"], 2)
+        self.assertEqual(d["average"], 50.0)
+        self.assertEqual(d["median"], 50.0)
+        self.assertEqual(d["share_pct"], 50.0)           # 100 of 200 all spending
+        self.assertEqual(d["min"]["amount"], 40.0)
+        self.assertEqual(d["max"]["amount"], 60.0)
+        self.assertEqual(d["active_months"], 2)
+        # the distinctive tag view: the categories it spans, biggest first
+        self.assertEqual(d["by_category"],
+                         [{"category": "travel", "total": 60.0},
+                          {"category": "food", "total": 40.0}])
+        # accepts a leading '#', and reports a clean miss for an unused tag
+        self.assertEqual(json.loads(self._main(["tags", "#work", "--json"]))["total"],
+                         100.0)
+        miss = json.loads(self._main(["tags", "ghost", "--json"]))
+        self.assertEqual((miss["count"], miss["by_category"]), (0, []))
+        self.assertIn("no entries tagged #ghost", self._main(["tags", "ghost"]))
+
     def test_upcoming_forecasts_future_expenses(self):
         start = (date.today() - timedelta(days=1)).isoformat()
         self._main(["recur", "add", "10", "coffee", "--every", "day",
