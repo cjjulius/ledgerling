@@ -1747,6 +1747,23 @@ class CLI(TempAppCase):
         out = self._main(["networth"])
         self.assertIn("Net worth", out)
 
+    def test_load_coerces_every_container_section(self):
+        # a thoroughly corrupt file: every container is the wrong type / missing
+        import os as _os
+        _os.makedirs(L.HOME_DIR, exist_ok=True)
+        with open(L.DATA_FILE, "w", encoding="utf-8") as fh:
+            fh.write('{"expenses": null, "budgets": 5, "recurring": "x", '
+                     '"pots": [1, 2]}')
+        data = L.load()
+        self.assertEqual(data["expenses"], [])
+        self.assertEqual(data["budgets"], {})
+        self.assertEqual(data["recurring"], [])
+        self.assertEqual(data["pots"], {})
+        self.assertIsNone(data["goal"])
+        # read commands run cleanly on the coerced data (no crash, some output)
+        self.assertTrue(self._main(["list"]).strip())
+        self.assertTrue(self._main(["summary"]).strip())
+
     def test_check_fix_leaves_unfixable(self):
         L.save({"expenses": [
             {"id": 1, "amount": -5.0, "category": "food", "note": "",
