@@ -4,6 +4,17 @@ All notable changes to Ledgerling are documented here. The format is based on
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and this project
 adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.153.1] - 2026-10-02
+
+### Changed
+
+- Internal: the drill-down summary stats shared by `category` and `tags NAME`
+  (total, share of a universe total, count, average, median, smallest/largest
+  entry, first/last date, active months) are extracted into one
+  `_profile_stats()` helper, replacing the duplicated block in each. No
+  behaviour change; both profiles render identically and a direct unit test
+  covers the helper (including the empty/zero-universe edge cases).
+
 ## [1.153.0] - 2026-10-02
 
 ### Added
@@ -1852,6 +1863,7 @@ file, standard library only, strictly confined to its own folder.
   guard (`_within_app`) that refuses any path escaping the app folder; imports
   and restores are reduced to a basename and looked up only within the folder.
 
+[1.153.1]: #11531---2026-10-02
 [1.153.0]: #11530---2026-10-02
 [1.152.0]: #11520---2026-10-02
 [1.151.0]: #11510---2026-10-02

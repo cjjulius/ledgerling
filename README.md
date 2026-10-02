@@ -655,6 +655,8 @@ optional `--month` row filter that a dozen read commands apply, the
 month income/spending/net totals that `compare`, `today`, and `statement` share,
 the category-totals accumulation (`{category: total}` with running 2dp rounding)
 that `summary`, `insights`, `scorecard`, and `range` share,
+the drill-down summary stats (total, share, count, average/median, min/max,
+span) that `category` and `tags NAME` share,
 and the formatted entry line (`#id date amount [category] …` with its markers)
 that `list` and `search` share.
 
