@@ -312,6 +312,17 @@ class LedgerlingGUI:
         self.root = root
         self.schema = web.describe()
         self.commands = {c["name"]: c for c in self.schema["commands"]}
+        # Accessibility: apply the saved text-size multiplier before any widget
+        # is built, so all fonts (given in points) scale uniformly. Set it with
+        # `ledgerling config --ui-scale 1.25`. Guarded so a Tk without scaling
+        # support can never stop the app from starting.
+        try:
+            scale = L._clamp_ui_scale(self.schema.get("ui_scale", 1.0))
+            if scale != 1.0:
+                base = float(root.tk.call("tk", "scaling"))
+                root.tk.call("tk", "scaling", base * scale)
+        except Exception:
+            pass
         self.currency = self.schema.get("currency", "$")
         self.symbol_after = self.schema.get("symbol_position") == "after"
         self.current = None       # selected command name

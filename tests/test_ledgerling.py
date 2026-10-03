@@ -3189,6 +3189,28 @@ class CLI(TempAppCase):
         self._main(["add", "10", "food", "x", "--date", "2026-09-01"])
         self.assertIn("10.00 kr", self._main(["list"]))
 
+    def test_clamp_ui_scale_pure(self):
+        self.assertEqual(L._clamp_ui_scale(1.25), 1.25)
+        self.assertEqual(L._clamp_ui_scale(1), 1.0)
+        self.assertEqual(L._clamp_ui_scale(99), L.UI_SCALE_MAX)   # clamped high
+        self.assertEqual(L._clamp_ui_scale(0.1), L.UI_SCALE_MIN)  # clamped low
+        self.assertEqual(L._clamp_ui_scale(1.2345), 1.23)         # rounded 2dp
+
+    def test_config_ui_scale(self):
+        out = self._main(["config", "--ui-scale", "1.25"])
+        self.assertIn("ui_scale", out)
+        self.assertIn("1.25", out)
+        # persists and is clamped on readback
+        self.assertEqual(L.load_config()["ui_scale"], 1.25)
+        self._main(["config", "--ui-scale", "50"])               # over max
+        self.assertEqual(L.load_config()["ui_scale"], L.UI_SCALE_MAX)
+        # default when unset
+        self._main(["config", "--reset"])
+        self.assertEqual(L.load_config()["ui_scale"], 1.0)
+        # the desktop schema exposes it for the GUI to read
+        from ledgerling import web
+        self.assertEqual(web.describe()["ui_scale"], 1.0)
+
     def test_where_json(self):
         self._main(["add", "10", "food", "a"])   # creates the data file
         d = json.loads(self._main(["where", "--json"]))
