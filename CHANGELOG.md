@@ -4,6 +4,16 @@ All notable changes to Ledgerling are documented here. The format is based on
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and this project
 adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.162.0] - 2026-10-02
+
+### Added
+
+- `inflation` command: convert an amount from one year's money into another's,
+  entirely offline. Uses a built-in table of average annual inflation, or a flat
+  `--rate` you supply; `--from` is required and `--to` defaults to this year.
+  Pure calculator (estimate only, not financial advice); `--json` supported;
+  grouped under Calculators. (Closes idea #7.)
+
 ## [1.161.0] - 2026-10-02
 
 ### Added
@@ -2006,6 +2016,7 @@ file, standard library only, strictly confined to its own folder.
   guard (`_within_app`) that refuses any path escaping the app folder; imports
   and restores are reduced to a basename and looked up only within the folder.
 
+[1.162.0]: #11620---2026-10-02
 [1.161.0]: #11610---2026-10-02
 [1.160.0]: #11600---2026-10-02
 [1.159.0]: #11590---2026-10-02

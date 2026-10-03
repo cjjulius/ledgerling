@@ -1787,6 +1787,39 @@ class CLI(TempAppCase):
         self.assertEqual(L._future_value(100, 0, 1), 1200.0)   # no growth
         self.assertGreater(L._future_value(100, 6, 1), 1200.0)
 
+    def test_inflation(self):
+        # flat 10%/yr over 2 years: 100 -> 121
+        d = json.loads(self._main(["inflation", "100", "--from", "2000",
+                                   "--to", "2002", "--rate", "10", "--json"]))
+        self.assertEqual(d["adjusted"], 121.0)
+        self.assertEqual(d["change"], 21.0)
+        # same year is a no-op
+        s = json.loads(self._main(["inflation", "50", "--from", "2010",
+                                   "--to", "2010", "--json"]))
+        self.assertEqual(s["adjusted"], 50.0)
+        # going backward deflates (target earlier than source)
+        b = json.loads(self._main(["inflation", "121", "--from", "2002",
+                                   "--to", "2000", "--rate", "10", "--json"]))
+        self.assertEqual(b["adjusted"], 100.0)
+        # built-in table raises a past amount toward today
+        t = json.loads(self._main(["inflation", "100", "--from", "2000",
+                                   "--to", "2020", "--json"]))
+        self.assertGreater(t["adjusted"], 100.0)
+        with self.assertRaises(SystemExit):
+            with contextlib.redirect_stderr(io.StringIO()):
+                L.main(["inflation", "0", "--from", "2000"])
+
+    def test_inflation_factor_pure(self):
+        self.assertEqual(L._inflation_factor(2000, 2000), 1.0)
+        self.assertAlmostEqual(L._inflation_factor(2000, 2002, 10), 1.21)
+        # reciprocal when direction reverses
+        self.assertAlmostEqual(
+            L._inflation_factor(2002, 2000, 10) * L._inflation_factor(2000, 2002, 10),
+            1.0)
+        # unknown years fall back to the default rate
+        self.assertAlmostEqual(
+            L._inflation_factor(1800, 1802), (1 + L.DEFAULT_INFLATION / 100) ** 2)
+
     def test_read_commands_survive_empty_data(self):
         # Every no-argument command must run on an empty store without an
         # unhandled exception (division by zero, max() of empty, etc.).

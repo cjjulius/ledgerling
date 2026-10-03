@@ -73,6 +73,7 @@ Commands:
     fire      Estimate your financial-independence (FIRE) number
     rule72    Rule of 72: doubling time from a rate (or vice versa)
     lattefactor  Long-term cost of a small recurring habit
+    inflation  Convert a past amount into another year's money (offline)
     fx        Offline currency converter (set/list/rm/convert, user-set rates)
     upcoming  Forecast recurring charges/income due in the next N days
     bills     Recurring charges/income scheduled in a month, by day
@@ -142,7 +143,7 @@ import tempfile
 import time
 from datetime import datetime, date, timedelta
 
-__version__ = "1.161.0"
+__version__ = "1.162.0"
 
 # --------------------------------------------------------------------------- #
 # Sandbox + storage
@@ -2944,6 +2945,66 @@ def cmd_lattefactor(args):
     print(f"  over {years:g} years you would spend {money(plain)}")
     print(f"  invested at {g:g}%/yr it could grow to {money(invested)} "
           f"(+{money(growth)})")
+
+
+# Average annual US consumer inflation (%), used offline for the inflation
+# adjuster. Approximate historical figures; override with --rate for a flat
+# user-set rate. Years not listed fall back to DEFAULT_INFLATION.
+INFLATION_RATES = {
+    1990: 5.4, 1991: 4.2, 1992: 3.0, 1993: 3.0, 1994: 2.6, 1995: 2.8,
+    1996: 2.9, 1997: 2.3, 1998: 1.6, 1999: 2.2, 2000: 3.4, 2001: 2.8,
+    2002: 1.6, 2003: 2.3, 2004: 2.7, 2005: 3.4, 2006: 3.2, 2007: 2.9,
+    2008: 3.8, 2009: -0.4, 2010: 1.6, 2011: 3.2, 2012: 2.1, 2013: 1.5,
+    2014: 1.6, 2015: 0.1, 2016: 1.3, 2017: 2.1, 2018: 2.4, 2019: 1.8,
+    2020: 1.2, 2021: 4.7, 2022: 8.0, 2023: 4.1, 2024: 2.9, 2025: 2.9,
+}
+DEFAULT_INFLATION = 3.0
+
+
+def _inflation_factor(from_year, to_year, flat_rate=None):
+    """Cumulative price-level factor between two years. Pure. A value above 1
+    means prices rose. With flat_rate set, compounds that single rate; else
+    walks the built-in table year by year (DEFAULT_INFLATION where unknown)."""
+    if from_year == to_year:
+        return 1.0
+    lo, hi = min(from_year, to_year), max(from_year, to_year)
+    factor = 1.0
+    for y in range(lo, hi):
+        r = flat_rate if flat_rate is not None else INFLATION_RATES.get(
+            y, DEFAULT_INFLATION)
+        factor *= 1 + r / 100
+    return 1 / factor if to_year < from_year else factor
+
+
+def cmd_inflation(args):
+    """Convert an amount from one year's money into another's, offline. Uses a
+    built-in table of average annual inflation, or a flat --rate you supply.
+    Defaults the target year to today. Estimate only; not financial advice."""
+    amount = args.amount
+    if amount <= 0:
+        sys.exit("error: amount must be greater than zero")
+    this_year = date.today().year
+    from_year = args.from_year
+    to_year = args.to_year if args.to_year is not None else this_year
+    if not (1900 <= from_year <= 2100 and 1900 <= to_year <= 2100):
+        sys.exit("error: years must be between 1900 and 2100")
+    rate = args.rate
+    factor = _inflation_factor(from_year, to_year, rate)
+    adjusted = round(amount * factor, 2)
+    change = round(adjusted - amount, 2)
+
+    if getattr(args, "json", False):
+        print(json.dumps({"amount": round(amount, 2), "from": from_year,
+                          "to": to_year, "rate": rate, "factor": round(factor, 6),
+                          "adjusted": adjusted, "change": change}, indent=2))
+        return
+
+    basis = f"a flat {rate:g}%/yr" if rate is not None else "average inflation"
+    print("Inflation adjuster")
+    print("=" * 48)
+    print(f"  {money(round(amount, 2))} in {from_year} is worth about "
+          f"{money(adjusted)} in {to_year}")
+    print(f"  that is a change of {money(change)} using {basis}")
 
 
 def cmd_net(args):
@@ -7354,6 +7415,18 @@ def build_parser():
     lf.add_argument("--json", action="store_true", help="output JSON instead of text")
     lf.set_defaults(func=cmd_lattefactor)
 
+    inf = sub.add_parser("inflation",
+                         help="convert a past amount into another year's money")
+    inf.add_argument("amount", type=float, help="the amount to convert")
+    inf.add_argument("--from", type=int, dest="from_year", required=True,
+                     help="the year the amount is from")
+    inf.add_argument("--to", type=int, dest="to_year",
+                     help="the target year (default this year)")
+    inf.add_argument("--rate", type=float,
+                     help="use a flat annual rate in %% instead of the table")
+    inf.add_argument("--json", action="store_true", help="output JSON instead of text")
+    inf.set_defaults(func=cmd_inflation)
+
     tgt = sub.add_parser("target",
                          help="estimate how long to reach a savings target")
     tgt.add_argument("amount", type=float, help="the savings amount to reach")
@@ -7785,7 +7858,7 @@ MUTATING_COMMANDS = frozenset({
     "autobudget", "clear", "unclear", "pot", "transfer",
     "import", "restore", "backup", "dedupe", "undo", "config", "recur",
     "completion", "version", "web", "gui", "where", "tip", "split", "fx",
-    "check", "interest", "loan", "rule72", "lattefactor", "template",
+    "check", "interest", "loan", "rule72", "lattefactor", "inflation", "template",
     "fortune", "horoscope", "weather", "eightball",   # almanac modes
 })
 
