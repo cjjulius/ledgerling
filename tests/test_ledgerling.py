@@ -281,6 +281,16 @@ class PureLogic(unittest.TestCase):
         with self.assertRaises(SystemExit):
             L.parse_date("2026-99-99")
 
+    def test_merge_tag_flags_pure(self):
+        self.assertEqual(L.merge_tag_flags("lunch", None), "lunch")
+        self.assertEqual(L.merge_tag_flags("lunch", ["work"]), "lunch #work")
+        # leading '#' tolerated; duplicates (already in note) skipped
+        self.assertEqual(L.merge_tag_flags("lunch #work", ["#work", "food"]),
+                         "lunch #work #food")
+        # sanitized to word chars so it round-trips through parse_tags
+        out = L.merge_tag_flags("", ["foo-bar"])
+        self.assertEqual(L.parse_tags(out), ["foobar"])
+
     def test_this_month_pure(self):
         self.assertEqual(L.this_month(), date.today().isoformat()[:7])
         self.assertRegex(L.this_month(), r"^\d{4}-\d{2}$")
@@ -2169,6 +2179,17 @@ class CLI(TempAppCase):
         top2 = json.loads(self._main(["list", "--sort", "amount", "--desc",
                                       "--limit", "2", "--json"]))
         self.assertEqual([e["amount"] for e in top2], [30.0, 20.0])
+
+    def test_add_tag_flag(self):
+        self._main(["add", "10", "food", "lunch", "--tag", "work", "--tag", "food"])
+        e = json.loads(self._main(["list", "--json"]))[0]
+        self.assertEqual(sorted(e["tags"]), ["food", "work"])
+        self.assertIn("#work", e["note"])
+        # income supports it too, and the tag filter finds it
+        self._main(["income", "500", "salary", "--tag", "bonus"])
+        hits = json.loads(self._main(["search", "--income", "--tag", "bonus",
+                                      "--json"]))
+        self.assertEqual(len(hits), 1)
 
     def test_recent_by_insertion_order(self):
         # add out of date order; recent ranks by id (insertion), not date
