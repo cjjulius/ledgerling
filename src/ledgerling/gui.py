@@ -40,7 +40,7 @@ GROUP_DEFS = [
                          "challenge", "achievements", "suggest", "autobudget",
                          "commitments", "upcoming", "bills"]),
     ("Calculators", ["tip", "interest", "loan", "fire", "rule72", "lattefactor",
-                     "target", "runway", "roundup",
+                     "inflation", "target", "runway", "roundup",
                      "fx convert", "fx set", "fx list", "fx rm"]),
     ("Recurring", ["recur add", "recur from", "recur list", "recur edit",
                    "recur remove", "recur run", "recur skip", "recur unskip",

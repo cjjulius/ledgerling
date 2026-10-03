@@ -187,8 +187,9 @@ use):
   calendar file.
 - **Calculators**: `tip` splitting, `loan` and compound-`interest` estimates,
   a `fire` (financial-independence) number and the `rule72` doubling-time rule,
-  a `lattefactor` habit-cost projector, `roundup` savings, a `target`-date
-  planner, `runway`, and an offline currency converter (`fx`).
+  a `lattefactor` habit-cost projector, an `inflation` adjuster for comparing
+  money across years, `roundup` savings, a `target`-date planner, `runway`, and
+  an offline currency converter (`fx`).
 - **Data**: `export` and `import` CSV or JSON, `backup` and `restore`,
   `reconcile` against your bank, find and remove `duplicates`, and `undo` the
   last change. `check` scans your data for problems.
