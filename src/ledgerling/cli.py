@@ -150,7 +150,7 @@ import tempfile
 import time
 from datetime import datetime, date, timedelta
 
-__version__ = "1.176.0"
+__version__ = "1.176.1"
 
 # --------------------------------------------------------------------------- #
 # Sandbox + storage
@@ -368,6 +368,12 @@ def filter_month(rows, month):
     if not month:
         return rows
     return [e for e in rows if month_of(e["date"]) == month]
+
+
+def month_expenses(data, month=None):
+    """Expense entries, optionally narrowed to one YYYY-MM month. The shared
+    prelude for the many single-month expense reports (validate month first)."""
+    return filter_month(expenses_only(data["expenses"]), month)
 
 
 def clean_category(raw):
@@ -2149,8 +2155,7 @@ def _dist_bucket(amount):
 def cmd_distribution(args):
     check_month(args.month)
     data = load()
-    rows = expenses_only(data["expenses"])
-    rows = filter_month(rows, args.month)
+    rows = month_expenses(data, args.month)
 
     buckets = [{"label": _DIST_LABELS[i], "count": 0, "total": 0.0}
                for i in range(len(_DIST_LABELS))]
@@ -2185,8 +2190,7 @@ def cmd_anomalies(args):
     z = args.z if args.z and args.z > 0 else 2.0
     min_count = args.min_count if args.min_count and args.min_count > 1 else 4
     data = load()
-    rows = expenses_only(data["expenses"])
-    rows = filter_month(rows, args.month)
+    rows = month_expenses(data, args.month)
     if args.category:
         cat = clean_category(args.category)
         rows = [e for e in rows if e["category"] == cat]
@@ -2270,8 +2274,7 @@ def cmd_roundup(args):
         sys.exit("error: --to must be greater than 0")
 
     data = load()
-    rows = expenses_only(data["expenses"])
-    rows = filter_month(rows, args.month)
+    rows = month_expenses(data, args.month)
 
     count = len(rows)
     total_cents, largest_cents = _roundup_cents(rows, step_cents)
@@ -3466,8 +3469,7 @@ def cmd_payees(args):
     uses. Complements `categories`/`top`, which group by category."""
     check_month(args.month)
     data = load()
-    rows = expenses_only(data["expenses"])
-    rows = filter_month(rows, args.month)
+    rows = month_expenses(data, args.month)
 
     agg = {}
     for e in rows:
@@ -3762,8 +3764,7 @@ def cmd_untagged(args):
 def cmd_tags(args):
     check_month(args.month)
     data = load()
-    rows = expenses_only(data["expenses"])
-    rows = filter_month(rows, args.month)
+    rows = month_expenses(data, args.month)
 
     name = (getattr(args, "name", None) or "").lstrip("#").strip().lower()
     if name:
@@ -4152,8 +4153,7 @@ def cmd_autobudget(args):
 def cmd_categories(args):
     check_month(args.month)
     data = load()
-    rows = expenses_only(data["expenses"])
-    rows = filter_month(rows, args.month)
+    rows = month_expenses(data, args.month)
     agg = {}
     for e in rows:
         a = agg.setdefault(e["category"], {"count": 0, "total": 0.0})
@@ -4324,8 +4324,7 @@ def cmd_persona(args):
 def cmd_weekday(args):
     check_month(args.month)
     data = load()
-    rows = expenses_only(data["expenses"])
-    rows = filter_month(rows, args.month)
+    rows = month_expenses(data, args.month)
 
     agg = {i: {"total": 0.0, "count": 0} for i in range(7)}
     for e in rows:

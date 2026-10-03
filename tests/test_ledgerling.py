@@ -285,6 +285,22 @@ class PureLogic(unittest.TestCase):
         self.assertEqual(L.this_month(), date.today().isoformat()[:7])
         self.assertRegex(L.this_month(), r"^\d{4}-\d{2}$")
 
+    def test_month_expenses_pure(self):
+        data = {"expenses": [
+            {"id": 1, "amount": 5.0, "category": "a", "date": "2026-01-10",
+             "note": ""},
+            {"id": 2, "amount": 9.0, "category": "b", "date": "2026-02-10",
+             "note": ""},
+            {"id": 3, "amount": 2.0, "category": "c", "date": "2026-01-20",
+             "note": "", "kind": "income"},
+        ]}
+        # income excluded; month filter applied
+        jan = L.month_expenses(data, "2026-01")
+        self.assertEqual(sorted(e["id"] for e in jan), [1])
+        # no month -> all expenses (still income-excluded)
+        allx = L.month_expenses(data)
+        self.assertEqual(sorted(e["id"] for e in allx), [1, 2])
+
     def test_period_totals(self):
         # shared by compare / today / statement: income, spending, net for a month
         rows = [
