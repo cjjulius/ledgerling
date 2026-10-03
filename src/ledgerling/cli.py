@@ -138,6 +138,7 @@ import argparse
 import calendar
 import copy
 import csv
+import io
 import json
 import math
 import os
@@ -148,7 +149,7 @@ import tempfile
 import time
 from datetime import datetime, date, timedelta
 
-__version__ = "1.172.1"
+__version__ = "1.173.0"
 
 # --------------------------------------------------------------------------- #
 # Sandbox + storage
@@ -1239,6 +1240,13 @@ def cmd_export(args):
     rows = _filter_range_amount(rows, args)
 
     fmt = args.format
+    content = _serialize_export(rows, fmt)
+
+    # --stdout prints the export for piping into other tools; it writes no file.
+    if getattr(args, "stdout", False):
+        print(content)
+        return
+
     if args.file:
         # Force the export to stay inside the data folder, ignoring any path
         # components the user supplied.
@@ -1250,23 +1258,30 @@ def cmd_export(args):
     os.makedirs(EXPORT_DIR, exist_ok=True)
     _within_home(target)
     try:
-        if fmt == "json":
-            with open(target, "w", encoding="utf-8") as fh:
-                json.dump(rows, fh, indent=2)
-        else:
-            with open(target, "w", encoding="utf-8", newline="") as fh:
-                writer = csv.writer(fh)
-                writer.writerow(["id", "date", "amount", "category", "note",
-                                 "kind", "cleared", "recurring"])
-                for e in rows:
-                    writer.writerow([e["id"], e["date"], f"{e['amount']:.2f}",
-                                     e["category"], e["note"], kind_of(e),
-                                     "yes" if e.get("cleared") else "no",
-                                     "yes" if e.get("recur_id") else "no"])
+        with open(target, "w", encoding="utf-8", newline="") as fh:
+            fh.write(content)
     except OSError as exc:
         sys.exit(f"error: could not write {target}: {exc}")
     print(f"exported {len(rows)} entr{'y' if len(rows) == 1 else 'ies'} "
           f"to {target}")
+
+
+def _serialize_export(rows, fmt):
+    """Render export rows as a CSV or JSON string (no file I/O). Pure. CSV uses
+    "\\n" line endings so the output is identical whether written to a file or
+    printed to stdout."""
+    if fmt == "json":
+        return json.dumps(rows, indent=2)
+    buf = io.StringIO()
+    writer = csv.writer(buf, lineterminator="\n")
+    writer.writerow(["id", "date", "amount", "category", "note",
+                     "kind", "cleared", "recurring"])
+    for e in rows:
+        writer.writerow([e["id"], e["date"], f"{e['amount']:.2f}",
+                         e["category"], e["note"], kind_of(e),
+                         "yes" if e.get("cleared") else "no",
+                         "yes" if e.get("recur_id") else "no"])
+    return buf.getvalue()
 
 
 def _normalize_import_row(row):
@@ -7396,6 +7411,8 @@ def build_parser():
     x.add_argument("--expenses", action="store_true", help="only expense entries")
     x.add_argument("--format", choices=["csv", "json"], default="csv",
                    help="output format (default csv)")
+    x.add_argument("--stdout", action="store_true",
+                   help="print the export instead of writing a file (for piping)")
     x.set_defaults(func=cmd_export)
 
     im = sub.add_parser("import",

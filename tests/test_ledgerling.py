@@ -946,6 +946,30 @@ class CLI(TempAppCase):
         with self.assertRaises(SystemExit):
             self._main(["export", "--month", "2026-05", "--start", "2026-05-01"])
 
+    def test_export_stdout(self):
+        self._main(["add", "12.5", "food", "lunch", "--date", "2026-01-01"])
+        # JSON to stdout, no file written
+        before = set(os.listdir(L.EXPORT_DIR)) if os.path.isdir(L.EXPORT_DIR) else set()
+        out = self._main(["export", "--format", "json", "--stdout"])
+        rows = json.loads(out)
+        self.assertEqual(rows[0]["category"], "food")
+        after = set(os.listdir(L.EXPORT_DIR)) if os.path.isdir(L.EXPORT_DIR) else set()
+        self.assertEqual(before, after)   # nothing written
+        # CSV to stdout parses with a header row
+        csv_out = self._main(["export", "--stdout"])   # csv is default
+        import csv as _csv
+        parsed = list(_csv.reader(io.StringIO(csv_out)))
+        self.assertEqual(parsed[0][:3], ["id", "date", "amount"])
+        self.assertEqual(parsed[1][2], "12.50")
+
+    def test_serialize_export_pure(self):
+        rows = [{"id": 1, "date": "2026-01-01", "amount": 5.0, "category": "x",
+                 "note": "", "recur_id": None}]
+        self.assertEqual(json.loads(L._serialize_export(rows, "json")), rows)
+        csv_text = L._serialize_export(rows, "csv")
+        self.assertTrue(csv_text.startswith("id,date,amount"))
+        self.assertNotIn("\r\n", csv_text)   # LF line endings, not CRLF
+
     def test_export_amount_filter(self):
         self._main(["add", "5", "food", "a"])
         self._main(["add", "80", "shoes", "b"])
