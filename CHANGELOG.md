@@ -4,6 +4,14 @@ All notable changes to Ledgerling are documented here. The format is based on
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and this project
 adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.177.0] - 2026-10-03
+
+### Added
+
+- Desktop Help menu now has a Keyboard shortcuts entry listing every shortcut.
+  The shortcuts are defined once and used both to bind the keys and to populate
+  the list, so they stay in sync.
+
 ## [1.176.1] - 2026-10-03
 
 ### Changed
@@ -2169,6 +2177,7 @@ file, standard library only, strictly confined to its own folder.
   guard (`_within_app`) that refuses any path escaping the app folder; imports
   and restores are reduced to a basename and looked up only within the folder.
 
+[1.177.0]: #11770---2026-10-03
 [1.176.1]: #11761---2026-10-03
 [1.176.0]: #11760---2026-10-03
 [1.175.0]: #11750---2026-10-03

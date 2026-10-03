@@ -66,8 +66,8 @@ standard library only — no extra dependencies). It opens a real OS window with
   formatted, and clicking a column header sorts by it (numeric-aware);
 - it **remembers** your theme and window size/position between launches;
 - **keyboard shortcuts**: `Ctrl+Enter` to run, `Ctrl+K` to focus the filter,
-  `Ctrl+T` to cycle the theme, `Ctrl+Q` to quit — and Enter in any field runs
-  the command;
+  `Ctrl+T` to cycle the theme, `Ctrl+N` for a new window, `Ctrl+Q` to quit — and
+  Enter in any field runs the command. Help → Keyboard shortcuts lists them all;
 - **adjustable text size** for readability: set a scale with
   `ledgerling config --ui-scale 1.25` (anywhere from 0.5 to 3.0) and the app
   sizes all of its text to match on the next launch.

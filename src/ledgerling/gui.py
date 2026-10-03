@@ -92,6 +92,18 @@ THEMES = {
 # Order Ctrl+T cycles through.
 THEME_ORDER = ["light", "dark", "high-contrast"]
 
+# Keyboard shortcuts: (accelerator label, Tk event, description, action name).
+# Single source of truth - bound at startup and listed in Help -> Keyboard
+# shortcuts, so the two can never drift apart.
+SHORTCUTS = [
+    ("Ctrl+Enter", "<Control-Return>", "Run the current command", "run"),
+    ("Ctrl+K", "<Control-k>", "Focus the filter box", "filter"),
+    ("Ctrl+T", "<Control-t>", "Cycle the theme (light / dark / high-contrast)",
+     "theme"),
+    ("Ctrl+N", "<Control-n>", "Open a new command window", "new"),
+    ("Ctrl+Q", "<Control-q>", "Quit", "quit"),
+]
+
 
 def _next_theme(current):
     """The next theme in the Ctrl+T cycle. Unknown input starts at the first.
@@ -470,6 +482,7 @@ class LedgerlingGUI:
 
         helpm = tk.Menu(bar, tearoff=0)
         helpm.add_command(label="Getting started…", command=self.show_assistant)
+        helpm.add_command(label="Keyboard shortcuts", command=self._shortcuts)
         helpm.add_command(label="About Ledgerling", command=self._about)
         bar.add_cascade(label="Help", menu=helpm)
 
@@ -1158,11 +1171,16 @@ class LedgerlingGUI:
         self.root.destroy()
 
     def _bind_shortcuts(self):
-        self.root.bind("<Control-Return>", lambda _e: self.run_current())
-        self.root.bind("<Control-q>", lambda _e: self._on_close())
-        self.root.bind("<Control-t>", lambda _e: self.toggle_theme())
-        self.root.bind("<Control-k>", lambda _e: self._focus_filter())
-        self.root.bind("<Control-n>", lambda _e: self.new_window())
+        actions = {"run": self.run_current, "filter": self._focus_filter,
+                   "theme": self.toggle_theme, "new": self.new_window,
+                   "quit": self._on_close}
+        for _acc, event, _desc, name in SHORTCUTS:
+            self.root.bind(event, lambda _e, f=actions[name]: f())
+
+    def _shortcuts(self):
+        from tkinter import messagebox
+        lines = "\n".join(f"{acc:<12} {desc}" for acc, _e, desc, _n in SHORTCUTS)
+        messagebox.showinfo("Keyboard shortcuts", lines)
 
     # ----- pinned favourites (drag & drop) -------------------------------- #
     def _build_pinbar(self):
