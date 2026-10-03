@@ -738,6 +738,23 @@ class WebUI(TempAppCase):
         self.assertEqual((mode, cols), ("scalars", ["value"]))
         self.assertIsNone(gui._tabular(None))
 
+    def test_gui_themes_consistent_and_cycle(self):
+        from ledgerling import gui
+        # every theme must define exactly the same colour keys, so the
+        # crossfade (which lerps key-by-key) can never hit a missing key
+        keysets = [frozenset(v) for v in gui.THEMES.values()]
+        self.assertTrue(all(ks == keysets[0] for ks in keysets))
+        # the high-contrast accessibility theme exists and is in the cycle
+        self.assertIn("high-contrast", gui.THEMES)
+        self.assertEqual(set(gui.THEME_ORDER), set(gui.THEMES))
+        # Ctrl+T cycles through all themes and wraps around
+        seen = [gui.THEME_ORDER[0]]
+        for _ in range(len(gui.THEME_ORDER)):
+            seen.append(gui._next_theme(seen[-1]))
+        self.assertEqual(seen[-1], gui.THEME_ORDER[0])            # wrapped
+        self.assertEqual(set(seen), set(gui.THEMES))              # visited all
+        self.assertEqual(gui._next_theme("nonsense"), gui.THEME_ORDER[0])
+
     def test_gui_has_required_args(self):
         from ledgerling import gui, web
         cmds = {c["name"]: c for c in web.describe()["commands"]}

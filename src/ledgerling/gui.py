@@ -79,7 +79,27 @@ THEMES = {
         "accent2": "#45d884", "accent_ink": "#06130b", "err": "#ff8f7d",
         "field": "#12161c", "sel": "#18271d", "hover": "#1c222a",
     },
+    # Accessibility: maximum-contrast palette for low-vision users - pure black
+    # surfaces, white text and borders, a bright yellow accent.
+    "high-contrast": {
+        "bg": "#000000", "panel": "#000000", "ink": "#ffffff",
+        "muted": "#f0f0f0", "line": "#ffffff", "accent": "#ffff00",
+        "accent2": "#ffd400", "accent_ink": "#000000", "err": "#ff6b6b",
+        "field": "#000000", "sel": "#2b2b2b", "hover": "#1a1a1a",
+    },
 }
+
+# Order Ctrl+T cycles through.
+THEME_ORDER = ["light", "dark", "high-contrast"]
+
+
+def _next_theme(current):
+    """The next theme in the Ctrl+T cycle. Unknown input starts at the first.
+    Pure."""
+    try:
+        return THEME_ORDER[(THEME_ORDER.index(current) + 1) % len(THEME_ORDER)]
+    except ValueError:
+        return THEME_ORDER[0]
 
 
 def _group_of(name):
@@ -442,8 +462,8 @@ class LedgerlingGUI:
         bar.add_cascade(label="Commands", menu=cmds)
 
         viewm = tk.Menu(bar, tearoff=0)
-        viewm.add_command(label="Toggle light / dark", accelerator="Ctrl+T",
-                          command=self.toggle_theme)
+        viewm.add_command(label="Cycle theme (light / dark / high-contrast)",
+                          accelerator="Ctrl+T", command=self.toggle_theme)
         viewm.add_command(label="Focus command search", accelerator="Ctrl+K",
                           command=self._focus_filter)
         bar.add_cascade(label="View", menu=viewm)
@@ -498,7 +518,7 @@ class LedgerlingGUI:
         self.theme_btn = ttk.Button(self.toolbar, text="Theme",
                                     style="Tool.TButton", command=self.toggle_theme)
         self.theme_btn.pack(side="right")
-        _Tooltip(self.theme_btn, "Toggle light / dark  (Ctrl+T)")
+        _Tooltip(self.theme_btn, "Cycle theme: light / dark / high-contrast  (Ctrl+T)")
         gbtn = ttk.Button(self.toolbar, text="Guide",
                           style="Tool.TButton", command=self.show_assistant)
         gbtn.pack(side="right", padx=(0, 6))
@@ -1117,8 +1137,7 @@ class LedgerlingGUI:
             self._render_pins()
 
     def toggle_theme(self):
-        self.apply_theme("light" if self.theme_name == "dark" else "dark",
-                         animate=True)
+        self.apply_theme(_next_theme(self.theme_name), animate=True)
         self._persist()
 
     def _current_geometry(self):

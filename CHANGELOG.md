@@ -4,6 +4,15 @@ All notable changes to Ledgerling are documented here. The format is based on
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and this project
 adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.171.0] - 2026-10-03
+
+### Added
+
+- Desktop high-contrast theme: an accessibility palette with pure-black
+  surfaces, white text and borders, and a bright accent for low-vision
+  readability. Ctrl+T now cycles light, dark, and high-contrast, and the choice
+  persists between launches.
+
 ## [1.170.0] - 2026-10-03
 
 ### Added
@@ -2102,6 +2111,7 @@ file, standard library only, strictly confined to its own folder.
   guard (`_within_app`) that refuses any path escaping the app folder; imports
   and restores are reduced to a basename and looked up only within the folder.
 
+[1.171.0]: #11710---2026-10-03
 [1.170.0]: #11700---2026-10-03
 [1.169.0]: #11690---2026-10-03
 [1.168.0]: #11680---2026-10-03
