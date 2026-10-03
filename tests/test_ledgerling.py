@@ -1796,6 +1796,32 @@ class CLI(TempAppCase):
         self.assertEqual(row["count"], 3)
         self.assertEqual(row["status"], "ended")   # all 3 already generated
 
+    def test_recur_run_dry_run(self):
+        start = (date.today() - timedelta(days=2)).isoformat()
+        L.save({"expenses": [], "recurring": [
+            {"id": 1, "amount": 5.0, "category": "coffee", "note": "",
+             "every": "day", "start": start}], "budgets": {}, "goal": None})
+        pend = json.loads(self._main(["recur", "run", "--dry-run", "--json"]))
+        self.assertEqual(len(pend), 3)                  # day-2, day-1, today
+        self.assertTrue(all(p["category"] == "coffee" for p in pend))
+        self.assertEqual(len(L.load()["expenses"]), 0)  # nothing created
+        out = self._main(["recur", "run", "--dry-run"])
+        self.assertIn("would be generated", out)
+        self.assertEqual(len(L.load()["expenses"]), 0)
+        # a real run creates exactly what the preview promised
+        self._main(["recur", "run"])
+        self.assertEqual(len(L.load()["expenses"]), 3)
+
+    def test_pending_recurring_matches_apply(self):
+        import copy as _copy
+        start = (date.today() - timedelta(days=5)).isoformat()
+        data = {"expenses": [], "recurring": [
+            {"id": 1, "amount": 2.0, "category": "x", "note": "",
+             "every": "day", "start": start}], "budgets": {}, "goal": None}
+        pend = L.pending_recurring(_copy.deepcopy(data))
+        created = L.apply_recurring(_copy.deepcopy(data))
+        self.assertEqual(len(pend), created)
+
     def test_recur_edit_count_and_clear(self):
         self._main(["recur", "add", "10", "gym", "x", "--every", "month",
                     "--start", "2026-01-01"])

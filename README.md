@@ -188,8 +188,8 @@ use):
   `challenge`s (52-week, no-spend, round-up jar), and `achievements` badges
   you unlock from your history.
 - **Recurring and bills**: define `recur`ring charges or income, see what is due
-  soon (`upcoming`) or scheduled across a month (`bills`), and export them to a
-  calendar file.
+  soon (`upcoming`) or scheduled across a month (`bills`), export them to a
+  calendar file, and preview what a catch-up would add with `recur run --dry-run`.
 - **Calculators**: `tip` splitting, `loan` and compound-`interest` estimates,
   a `fire` (financial-independence) number and the `rule72` doubling-time rule,
   a `lattefactor` habit-cost projector, an `inflation` adjuster for comparing
