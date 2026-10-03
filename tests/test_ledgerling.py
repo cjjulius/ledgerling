@@ -1820,6 +1820,58 @@ class CLI(TempAppCase):
         self.assertAlmostEqual(
             L._inflation_factor(1800, 1802), (1 + L.DEFAULT_INFLATION / 100) ** 2)
 
+    def test_int_to_words_pure(self):
+        self.assertEqual(L._int_to_words(0), "zero")
+        self.assertEqual(L._int_to_words(19), "nineteen")
+        self.assertEqual(L._int_to_words(42), "forty-two")
+        self.assertEqual(L._int_to_words(100), "one hundred")
+        self.assertEqual(L._int_to_words(1234),
+                         "one thousand two hundred thirty-four")
+        self.assertEqual(L._int_to_words(1_000_000), "one million")
+
+    def test_amount_to_words_pure(self):
+        self.assertEqual(L._amount_to_words(0), "Zero dollars")
+        self.assertEqual(L._amount_to_words(1), "One dollar")
+        self.assertEqual(L._amount_to_words(1.01), "One dollar and one cent")
+        self.assertEqual(L._amount_to_words(1234.56),
+                         "One thousand two hundred thirty-four dollars "
+                         "and fifty-six cents")
+        # rounds to whole cents (0.999 -> 1.00)
+        self.assertEqual(L._amount_to_words(0.999), "One dollar")
+
+    def test_words_command(self):
+        d = json.loads(self._main(["words", "25.40", "--json"]))
+        self.assertEqual(d["amount"], 25.40)
+        self.assertEqual(d["words"], "Twenty-five dollars and forty cents")
+        self.assertEqual(self._main(["words", "5"]).strip(), "Five dollars")
+
+    def test_receipt(self):
+        self._main(["add", "12", "lunch", "wrap", "--date", "2026-03-02"])
+        self._main(["add", "3", "coffee", "--date", "2026-03-02"])
+        self._main(["income", "100", "gift", "--date", "2026-03-02"])
+        d = json.loads(self._main(["receipt", "--date", "2026-03-02", "--json"]))
+        self.assertEqual(d["spent"], 15.0)
+        self.assertEqual(d["received"], 100.0)
+        self.assertEqual(len(d["items"]), 3)
+        self.assertEqual(d["total_words"], "Fifteen dollars")
+        # text form draws a bordered box
+        txt = self._main(["receipt", "--date", "2026-03-02"])
+        self.assertIn("RECEIPT", txt)
+        self.assertIn("TOTAL", txt)
+        # single entry by id
+        one = json.loads(self._main(["receipt", "--id", "1", "--json"]))
+        self.assertEqual(len(one["items"]), 1)
+        # empty day is a clean message, not a crash
+        self.assertIn("no entries", self._main(["receipt", "--date", "2000-01-01"]))
+        with self.assertRaises(SystemExit):
+            with contextlib.redirect_stderr(io.StringIO()):
+                L.main(["receipt", "--id", "9999"])
+
+    def test_wrap_pure(self):
+        self.assertEqual(L._wrap("", 10), [""])
+        self.assertEqual(L._wrap("a b c", 10), ["a b c"])
+        self.assertEqual(L._wrap("aaa bbb ccc", 7), ["aaa bbb", "ccc"])
+
     def test_read_commands_survive_empty_data(self):
         # Every no-argument command must run on an empty store without an
         # unhandled exception (division by zero, max() of empty, etc.).

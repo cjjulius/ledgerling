@@ -74,6 +74,8 @@ Commands:
     rule72    Rule of 72: doubling time from a rate (or vice versa)
     lattefactor  Long-term cost of a small recurring habit
     inflation  Convert a past amount into another year's money (offline)
+    words     Spell a monetary amount in words (as on a cheque)
+    receipt   Print an ASCII receipt for an entry or a day
     fx        Offline currency converter (set/list/rm/convert, user-set rates)
     upcoming  Forecast recurring charges/income due in the next N days
     bills     Recurring charges/income scheduled in a month, by day
@@ -143,7 +145,7 @@ import tempfile
 import time
 from datetime import datetime, date, timedelta
 
-__version__ = "1.162.0"
+__version__ = "1.163.0"
 
 # --------------------------------------------------------------------------- #
 # Sandbox + storage
@@ -3005,6 +3007,157 @@ def cmd_inflation(args):
     print(f"  {money(round(amount, 2))} in {from_year} is worth about "
           f"{money(adjusted)} in {to_year}")
     print(f"  that is a change of {money(change)} using {basis}")
+
+
+_ONES = ["zero", "one", "two", "three", "four", "five", "six", "seven",
+         "eight", "nine", "ten", "eleven", "twelve", "thirteen", "fourteen",
+         "fifteen", "sixteen", "seventeen", "eighteen", "nineteen"]
+_TENS = ["", "", "twenty", "thirty", "forty", "fifty", "sixty", "seventy",
+         "eighty", "ninety"]
+
+
+def _int_to_words(n):
+    """Spell a non-negative integer in English words. Pure. Handles 0 up into
+    the billions; negatives are prefixed with 'negative'."""
+    if n < 0:
+        return "negative " + _int_to_words(-n)
+    if n < 20:
+        return _ONES[n]
+    parts = []
+    for value, name in ((1_000_000_000, "billion"), (1_000_000, "million"),
+                        (1_000, "thousand")):
+        if n >= value:
+            parts.append(_int_to_words(n // value) + " " + name)
+            n %= value
+    if n >= 100:
+        parts.append(_ONES[n // 100] + " hundred")
+        n %= 100
+    if n >= 20:
+        parts.append(_TENS[n // 10] + ("-" + _ONES[n % 10] if n % 10 else ""))
+        n = 0
+    if n > 0:
+        parts.append(_ONES[n])
+    return " ".join(parts)
+
+
+def _amount_to_words(amount, unit="dollar", cent="cent"):
+    """Spell a monetary amount, e.g. 1234.5 -> 'One thousand two hundred
+    thirty-four dollars and fifty cents'. Pure; rounds to whole cents."""
+    neg = amount < 0
+    cents_total = int(round(abs(amount) * 100))
+    whole, frac = divmod(cents_total, 100)
+    text = _int_to_words(whole) + " " + unit + ("" if whole == 1 else "s")
+    if frac:
+        text += (" and " + _int_to_words(frac) + " " + cent
+                 + ("" if frac == 1 else "s"))
+    if neg:
+        text = "negative " + text
+    return text[0].upper() + text[1:]
+
+
+def cmd_words(args):
+    """Spell a monetary amount in words, the way you would write it on a cheque."""
+    amount = round(args.amount, 2)
+    words = _amount_to_words(amount)
+    if getattr(args, "json", False):
+        print(json.dumps({"amount": amount, "words": words}, indent=2))
+        return
+    print(words)
+
+
+_RECEIPT_W = 44  # inner width of the ASCII receipt box
+
+
+def _rline(text="", align="left"):
+    """One bordered receipt row, padded to the box width."""
+    text = text[:_RECEIPT_W]
+    if align == "center":
+        body = text.center(_RECEIPT_W)
+    else:
+        body = text.ljust(_RECEIPT_W)
+    return "|" + body + "|"
+
+
+def _render_receipt(rows, heading):
+    """Build an ASCII receipt (list of lines) for the given entries. Shows each
+    line item, a spent/received breakdown, the headline total and that total in
+    words. Pure apart from money()/currency formatting."""
+    rule = "+" + "-" * _RECEIPT_W + "+"
+    out = [rule, _rline("L E D G E R L I N G", "center"),
+           _rline("RECEIPT", "center"), rule, _rline(" " + heading)]
+    out.append(_rline(" " + "-" * (_RECEIPT_W - 2)))
+    for e in rows:
+        amt = money(e["amount"])
+        sign = "+" if kind_of(e) == "income" else " "
+        left = f" #{e['id']} [{e['category']}]"
+        pad = _RECEIPT_W - len(left) - len(amt) - 2
+        out.append(_rline(left + " " * max(1, pad) + sign + amt))
+        if e.get("note"):
+            out.append(_rline("    " + e["note"]))
+    out.append(_rline(" " + "-" * (_RECEIPT_W - 2)))
+    spent = round(sum(e["amount"] for e in rows if kind_of(e) == "expense"), 2)
+    received = round(sum(e["amount"] for e in rows if kind_of(e) == "income"), 2)
+    out.append(_rline(f" Items: {len(rows)}"))
+    if received:
+        out.append(_rline(_pad_amount(" Received", money(received))))
+    out.append(_rline(_pad_amount(" TOTAL", money(spent))))
+    out.append(_rline(" " + "-" * (_RECEIPT_W - 2)))
+    for chunk in _wrap(_amount_to_words(spent), _RECEIPT_W - 2):
+        out.append(_rline(" " + chunk))
+    out += [rule, _rline("Thank you - keep this receipt", "center"), rule]
+    return out
+
+
+def _pad_amount(label, amount):
+    """Label on the left, amount right-aligned within the receipt width."""
+    pad = _RECEIPT_W - len(label) - len(amount) - 1
+    return label + " " * max(1, pad) + amount + " "
+
+
+def _wrap(text, width):
+    """Greedy word-wrap into lines of at most `width`. Pure."""
+    words, lines, cur = text.split(), [], ""
+    for w in words:
+        if cur and len(cur) + 1 + len(w) > width:
+            lines.append(cur)
+            cur = w
+        else:
+            cur = (cur + " " + w).strip()
+    if cur:
+        lines.append(cur)
+    return lines or [""]
+
+
+def cmd_receipt(args):
+    """Print an ASCII receipt for a single entry (--id) or a whole day (--date,
+    default today), with the total spelled out in words."""
+    data = load()
+    rows = data["expenses"]
+    if args.id is not None:
+        e = find(rows, args.id)
+        if not e:
+            sys.exit(f"error: no entry with id #{args.id}")
+        sel = [e]
+        heading = f"Entry #{e['id']}  ({e['date']})"
+        day = e["date"]
+    else:
+        day = parse_date(args.date) if args.date else date.today().isoformat()
+        sel = sorted((x for x in rows if x["date"] == day),
+                     key=lambda e: e["id"])
+        heading = day
+    spent = round(sum(e["amount"] for e in sel if kind_of(e) == "expense"), 2)
+    received = round(sum(e["amount"] for e in sel if kind_of(e) == "income"), 2)
+
+    if getattr(args, "json", False):
+        print(json.dumps({"scope": heading, "date": day,
+                          "items": sel, "spent": spent, "received": received,
+                          "total_words": _amount_to_words(spent)}, indent=2))
+        return
+
+    if not sel:
+        print(f"no entries for {day}")
+        return
+    print("\n".join(_render_receipt(sel, heading)))
 
 
 def cmd_net(args):
@@ -7427,6 +7580,19 @@ def build_parser():
     inf.add_argument("--json", action="store_true", help="output JSON instead of text")
     inf.set_defaults(func=cmd_inflation)
 
+    wd = sub.add_parser("words",
+                        help="spell a monetary amount in words")
+    wd.add_argument("amount", type=float, help="the amount to spell out")
+    wd.add_argument("--json", action="store_true", help="output JSON instead of text")
+    wd.set_defaults(func=cmd_words)
+
+    rc = sub.add_parser("receipt",
+                        help="print an ASCII receipt for an entry or a day")
+    rc.add_argument("--id", type=int, help="receipt for a single entry id")
+    rc.add_argument("--date", help="receipt for this day (default today)")
+    rc.add_argument("--json", action="store_true", help="output JSON instead of text")
+    rc.set_defaults(func=cmd_receipt)
+
     tgt = sub.add_parser("target",
                          help="estimate how long to reach a savings target")
     tgt.add_argument("amount", type=float, help="the savings amount to reach")
@@ -7850,7 +8016,7 @@ CATCHUP_COMMANDS = frozenset({
     "net", "subscriptions", "payees", "overbudget", "today", "worthtrend",
     "statement", "reconcile", "scorecard", "scoretrend", "category",
     "savingsplan", "bills", "challenge", "achievements", "onthisday", "mascot",
-    "fire",
+    "fire", "receipt",
 })
 MUTATING_COMMANDS = frozenset({
     "add", "income", "edit", "delete", "clone", "refund", "note", "tag",
@@ -7858,7 +8024,8 @@ MUTATING_COMMANDS = frozenset({
     "autobudget", "clear", "unclear", "pot", "transfer",
     "import", "restore", "backup", "dedupe", "undo", "config", "recur",
     "completion", "version", "web", "gui", "where", "tip", "split", "fx",
-    "check", "interest", "loan", "rule72", "lattefactor", "inflation", "template",
+    "check", "interest", "loan", "rule72", "lattefactor", "inflation", "words",
+    "template",
     "fortune", "horoscope", "weather", "eightball",   # almanac modes
 })
 

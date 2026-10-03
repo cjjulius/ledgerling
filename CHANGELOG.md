@@ -4,6 +4,18 @@ All notable changes to Ledgerling are documented here. The format is based on
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and this project
 adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.163.0] - 2026-10-02
+
+### Added
+
+- `words` command: spell a monetary amount in words, the way you would write it
+  on a cheque (for example 1234.56 becomes "One thousand two hundred thirty-four
+  dollars and fifty-six cents"). Pure; `--json` supported.
+- `receipt` command: print a tidy ASCII receipt for a single entry (`--id`) or a
+  whole day (`--date`, default today), listing each line item, a spent and
+  received breakdown, the total, and the total spelled out in words. `--json`
+  returns the underlying figures. (Closes idea #8.)
+
 ## [1.162.0] - 2026-10-02
 
 ### Added
@@ -2016,6 +2028,7 @@ file, standard library only, strictly confined to its own folder.
   guard (`_within_app`) that refuses any path escaping the app folder; imports
   and restores are reduced to a basename and looked up only within the folder.
 
+[1.163.0]: #11630---2026-10-02
 [1.162.0]: #11620---2026-10-02
 [1.161.0]: #11610---2026-10-02
 [1.160.0]: #11600---2026-10-02

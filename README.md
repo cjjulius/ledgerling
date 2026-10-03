@@ -175,8 +175,8 @@ use):
   `refund`, and reusable quick-entry `template`s.
 - **Analyze** it: a month `dashboard`, plain-language `insights`, an A-to-F
   health `scorecard` and its `scoretrend`, per-`category` and per-`tag`
-  profiles, an `onthisday` flashback, `search`, and rollups by week, month,
-  quarter, year, and weekday.
+  profiles, an `onthisday` flashback, a printable `receipt` for any day or
+  entry, `search`, and rollups by week, month, quarter, year, and weekday.
 - **Budgets and goals**: monthly `budget`s with `pace` and daily `allowance`, a
   savings `goal`, `networth` tracking, savings `pot`s (sinking funds) with
   optional target dates and a combined `savingsplan`, gamified savings
@@ -188,8 +188,9 @@ use):
 - **Calculators**: `tip` splitting, `loan` and compound-`interest` estimates,
   a `fire` (financial-independence) number and the `rule72` doubling-time rule,
   a `lattefactor` habit-cost projector, an `inflation` adjuster for comparing
-  money across years, `roundup` savings, a `target`-date planner, `runway`, and
-  an offline currency converter (`fx`).
+  money across years, a `words` helper that spells an amount out as on a cheque,
+  `roundup` savings, a `target`-date planner, `runway`, and an offline currency
+  converter (`fx`).
 - **Data**: `export` and `import` CSV or JSON, `backup` and `restore`,
   `reconcile` against your bank, find and remove `duplicates`, and `undo` the
   last change. `check` scans your data for problems.
