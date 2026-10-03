@@ -4,6 +4,15 @@ All notable changes to Ledgerling are documented here. The format is based on
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and this project
 adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.166.0] - 2026-10-03
+
+### Changed
+
+- `check` now validates savings-pot target amounts and due dates, not just the
+  balance. A hand-edited invalid due date previously slipped past the scanner
+  and could crash the `countdown`, `pot` and `savingsplan` views; `check --fix`
+  now clears the invalid field while preserving the pot and its balance.
+
 ## [1.165.0] - 2026-10-03
 
 ### Added
@@ -2048,6 +2057,7 @@ file, standard library only, strictly confined to its own folder.
   guard (`_within_app`) that refuses any path escaping the app folder; imports
   and restores are reduced to a basename and looked up only within the folder.
 
+[1.166.0]: #11660---2026-10-03
 [1.165.0]: #11650---2026-10-03
 [1.164.0]: #11640---2026-10-02
 [1.163.0]: #11630---2026-10-02

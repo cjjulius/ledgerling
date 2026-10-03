@@ -147,7 +147,7 @@ import tempfile
 import time
 from datetime import datetime, date, timedelta
 
-__version__ = "1.165.0"
+__version__ = "1.166.0"
 
 # --------------------------------------------------------------------------- #
 # Sandbox + storage
@@ -6456,7 +6456,7 @@ def _valid_iso(s):
 # Issue kinds that _autofix can safely repair on its own.
 _FIXABLE_KINDS = frozenset({
     "duplicate_id", "bad_id", "orphan_recur_id", "empty_category", "bad_budget",
-    "bad_account", "bad_snapshot", "bad_pot",
+    "bad_account", "bad_snapshot", "bad_pot", "bad_pot_field",
 })
 
 
@@ -6540,6 +6540,19 @@ def _scan_issues(data):
                 or not isinstance(saved, (int, float)) or saved < 0):
             issues.append({"kind": "bad_pot", "id": None,
                            "detail": f"pot '{label}' is malformed ({pot!r})"})
+            continue
+        # The pot's shell is sound; check its optional target/due fields, which
+        # the countdown, pot and savingsplan views read (a bad due date would
+        # otherwise crash them). None means "unset" and is fine.
+        tgt = pot.get("target")
+        if tgt is not None and (isinstance(tgt, bool)
+                                or not isinstance(tgt, (int, float)) or tgt < 0):
+            issues.append({"kind": "bad_pot_field", "id": None,
+                           "detail": f"pot '{label}' has target {tgt!r}"})
+        due = pot.get("due")
+        if due is not None and not _valid_iso(due):
+            issues.append({"kind": "bad_pot_field", "id": None,
+                           "detail": f"pot '{label}' has due date {due!r}"})
 
     return issues
 
@@ -6600,6 +6613,19 @@ def _autofix(data):
                   or p.get("saved") < 0]:
         del pots[label]
         fixed.append(f"removed malformed pot '{label}'")
+    # Clear invalid optional fields on otherwise-sound pots, keeping the balance.
+    for label, p in pots.items():
+        if not isinstance(p, dict):
+            continue
+        tgt = p.get("target")
+        if tgt is not None and (isinstance(tgt, bool)
+                                or not isinstance(tgt, (int, float)) or tgt < 0):
+            p.pop("target", None)
+            fixed.append(f"cleared invalid target on pot '{label}'")
+        due = p.get("due")
+        if due is not None and not _valid_iso(due):
+            p.pop("due", None)
+            fixed.append(f"cleared invalid due date on pot '{label}'")
 
     return fixed
 
@@ -6610,8 +6636,8 @@ def cmd_check(args):
     Read-only by default (no recurring catch-up runs first, so it inspects the
     data as stored). With --fix, repairs the safe, unambiguous problems
     (orphan recurring links, empty categories, duplicate ids, invalid budgets,
-    malformed accounts and net-worth snapshots) and reports what remains for you
-    to handle manually.
+    malformed accounts and net-worth snapshots, and invalid savings-pot target
+    amounts or due dates) and reports what remains for you to handle manually.
     """
     data = load()
     repaired = []

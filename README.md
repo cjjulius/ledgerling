@@ -194,7 +194,8 @@ use):
   `target`-date planner, `runway`, and an offline currency converter (`fx`).
 - **Data**: `export` and `import` CSV or JSON, `backup` and `restore`,
   `reconcile` against your bank, find and remove `duplicates`, and `undo` the
-  last change. `check` scans your data for problems.
+  last change. `check` scans your data for problems and repairs the safe ones
+  with `check --fix`.
 
 Most read commands accept `--json` (handy for piping into other local tools),
 and most accept `--month YYYY-MM` to scope to a single month.
