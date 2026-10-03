@@ -4,6 +4,16 @@ All notable changes to Ledgerling are documented here. The format is based on
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and this project
 adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.172.1] - 2026-10-03
+
+### Changed
+
+- `restore` and `undo` now backfill every data section through the single
+  central normalizer instead of an ad-hoc list of four. Restoring an older
+  backup that predates newer sections (pots, accounts, net-worth history,
+  templates) now writes a complete file, and the section list can no longer
+  drift out of sync. No change in everyday behaviour.
+
 ## [1.172.0] - 2026-10-03
 
 ### Added
@@ -2119,6 +2129,7 @@ file, standard library only, strictly confined to its own folder.
   guard (`_within_app`) that refuses any path escaping the app folder; imports
   and restores are reduced to a basename and looked up only within the folder.
 
+[1.172.1]: #11721---2026-10-03
 [1.172.0]: #11720---2026-10-03
 [1.171.0]: #11710---2026-10-03
 [1.170.0]: #11700---2026-10-03

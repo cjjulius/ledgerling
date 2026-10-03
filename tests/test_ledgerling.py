@@ -1285,6 +1285,21 @@ class CLI(TempAppCase):
         self.assertEqual(len(exp), 1)
         self.assertEqual(exp[0]["category"], "food")
 
+    def test_restore_backfills_all_sections(self):
+        # an older backup that predates newer sections (no pots/accounts/etc.)
+        os.makedirs(L.BACKUP_DIR, exist_ok=True)
+        old = os.path.join(L.BACKUP_DIR, "old.json")
+        with open(old, "w", encoding="utf-8") as fh:
+            json.dump({"expenses": [{"id": 1, "amount": 5.0, "category": "x",
+                                     "date": "2026-01-01", "note": ""}]}, fh)
+        self._main(["restore", "--file", "old.json"])
+        # the saved live file itself must carry every section, not rely on load()
+        with open(L.DATA_FILE, encoding="utf-8") as fh:
+            raw = json.load(fh)
+        for key in ("expenses", "recurring", "networth_history", "budgets",
+                    "accounts", "pots", "templates"):
+            self.assertIn(key, raw)
+
     def test_restore_missing_file_errors(self):
         with self.assertRaises(SystemExit):
             self._main(["restore", "--file", "nope.json"])
