@@ -149,7 +149,7 @@ import tempfile
 import time
 from datetime import datetime, date, timedelta
 
-__version__ = "1.174.0"
+__version__ = "1.175.0"
 
 # --------------------------------------------------------------------------- #
 # Sandbox + storage
@@ -6856,7 +6856,12 @@ def cmd_config(args):
     if changed:
         save_config(cfg)
         _CONFIG.update(cfg)   # so the sample below prints with the new settings
-        print("config updated")
+        if not getattr(args, "json", False):
+            print("config updated")
+
+    if getattr(args, "json", False):
+        print(json.dumps(cfg, indent=2))
+        return
 
     # Always show the resulting settings.
     print(f"{'currency':<16} {cfg['currency']}")
@@ -8089,6 +8094,8 @@ def build_parser():
                     help="your home currency's fx code (e.g. USD) for `add --in`")
     cf.add_argument("--ui-scale", type=float, dest="ui_scale",
                     help="desktop app text-size multiplier (0.5-3.0, e.g. 1.25)")
+    cf.add_argument("--json", action="store_true",
+                    help="print the current settings as JSON")
     cf.add_argument("--reset", action="store_true", help="restore default settings")
     cf.set_defaults(func=cmd_config)
 
