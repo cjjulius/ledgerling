@@ -262,6 +262,10 @@ class PureLogic(unittest.TestCase):
         with self.assertRaises(SystemExit):
             L.parse_date("2026-99-99")
 
+    def test_this_month_pure(self):
+        self.assertEqual(L.this_month(), date.today().isoformat()[:7])
+        self.assertRegex(L.this_month(), r"^\d{4}-\d{2}$")
+
     def test_period_totals(self):
         # shared by compare / today / statement: income, spending, net for a month
         rows = [

@@ -147,7 +147,7 @@ import tempfile
 import time
 from datetime import datetime, date, timedelta
 
-__version__ = "1.167.0"
+__version__ = "1.167.1"
 
 # --------------------------------------------------------------------------- #
 # Sandbox + storage
@@ -342,6 +342,11 @@ def _date_bounds(since, until):
 
 def month_of(iso_date):
     return iso_date[:7]
+
+
+def this_month():
+    """The current month as YYYY-MM (today's local date)."""
+    return date.today().isoformat()[:7]
 
 
 _MONTH_RE = re.compile(r"^\d{4}-(0[1-9]|1[0-2])$")
@@ -1077,7 +1082,7 @@ def cmd_split(args):
 def cmd_summary(args):
     check_month(args.month)
     data = load()
-    period = args.month or date.today().isoformat()[:7]
+    period = args.month or this_month()
     rows = [e for e in expenses_only(data["expenses"])
             if month_of(e["date"]) == period]
 
@@ -1127,7 +1132,7 @@ def cmd_budget(args):
         print(f"set monthly budget for [{cat}] to {money(args.amount)}")
         return
 
-    period = args.month or date.today().isoformat()[:7]
+    period = args.month or this_month()
     rows = []
     for cat, limit in sorted(data["budgets"].items()):
         spent = round(category_spent(data, cat, period), 2)
@@ -4092,7 +4097,7 @@ def cmd_category(args):
     budget = data["budgets"].get(cat)
     budget_info = None
     if budget:
-        now = date.today().isoformat()[:7]
+        now = this_month()
         spent_now = round(category_spent(data, cat, now), 2)
         budget_info = {"limit": budget, "month": now, "spent": spent_now,
                        "percent": round(spent_now / budget * 100, 1)
@@ -4245,7 +4250,7 @@ _HEATMAP_GLYPHS = [".", ":", "+", "*", "#"]  # none, low, med, high, peak
 def cmd_heatmap(args):
     check_month(args.month)
     data = load()
-    period = args.month or date.today().isoformat()[:7]
+    period = args.month or this_month()
     year, mon = (int(x) for x in period.split("-"))
     days_in_month = calendar.monthrange(year, mon)[1]
 
@@ -4846,7 +4851,7 @@ def cmd_weekly(args):
 def cmd_month(args):
     check_month(args.month)
     data = load()
-    period = args.month or date.today().isoformat()[:7]
+    period = args.month or this_month()
     rows = [e for e in data["expenses"] if month_of(e["date"]) == period]
     exp = expenses_only(rows)
     inc = income_only(rows)
@@ -5550,7 +5555,7 @@ def cmd_goal(args):
         print("no savings goal set. Try: goal --amount 500")
         return
 
-    period = date.today().isoformat()[:7]
+    period = this_month()
     net = month_net(data["expenses"], period)
     frac = net / goal if goal else 0
     print(f"Savings goal for {period}")
@@ -5568,7 +5573,7 @@ def cmd_statement(args):
     structured form; --save writes a Markdown document to the exports folder."""
     check_month(args.month)
     data = load()
-    period = args.month or date.today().isoformat()[:7]
+    period = args.month or this_month()
     st = month_statement(data, period)
 
     save_target = getattr(args, "save", None)

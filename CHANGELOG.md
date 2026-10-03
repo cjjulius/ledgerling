@@ -4,6 +4,14 @@ All notable changes to Ledgerling are documented here. The format is based on
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and this project
 adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.167.1] - 2026-10-03
+
+### Changed
+
+- Internal: the current-month value is now derived from a single `this_month()`
+  helper instead of being re-implemented in seven commands. No change in
+  behaviour.
+
 ## [1.167.0] - 2026-10-03
 
 ### Added
@@ -2066,6 +2074,7 @@ file, standard library only, strictly confined to its own folder.
   guard (`_within_app`) that refuses any path escaping the app folder; imports
   and restores are reduced to a basename and looked up only within the folder.
 
+[1.167.1]: #11671---2026-10-03
 [1.167.0]: #11670---2026-10-03
 [1.166.0]: #11660---2026-10-03
 [1.165.0]: #11650---2026-10-03
