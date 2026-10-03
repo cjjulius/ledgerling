@@ -72,6 +72,7 @@ Commands:
     loan      Loan payment / amortization calculator
     fire      Estimate your financial-independence (FIRE) number
     rule72    Rule of 72: doubling time from a rate (or vice versa)
+    lattefactor  Long-term cost of a small recurring habit
     fx        Offline currency converter (set/list/rm/convert, user-set rates)
     upcoming  Forecast recurring charges/income due in the next N days
     bills     Recurring charges/income scheduled in a month, by day
@@ -141,7 +142,7 @@ import tempfile
 import time
 from datetime import datetime, date, timedelta
 
-__version__ = "1.160.0"
+__version__ = "1.161.0"
 
 # --------------------------------------------------------------------------- #
 # Sandbox + storage
@@ -2900,6 +2901,49 @@ def cmd_rule72(args):
     else:
         print(f"  to double in {years:g} years, you need about "
               f"{out['rate_to_double']:g}%/yr")
+
+
+def _future_value(monthly, annual_return, years):
+    """Future value of a monthly contribution compounded monthly. Pure."""
+    n = round(years * 12)
+    r = annual_return / 100 / 12
+    if r == 0:
+        return round(monthly * n, 2)
+    return round(monthly * (((1 + r) ** n - 1) / r), 2)
+
+
+_PER_YEAR = {"day": 365, "week": 52, "month": 12}
+
+
+def cmd_lattefactor(args):
+    """The 'latte factor': the long-term cost of a small recurring habit. Shows
+    what you'd spend over the horizon, and what the same money could grow to if
+    invested instead. Pure arithmetic; not investment advice."""
+    amount = args.amount
+    if amount <= 0:
+        sys.exit("error: amount must be greater than zero")
+    per = args.per
+    years = args.years if args.years and args.years > 0 else 10
+    g = args.ret if args.ret is not None else 5.0
+    annual = round(amount * _PER_YEAR[per], 2)
+    plain = round(annual * years, 2)
+    invested = _future_value(annual / 12, g, years)
+    growth = round(invested - plain, 2)
+
+    if getattr(args, "json", False):
+        print(json.dumps({"amount": round(amount, 2), "per": per,
+                          "annual": annual, "years": years, "return": g,
+                          "spent": plain, "invested": invested,
+                          "growth": growth}, indent=2))
+        return
+
+    print("Latte factor")
+    print("=" * 48)
+    print(f"  habit        {money(round(amount, 2))} per {per}  "
+          f"({money(annual)} / year)")
+    print(f"  over {years:g} years you would spend {money(plain)}")
+    print(f"  invested at {g:g}%/yr it could grow to {money(invested)} "
+          f"(+{money(growth)})")
 
 
 def cmd_net(args):
@@ -7298,6 +7342,18 @@ def build_parser():
     r72.add_argument("--json", action="store_true", help="output JSON instead of text")
     r72.set_defaults(func=cmd_rule72)
 
+    lf = sub.add_parser("lattefactor",
+                        help="long-term cost of a small recurring habit")
+    lf.add_argument("amount", type=float, help="cost of the habit each time")
+    lf.add_argument("--per", choices=["day", "week", "month"], default="day",
+                    help="how often (default day)")
+    lf.add_argument("--years", type=float, default=10.0,
+                    help="horizon in years (default 10)")
+    lf.add_argument("--return", type=float, dest="ret",
+                    help="assumed annual return in %% if invested (default 5)")
+    lf.add_argument("--json", action="store_true", help="output JSON instead of text")
+    lf.set_defaults(func=cmd_lattefactor)
+
     tgt = sub.add_parser("target",
                          help="estimate how long to reach a savings target")
     tgt.add_argument("amount", type=float, help="the savings amount to reach")
@@ -7729,7 +7785,7 @@ MUTATING_COMMANDS = frozenset({
     "autobudget", "clear", "unclear", "pot", "transfer",
     "import", "restore", "backup", "dedupe", "undo", "config", "recur",
     "completion", "version", "web", "gui", "where", "tip", "split", "fx",
-    "check", "interest", "loan", "rule72", "template",
+    "check", "interest", "loan", "rule72", "lattefactor", "template",
     "fortune", "horoscope", "weather", "eightball",   # almanac modes
 })
 
