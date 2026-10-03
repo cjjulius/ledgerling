@@ -148,7 +148,7 @@ import tempfile
 import time
 from datetime import datetime, date, timedelta
 
-__version__ = "1.172.0"
+__version__ = "1.172.1"
 
 # --------------------------------------------------------------------------- #
 # Sandbox + storage
@@ -1809,10 +1809,9 @@ def cmd_restore(args):
 
     # Safety net: back up whatever is live now before overwriting it.
     safety = _make_backup(label="prerestore")
-    data.setdefault("expenses", [])
-    data.setdefault("budgets", {})
-    data.setdefault("recurring", [])
-    data.setdefault("goal", None)
+    # Fill in any sections an older backup predates, so the restored file is
+    # complete (one source of truth for the section list).
+    _normalize_sections(data)
     save(data)
 
     print(f"restored from {path}")
@@ -1845,10 +1844,7 @@ def cmd_undo(args):
 
     _SUPPRESS_UNDO = True
     try:
-        restore.setdefault("expenses", [])
-        restore.setdefault("budgets", {})
-        restore.setdefault("recurring", [])
-        restore.setdefault("goal", None)
+        _normalize_sections(restore)
         save(restore)
     finally:
         _SUPPRESS_UNDO = False
