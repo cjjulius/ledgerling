@@ -4,6 +4,15 @@ All notable changes to Ledgerling are documented here. The format is based on
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and this project
 adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.165.0] - 2026-10-03
+
+### Added
+
+- `countdown` command: days until a date - a payday, a trip, any deadline - or
+  until a savings pot's target date. Give a date (or `--pot NAME`) and an
+  optional `--label`; for a pot with a target it also shows how much is left and
+  the daily saving needed to get there. `--json` supported. (Closes idea #10.)
+
 ## [1.164.0] - 2026-10-02
 
 ### Added
@@ -2039,6 +2048,7 @@ file, standard library only, strictly confined to its own folder.
   guard (`_within_app`) that refuses any path escaping the app folder; imports
   and restores are reduced to a basename and looked up only within the folder.
 
+[1.165.0]: #11650---2026-10-03
 [1.164.0]: #11640---2026-10-02
 [1.163.0]: #11630---2026-10-02
 [1.162.0]: #11620---2026-10-02

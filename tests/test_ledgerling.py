@@ -1904,6 +1904,43 @@ class CLI(TempAppCase):
         # empty month is a clean read, not a crash
         self.assertIn("Blank Slate", self._main(["persona", "--month", "1999-01"]))
 
+    def test_days_until_pure(self):
+        self.assertEqual(L._days_until("2026-01-10", "2026-01-01"), 9)
+        self.assertEqual(L._days_until("2026-01-01", "2026-01-01"), 0)
+        self.assertEqual(L._days_until("2025-12-30", "2026-01-01"), -2)
+
+    def test_days_phrase_pure(self):
+        self.assertEqual(L._days_phrase(0), "today")
+        self.assertEqual(L._days_phrase(1), "in 1 day")
+        self.assertEqual(L._days_phrase(5), "in 5 days")
+        self.assertEqual(L._days_phrase(-1), "1 day ago")
+        self.assertEqual(L._days_phrase(-3), "3 days ago")
+
+    def test_countdown_date(self):
+        d = json.loads(self._main(["countdown", "2999-01-01", "--json"]))
+        self.assertEqual(d["date"], "2999-01-01")
+        self.assertGreater(d["days"], 0)
+        self.assertIsNone(d["remaining"])
+        txt = self._main(["countdown", "2999-01-01", "--label", "trip"])
+        self.assertIn("trip", txt)
+        with self.assertRaises(SystemExit):
+            with contextlib.redirect_stderr(io.StringIO()):
+                L.main(["countdown"])   # neither a date nor a pot
+
+    def test_countdown_pot(self):
+        self._main(["pot", "vacation", "--target", "1000"])
+        self._main(["pot", "vacation", "--add", "200"])
+        self._main(["pot", "vacation", "--by", "2999-01-01"])
+        d = json.loads(self._main(["countdown", "--pot", "vacation", "--json"]))
+        self.assertEqual(d["remaining"], 800.0)
+        self.assertGreater(d["days"], 0)
+        self.assertIsNotNone(d["per_day"])
+        # a pot with no target date is a clean error
+        self._main(["pot", "nodate", "--target", "50"])
+        with self.assertRaises(SystemExit):
+            with contextlib.redirect_stderr(io.StringIO()):
+                L.main(["countdown", "--pot", "nodate"])
+
     def test_read_commands_survive_empty_data(self):
         # Every no-argument command must run on an empty store without an
         # unhandled exception (division by zero, max() of empty, etc.).
