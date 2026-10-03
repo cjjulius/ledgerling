@@ -260,7 +260,8 @@ that `summary`, `insights`, `scorecard`, and `range` share,
 the drill-down summary stats (total, share, count, average/median, min/max,
 span) that `category` and `tags NAME` share,
 the common entry filters (kind scope, category, tag, month, cleared/pending)
-that `list` and `search` share,
+that `list` and `search` share, the date-range and amount-bound filters
+(`--since`/`--until`/`--min`/`--max`) they now also share,
 the formatted entry line (`#id date amount [category] …` with its markers)
 that `list` and `search` share,
 and the current-month value (`YYYY-MM`) that the many commands defaulting to

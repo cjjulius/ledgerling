@@ -147,7 +147,7 @@ import tempfile
 import time
 from datetime import datetime, date, timedelta
 
-__version__ = "1.167.1"
+__version__ = "1.168.0"
 
 # --------------------------------------------------------------------------- #
 # Sandbox + storage
@@ -804,10 +804,35 @@ def _filter_entries(rows, args):
     return _filter_cleared(rows, args)
 
 
+def _filter_range_amount(rows, args):
+    """Apply the optional date-range (--since/--until) and amount-bound
+    (--min/--max) filters shared by `list` and `search`. Each applies only when
+    its arg is present, and they AND together."""
+    if getattr(args, "since", None) or getattr(args, "until", None):
+        start, end = _date_bounds(args.since, args.until)
+        rows = [e for e in rows if start <= e["date"] <= end]
+    mn = getattr(args, "min", None)
+    mx = getattr(args, "max", None)
+    if mn is not None:
+        rows = [e for e in rows if e["amount"] >= mn]
+    if mx is not None:
+        rows = [e for e in rows if e["amount"] <= mx]
+    return rows
+
+
+def _check_amount_bounds(args):
+    """Guard that --min is not greater than --max (shared by list and search)."""
+    mn = getattr(args, "min", None)
+    mx = getattr(args, "max", None)
+    if mn is not None and mx is not None and mn > mx:
+        sys.exit("error: --min cannot be greater than --max")
+
+
 def cmd_list(args):
     check_month(args.month)
+    _check_amount_bounds(args)
     data = load()
-    rows = _filter_entries(data["expenses"], args)
+    rows = _filter_range_amount(_filter_entries(data["expenses"], args), args)
     key = getattr(args, "sort", "date") or "date"
     reverse = bool(getattr(args, "desc", False))
     if key == "amount":
@@ -1499,23 +1524,17 @@ def cmd_overbudget(args):
 
 def cmd_search(args):
     check_month(args.month)
-    if args.min is not None and args.max is not None and args.min > args.max:
-        sys.exit("error: --min cannot be greater than --max")
+    _check_amount_bounds(args)
     data = load()
     # Shared filters (kind scope, category, tag, month, cleared); then search's
-    # own keyword, date-range, and amount-bound filters. All AND together.
+    # own keyword filter plus the shared date-range and amount-bound filters.
+    # All AND together.
     rows = _filter_entries(data["expenses"], args)
     kw = (args.keyword or "").strip().lower()
     if kw:
         rows = [e for e in rows
                 if kw in e["note"].lower() or kw in e["category"].lower()]
-    if getattr(args, "since", None) or getattr(args, "until", None):
-        start, end = _date_bounds(args.since, args.until)
-        rows = [e for e in rows if start <= e["date"] <= end]
-    if args.min is not None:
-        rows = [e for e in rows if e["amount"] >= args.min]
-    if args.max is not None:
-        rows = [e for e in rows if e["amount"] <= args.max]
+    rows = _filter_range_amount(rows, args)
 
     sort = getattr(args, "sort", None) or "date"
     keyfn = {
@@ -7237,6 +7256,10 @@ def build_parser():
     l.add_argument("--category", help="filter by category")
     l.add_argument("--tag", help="filter by #tag (with or without the #)")
     l.add_argument("--month", help="filter by month, YYYY-MM")
+    l.add_argument("--since", help="only entries on/after this date (YYYY-MM-DD/today)")
+    l.add_argument("--until", help="only entries on/before this date (YYYY-MM-DD/today)")
+    l.add_argument("--min", type=float, help="minimum amount")
+    l.add_argument("--max", type=float, help="maximum amount")
     l.add_argument("--limit", type=int, default=None,
                    help="show at most N most-recent items (default from config)")
     l.add_argument("--income", action="store_true", help="show income instead")
