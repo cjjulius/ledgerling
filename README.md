@@ -190,8 +190,8 @@ use):
   a `fire` (financial-independence) number and the `rule72` doubling-time rule,
   a `lattefactor` habit-cost projector, an `inflation` adjuster for comparing
   money across years, a `words` helper that spells an amount out as on a cheque,
-  `roundup` savings, a `target`-date planner, `runway`, and an offline currency
-  converter (`fx`).
+  a `countdown` to any date or a savings pot's target, `roundup` savings, a
+  `target`-date planner, `runway`, and an offline currency converter (`fx`).
 - **Data**: `export` and `import` CSV or JSON, `backup` and `restore`,
   `reconcile` against your bank, find and remove `duplicates`, and `undo` the
   last change. `check` scans your data for problems.

@@ -77,6 +77,7 @@ Commands:
     inflation  Convert a past amount into another year's money (offline)
     words     Spell a monetary amount in words (as on a cheque)
     receipt   Print an ASCII receipt for an entry or a day
+    countdown  Days until a date or a savings pot's target
     fx        Offline currency converter (set/list/rm/convert, user-set rates)
     upcoming  Forecast recurring charges/income due in the next N days
     bills     Recurring charges/income scheduled in a month, by day
@@ -146,7 +147,7 @@ import tempfile
 import time
 from datetime import datetime, date, timedelta
 
-__version__ = "1.164.0"
+__version__ = "1.165.0"
 
 # --------------------------------------------------------------------------- #
 # Sandbox + storage
@@ -311,6 +312,15 @@ def parse_date(text):
         return datetime.strptime(text, "%Y-%m-%d").date().isoformat()
     except ValueError:
         sys.exit(f"error: '{text}' is not a valid date (use YYYY-MM-DD)")
+
+
+def _days_until(target_iso, today=None):
+    """Whole days from today to an ISO date; negative if already past. Pure.
+    `today` may be a date or an ISO string (defaults to the real today)."""
+    base = today or date.today()
+    if isinstance(base, str):
+        base = date.fromisoformat(base)
+    return (date.fromisoformat(target_iso) - base).days
 
 
 def _date_bounds(since, until):
@@ -3159,6 +3169,58 @@ def cmd_receipt(args):
         print(f"no entries for {day}")
         return
     print("\n".join(_render_receipt(sel, heading)))
+
+
+def _days_phrase(days):
+    """Human phrase for a day delta: 'today', 'in N days', or 'N days ago'."""
+    if days == 0:
+        return "today"
+    n = abs(days)
+    unit = "day" if n == 1 else "days"
+    return f"in {n} {unit}" if days > 0 else f"{n} {unit} ago"
+
+
+def cmd_countdown(args):
+    """Days until a date - a payday, a trip, any deadline - or until a savings
+    pot's target date, with the daily saving still needed to get there."""
+    data = load()
+    remaining = None
+    if args.pot:
+        name = args.pot.strip().lower()
+        pot = data["pots"].get(name)
+        if not pot:
+            sys.exit(f"error: no pot named '{args.pot}'")
+        target = pot.get("due")
+        if not target:
+            sys.exit(f"error: pot '{args.pot}' has no target date "
+                     f"(set one with `pot {name} --by YYYY-MM-DD`)")
+        label = args.label or f"{name} target"
+        remaining = _pot_view(name, pot)["remaining"]
+    else:
+        if not args.date:
+            sys.exit("error: give a date (YYYY-MM-DD) or --pot NAME")
+        target = parse_date(args.date)
+        label = args.label or target
+
+    days = _days_until(target)
+    per_day = None
+    if remaining and days > 0:
+        per_day = round(remaining / days, 2)
+
+    if getattr(args, "json", False):
+        print(json.dumps({"label": label, "date": target, "days": days,
+                          "remaining": remaining, "per_day": per_day},
+                         indent=2))
+        return
+
+    print(f"{label}: {target}")
+    print(f"  {_days_phrase(days)}")
+    if remaining is not None and remaining > 0:
+        if per_day is not None:
+            print(f"  {money(remaining)} to go - save {money(per_day)} a day "
+                  f"to get there")
+        else:
+            print(f"  {money(remaining)} still to save")
 
 
 def cmd_net(args):
@@ -7665,6 +7727,14 @@ def build_parser():
     rc.add_argument("--json", action="store_true", help="output JSON instead of text")
     rc.set_defaults(func=cmd_receipt)
 
+    cd = sub.add_parser("countdown",
+                        help="days until a date or a savings pot's target")
+    cd.add_argument("date", nargs="?", help="target date, YYYY-MM-DD")
+    cd.add_argument("--pot", help="count down to this savings pot's target date")
+    cd.add_argument("--label", help="a name for what you are counting down to")
+    cd.add_argument("--json", action="store_true", help="output JSON instead of text")
+    cd.set_defaults(func=cmd_countdown)
+
     tgt = sub.add_parser("target",
                          help="estimate how long to reach a savings target")
     tgt.add_argument("amount", type=float, help="the savings amount to reach")
@@ -8088,7 +8158,7 @@ CATCHUP_COMMANDS = frozenset({
     "net", "subscriptions", "payees", "overbudget", "today", "worthtrend",
     "statement", "reconcile", "scorecard", "scoretrend", "category",
     "savingsplan", "bills", "challenge", "achievements", "onthisday", "mascot",
-    "fire", "receipt", "persona",
+    "fire", "receipt", "persona", "countdown",
 })
 MUTATING_COMMANDS = frozenset({
     "add", "income", "edit", "delete", "clone", "refund", "note", "tag",
