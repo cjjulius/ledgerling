@@ -3411,6 +3411,18 @@ class CLI(TempAppCase):
         self.assertEqual(L._clamp_ui_scale(0.1), L.UI_SCALE_MIN)  # clamped low
         self.assertEqual(L._clamp_ui_scale(1.2345), 1.23)         # rounded 2dp
 
+    def test_config_json(self):
+        # reading: pure JSON of the current settings, no stray text
+        out = self._main(["config", "--json"])
+        cfg = json.loads(out)
+        self.assertEqual(cfg["currency"], "$")
+        self.assertIn("ui_scale", cfg)
+        self.assertIn("fx", cfg)
+        # writing + --json returns the updated settings as JSON (no "updated" line)
+        out2 = self._main(["config", "--currency", "kr", "--json"])
+        self.assertEqual(json.loads(out2)["currency"], "kr")
+        self.assertNotIn("config updated", out2)
+
     def test_config_ui_scale(self):
         out = self._main(["config", "--ui-scale", "1.25"])
         self.assertIn("ui_scale", out)

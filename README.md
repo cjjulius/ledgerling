@@ -325,6 +325,7 @@ so a corrupt file can't crash a command, and bad *contents* are surfaced by
 - **Settings** live in `ledgerling_config.json`: `currency` (used everywhere
   amounts print), `symbol_position` (`before` → `$12.50`, or `after` → `12.50 kr`),
   and `list_limit` (the default `list` size, overridable with `--limit`). A
-  missing or corrupted config safely falls back to defaults.
+  missing or corrupted config safely falls back to defaults, and `config --json`
+  prints the current settings for scripting.
 - Writes are atomic, so an interrupted run won't corrupt your data file.
 - Delete the data folder (`~/.ledgerling`, or `$LEDGERLING_HOME`) to start over.

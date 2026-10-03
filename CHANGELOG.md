@@ -4,6 +4,14 @@ All notable changes to Ledgerling are documented here. The format is based on
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and this project
 adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.175.0] - 2026-10-03
+
+### Added
+
+- `config --json` prints the current settings as JSON (currency, list limit,
+  symbol position, home code, UI scale, and stored fx rates), for scripting and
+  tooling.
+
 ## [1.174.0] - 2026-10-03
 
 ### Added
@@ -2146,6 +2154,7 @@ file, standard library only, strictly confined to its own folder.
   guard (`_within_app`) that refuses any path escaping the app folder; imports
   and restores are reduced to a basename and looked up only within the folder.
 
+[1.175.0]: #11750---2026-10-03
 [1.174.0]: #11740---2026-10-03
 [1.173.0]: #11730---2026-10-03
 [1.172.1]: #11721---2026-10-03
