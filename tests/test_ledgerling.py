@@ -754,6 +754,20 @@ class WebUI(TempAppCase):
         self.assertEqual((mode, cols), ("scalars", ["value"]))
         self.assertIsNone(gui._tabular(None))
 
+    def test_gui_shortcuts_defined(self):
+        from ledgerling import gui
+        accels = [s[0] for s in gui.SHORTCUTS]
+        for a in ("Ctrl+Enter", "Ctrl+K", "Ctrl+T", "Ctrl+N", "Ctrl+Q"):
+            self.assertIn(a, accels)
+        # each row is (accelerator, event, description, action), all non-empty
+        self.assertTrue(all(len(s) == 4 and all(s) for s in gui.SHORTCUTS))
+        # action names are unique (the binding maps them 1:1 to methods)
+        actions = [s[3] for s in gui.SHORTCUTS]
+        self.assertEqual(len(actions), len(set(actions)))
+        # events look like Tk bindings
+        self.assertTrue(all(s[1].startswith("<") and s[1].endswith(">")
+                            for s in gui.SHORTCUTS))
+
     def test_gui_themes_consistent_and_cycle(self):
         from ledgerling import gui
         # every theme must define exactly the same colour keys, so the
