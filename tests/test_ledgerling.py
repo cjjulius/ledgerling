@@ -2000,6 +2000,36 @@ class CLI(TempAppCase):
                                       "--limit", "2", "--json"]))
         self.assertEqual([e["amount"] for e in top2], [30.0, 20.0])
 
+    def test_list_amount_and_date_filters(self):
+        self._main(["add", "5", "food", "a", "--date", "2026-01-01"])
+        self._main(["add", "50", "food", "b", "--date", "2026-01-15"])
+        self._main(["add", "500", "food", "c", "--date", "2026-02-01"])
+        # amount bounds
+        mid = json.loads(self._main(["list", "--min", "10", "--max", "100",
+                                     "--json"]))
+        self.assertEqual([e["amount"] for e in mid], [50.0])
+        # date range
+        jan = json.loads(self._main(["list", "--since", "2026-01-01",
+                                     "--until", "2026-01-31", "--json"]))
+        self.assertEqual(sorted(e["amount"] for e in jan), [5.0, 50.0])
+        # combined date range and amount
+        combo = json.loads(self._main(["list", "--since", "2026-01-10",
+                                       "--until", "2026-01-31", "--min", "20",
+                                       "--json"]))
+        self.assertEqual([e["amount"] for e in combo], [50.0])
+        # invalid bounds rejected
+        with self.assertRaises(SystemExit):
+            with contextlib.redirect_stderr(io.StringIO()):
+                L.main(["list", "--min", "100", "--max", "1"])
+
+    def test_filter_range_amount_pure(self):
+        rows = [{"amount": 5.0, "date": "2026-01-01"},
+                {"amount": 50.0, "date": "2026-02-01"}]
+        ns = Namespace(since=None, until=None, min=10, max=None)
+        self.assertEqual(L._filter_range_amount(rows, ns), [rows[1]])
+        ns2 = Namespace(since="2026-01-15", until=None, min=None, max=None)
+        self.assertEqual(L._filter_range_amount(rows, ns2), [rows[1]])
+
     def test_list_default_order_unchanged(self):
         self._main(["add", "1", "food", "a", "--date", "2026-01-03"])
         self._main(["add", "2", "food", "b", "--date", "2026-01-01"])
