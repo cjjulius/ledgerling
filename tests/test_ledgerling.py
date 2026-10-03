@@ -1763,6 +1763,30 @@ class CLI(TempAppCase):
             with contextlib.redirect_stderr(io.StringIO()):
                 L.main(["rule72", "--rate", "6", "--years", "9"])
 
+    def test_lattefactor(self):
+        # $5/day for 10 years: annual 1825, plain 18250; 0% return = plain spend
+        d = json.loads(self._main(["lattefactor", "5", "--years", "10",
+                                   "--return", "0", "--json"]))
+        self.assertEqual(d["annual"], 1825.0)
+        self.assertEqual(d["spent"], 18250.0)
+        self.assertEqual(d["invested"], 18250.0)   # no growth at 0%
+        self.assertEqual(d["growth"], 0.0)
+        # a positive return grows it beyond plain spend
+        g = json.loads(self._main(["lattefactor", "5", "--years", "10",
+                                   "--return", "6", "--json"]))
+        self.assertGreater(g["invested"], g["spent"])
+        # per-week scales the annual figure
+        w = json.loads(self._main(["lattefactor", "10", "--per", "week",
+                                   "--json"]))
+        self.assertEqual(w["annual"], 520.0)
+        with self.assertRaises(SystemExit):
+            with contextlib.redirect_stderr(io.StringIO()):
+                L.main(["lattefactor", "0"])
+
+    def test_future_value_pure(self):
+        self.assertEqual(L._future_value(100, 0, 1), 1200.0)   # no growth
+        self.assertGreater(L._future_value(100, 6, 1), 1200.0)
+
     def test_read_commands_survive_empty_data(self):
         # Every no-argument command must run on an empty store without an
         # unhandled exception (division by zero, max() of empty, etc.).

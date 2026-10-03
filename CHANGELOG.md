@@ -4,6 +4,16 @@ All notable changes to Ledgerling are documented here. The format is based on
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and this project
 adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.161.0] - 2026-10-02
+
+### Added
+
+- `lattefactor` command: the long-term cost of a small recurring habit. Give
+  the amount and how often (`--per day/week/month`), and it shows what you would
+  spend over the horizon (`--years`) and what the same money could grow to if
+  invested instead (`--return`). Pure calculator; `--json` supported; grouped
+  under Calculators. (Closes idea #6.)
+
 ## [1.160.0] - 2026-10-02
 
 ### Added
@@ -1996,6 +2006,7 @@ file, standard library only, strictly confined to its own folder.
   guard (`_within_app`) that refuses any path escaping the app folder; imports
   and restores are reduced to a basename and looked up only within the folder.
 
+[1.161.0]: #11610---2026-10-02
 [1.160.0]: #11600---2026-10-02
 [1.159.0]: #11590---2026-10-02
 [1.158.0]: #11580---2026-10-02
