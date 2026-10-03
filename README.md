@@ -266,8 +266,9 @@ that `list` and `search` share, the date-range and amount-bound filters
 (`--since`/`--until`/`--min`/`--max`) that `list`, `search`, and `top` share,
 the formatted entry line (`#id date amount [category] …` with its markers)
 that `list` and `search` share,
-and the current-month value (`YYYY-MM`) that the many commands defaulting to
-this month share.
+the current-month value (`YYYY-MM`) that the many commands defaulting to this
+month share, and the single-month expense selection that the many per-month
+reports share.
 
 Config loading is defensive: a stored setting is only accepted when its type
 matches the default (a corrupt or hand-edited value falls back to that default
