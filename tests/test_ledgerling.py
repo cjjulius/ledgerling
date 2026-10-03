@@ -1872,6 +1872,38 @@ class CLI(TempAppCase):
         self.assertEqual(L._wrap("a b c", 10), ["a b c"])
         self.assertEqual(L._wrap("aaa bbb ccc", 7), ["aaa bbb", "ccc"])
 
+    def test_spending_persona_pure(self):
+        # empty -> blank slate, no crash
+        blank = L.spending_persona([])
+        self.assertEqual(blank["count"], 0)
+        self.assertEqual(blank["archetype"], "The Blank Slate")
+        # one dominant category on a Saturday -> weekend read, metrics line up
+        rows = [{"amount": 100.0, "category": "fun", "date": "2026-03-07"},   # Sat
+                {"amount": 20.0, "category": "food", "date": "2026-03-07"}]
+        p = L.spending_persona(rows)
+        self.assertEqual(p["count"], 2)
+        self.assertEqual(p["total"], 120.0)
+        self.assertEqual(p["top_category"], "fun")
+        self.assertEqual(p["busiest_weekday"], "Sat")
+        self.assertEqual(p["weekend_share"], 1.0)
+        self.assertEqual(p["archetype"], "The Weekender")
+        # many small weekday buys -> impulse read
+        imp = L.spending_persona(
+            [{"amount": 1.0, "category": "c", "date": "2026-03-04"}] * 4
+            + [{"amount": 100.0, "category": "c", "date": "2026-03-04"}])
+        self.assertGreaterEqual(imp["impulse_score"], 65)
+        self.assertEqual(imp["archetype"], "The Impulse Grazer")
+
+    def test_persona_command(self):
+        self._main(["add", "40", "rent", "--date", "2026-03-02"])
+        d = json.loads(self._main(["persona", "--json"]))
+        self.assertEqual(d["top_category"], "rent")
+        self.assertIn("archetype", d)
+        txt = self._main(["persona"])
+        self.assertIn("Spending personality", txt)
+        # empty month is a clean read, not a crash
+        self.assertIn("Blank Slate", self._main(["persona", "--month", "1999-01"]))
+
     def test_read_commands_survive_empty_data(self):
         # Every no-argument command must run on an empty store without an
         # unhandled exception (division by zero, max() of empty, etc.).

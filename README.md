@@ -176,7 +176,8 @@ use):
 - **Analyze** it: a month `dashboard`, plain-language `insights`, an A-to-F
   health `scorecard` and its `scoretrend`, per-`category` and per-`tag`
   profiles, an `onthisday` flashback, a printable `receipt` for any day or
-  entry, `search`, and rollups by week, month, quarter, year, and weekday.
+  entry, a playful `persona` read of your habits, `search`, and rollups by week,
+  month, quarter, year, and weekday.
 - **Budgets and goals**: monthly `budget`s with `pace` and daily `allowance`, a
   savings `goal`, `networth` tracking, savings `pot`s (sinking funds) with
   optional target dates and a combined `savingsplan`, gamified savings

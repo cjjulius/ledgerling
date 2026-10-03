@@ -506,7 +506,7 @@ const GROUP_DEFS = [
   ['Record', ['add', 'income', 'edit', 'delete', 'split', 'clone', 'note', 'refund',
     'template use', 'template add', 'template list', 'template remove', 'template rename']],
   ['Analyze', ['today', 'month', 'insights', 'scorecard', 'scoretrend', 'range', 'summary', 'report', 'statement', 'receipt', 'stats', 'week', 'weekly', 'day', 'onthisday', 'year', 'years',
-    'quarter', 'weekday', 'trend', 'tagtrend', 'matrix', 'tagmatrix', 'cumulative', 'top', 'compare', 'average', 'distribution',
+    'quarter', 'weekday', 'persona', 'trend', 'tagtrend', 'matrix', 'tagmatrix', 'cumulative', 'top', 'compare', 'average', 'distribution',
     'balance', 'savings', 'heatmap', 'streak', 'pace', 'forecast', 'sources', 'anomalies', 'cashflow', 'net', 'subscriptions',
     'categories', 'category', 'payees', 'worthtrend', 'tags', 'untagged', 'search', 'list']],
   ['Budgets & goals', ['budget', 'unbudget', 'allowance', 'overbudget', 'goal', 'networth', 'pot', 'transfer', 'savingsplan', 'challenge', 'achievements', 'suggest', 'autobudget', 'commitments', 'upcoming', 'bills']],
