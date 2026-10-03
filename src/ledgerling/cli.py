@@ -150,7 +150,7 @@ import tempfile
 import time
 from datetime import datetime, date, timedelta
 
-__version__ = "1.178.0"
+__version__ = "1.179.0"
 
 # --------------------------------------------------------------------------- #
 # Sandbox + storage
@@ -718,6 +718,32 @@ def apply_recurring(data):
         if latest is not None:
             rule["last"] = latest.isoformat()
     return created
+
+
+def pending_recurring(data, today=None):
+    """The occurrences apply_recurring would generate right now, without creating
+    anything or mutating `data`. Returns a list of dicts (date, amount, category,
+    kind, note, recur_id), oldest first. Mirrors apply_recurring's selection."""
+    today = today or date.today()
+    pending = []
+    for rule in data["recurring"]:
+        if rule.get("paused"):
+            continue
+        last = date.fromisoformat(rule["last"]) if rule.get("last") else None
+        skips = set(rule.get("skips", []))
+        since = (last + timedelta(days=1)) if last is not None else None
+        for d in _occurrences(rule, today, since):
+            if last is not None and d <= last:
+                continue
+            if d.isoformat() in skips:
+                continue
+            pending.append({
+                "date": d.isoformat(), "amount": rule["amount"],
+                "category": rule["category"], "kind": rule.get("kind", "expense"),
+                "note": rule["note"], "recur_id": rule["id"],
+            })
+    pending.sort(key=lambda p: p["date"])
+    return pending
 
 
 # --------------------------------------------------------------------------- #
@@ -7310,6 +7336,23 @@ def cmd_recur_resume(args):
 
 def cmd_recur_run(args):
     data = load()
+    if getattr(args, "dry_run", False):
+        pend = pending_recurring(data)
+        if getattr(args, "json", False):
+            print(json.dumps(pend, indent=2))
+            return
+        if not pend:
+            print("nothing due - all recurring rules are up to date")
+            return
+        print(f"{len(pend)} occurrence(s) would be generated "
+              "(dry run - nothing created):")
+        for p in pend[:50]:
+            mark = " +income" if p["kind"] == "income" else ""
+            print(f"  {p['date']}  {money(p['amount']):>12}  "
+                  f"[{p['category']}]{mark}")
+        if len(pend) > 50:
+            print(f"  ... and {len(pend) - 50} more")
+        return
     created = apply_recurring(data)
     save(data)
     print(f"generated {created} recurring expense(s)" if created
@@ -8298,6 +8341,10 @@ def build_parser():
     rr.set_defaults(func=cmd_recur_remove)
 
     rn = rsub.add_parser("run", help="generate any due recurring expenses now")
+    rn.add_argument("--dry-run", action="store_true",
+                    help="preview what would be generated without creating it")
+    rn.add_argument("--json", action="store_true",
+                    help="with --dry-run, list the pending occurrences as JSON")
     rn.set_defaults(func=cmd_recur_run)
 
     rk = rsub.add_parser("skip", help="skip a rule's next (or a given) occurrence")
