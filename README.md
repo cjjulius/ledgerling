@@ -195,8 +195,8 @@ use):
   a `countdown` to any date or a savings pot's target, `roundup` savings, a
   `target`-date planner, `runway`, and an offline currency converter (`fx`).
 - **Data**: `export` and `import` CSV or JSON (export filters by
-  month/range/category/kind/amount, or prints to stdout for piping),
-  `backup` and `restore`,
+  month/range/category/kind/amount; export to stdout and import from stdin let
+  you pipe between the two), `backup` and `restore`,
   `reconcile` against your bank, find and remove `duplicates`, and `undo` the
   last change. `check` scans your data for problems and repairs the safe ones
   with `check --fix`.

@@ -962,6 +962,58 @@ class CLI(TempAppCase):
         self.assertEqual(parsed[0][:3], ["id", "date", "amount"])
         self.assertEqual(parsed[1][2], "12.50")
 
+    def _run_with_stdin(self, argv, text):
+        """Run the CLI with sys.stdin fed from `text`; return captured stdout."""
+        old = sys.stdin
+        sys.stdin = io.StringIO(text)
+        try:
+            return self._main(argv)
+        finally:
+            sys.stdin = old
+
+    def test_import_stdin_json_and_csv(self):
+        payload = json.dumps([{"date": "2026-01-01", "amount": 9.0,
+                               "category": "food", "note": "x",
+                               "kind": "expense"}])
+        out = self._run_with_stdin(["import", "--stdin", "--format", "json"],
+                                   payload)
+        self.assertIn("imported from stdin", out)
+        self.assertEqual(len(L.load()["expenses"]), 1)
+        # CSV via stdin (default format); duplicate of the above is skipped
+        csv_text = ("date,amount,category,note,kind\n"
+                    "2026-01-01,9.00,food,x,expense\n"
+                    "2026-01-02,4.00,coffee,,expense\n")
+        out2 = self._run_with_stdin(["import", "--stdin"], csv_text)
+        self.assertIn("imported from stdin", out2)
+        self.assertEqual(len(L.load()["expenses"]), 2)   # one new, one dup
+
+    def test_import_stdin_and_file_conflict(self):
+        with self.assertRaises(SystemExit):
+            with contextlib.redirect_stderr(io.StringIO()):
+                L.main(["import", "--stdin", "--file", "x.csv"])
+
+    def test_import_requires_source(self):
+        with self.assertRaises(SystemExit):
+            with contextlib.redirect_stderr(io.StringIO()):
+                L.main(["import"])   # neither --file nor --stdin
+
+    def test_export_stdout_import_stdin_roundtrip(self):
+        self._main(["add", "7.5", "food", "lunch", "--date", "2026-01-01"])
+        dump = self._main(["export", "--format", "json", "--stdout"])
+        # fresh store, then re-import the piped dump
+        L.save({"expenses": [], "budgets": {}, "recurring": [], "goal": None})
+        self._run_with_stdin(["import", "--stdin", "--format", "json"], dump)
+        rows = L.load()["expenses"]
+        self.assertEqual(len(rows), 1)
+        self.assertEqual(rows[0]["category"], "food")
+
+    def test_parse_import_text_pure(self):
+        self.assertEqual(L._parse_import_text("[]", True, "x"), [])
+        rows = L._parse_import_text("a,b\n1,2\n", False, "x")
+        self.assertEqual(rows, [{"a": "1", "b": "2"}])
+        with self.assertRaises(SystemExit):
+            L._parse_import_text("{not json", True, "x")
+
     def test_serialize_export_pure(self):
         rows = [{"id": 1, "date": "2026-01-01", "amount": 5.0, "category": "x",
                  "note": "", "recur_id": None}]

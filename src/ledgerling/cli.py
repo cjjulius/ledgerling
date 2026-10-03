@@ -149,7 +149,7 @@ import tempfile
 import time
 from datetime import datetime, date, timedelta
 
-__version__ = "1.173.0"
+__version__ = "1.174.0"
 
 # --------------------------------------------------------------------------- #
 # Sandbox + storage
@@ -1312,30 +1312,48 @@ def _normalize_import_row(row):
             "date": d, "kind": kind, "cleared": cleared}
 
 
-def cmd_import(args):
-    name = os.path.basename(args.file)  # keep the read inside the data folder
-    candidates = [os.path.join(EXPORT_DIR, name), os.path.join(HOME_DIR, name)]
-    path = next((c for c in candidates if os.path.exists(c)), None)
-    if not path:
-        sys.exit(f"error: '{name}' not found in exports/ or the data folder")
-    _within_home(path)
+def _parse_import_text(text, is_json, source):
+    """Parse raw import records from text, as a JSON array or CSV rows. Returns
+    a list of dict rows; exits with a clear error on malformed input."""
+    if is_json:
+        try:
+            payload = json.loads(text)
+        except json.JSONDecodeError as exc:
+            sys.exit(f"error: {source} is not valid JSON: {exc}")
+        if not isinstance(payload, list):
+            sys.exit(f"error: {source} is not a JSON array of entries")
+        return payload
+    return list(csv.DictReader(io.StringIO(text)))
 
-    # Read raw records from JSON (an exported array) or CSV, by extension.
-    try:
-        if path.lower().endswith(".json"):
-            with open(path, "r", encoding="utf-8-sig") as fh:
-                payload = json.load(fh)
-            if not isinstance(payload, list):
-                sys.exit(f"error: {path} is not a JSON array of entries")
-            raw_rows = payload
-        else:
+
+def cmd_import(args):
+    use_stdin = getattr(args, "stdin", False)
+    if use_stdin and args.file:
+        sys.exit("error: use --file or --stdin, not both")
+
+    if use_stdin:
+        # Format can't be inferred from a pipe, so it comes from --format.
+        raw_rows = _parse_import_text(sys.stdin.read(),
+                                      args.format == "json", "stdin")
+        source = "stdin"
+    else:
+        if not args.file:
+            sys.exit("error: import needs --file NAME or --stdin")
+        name = os.path.basename(args.file)  # keep the read inside the data folder
+        candidates = [os.path.join(EXPORT_DIR, name),
+                      os.path.join(HOME_DIR, name)]
+        path = next((c for c in candidates if os.path.exists(c)), None)
+        if not path:
+            sys.exit(f"error: '{name}' not found in exports/ or the data folder")
+        _within_home(path)
+        try:
             # utf-8-sig tolerates a BOM (Excel / PowerShell often add one).
             with open(path, "r", encoding="utf-8-sig", newline="") as fh:
-                raw_rows = list(csv.DictReader(fh))
-    except OSError as exc:
-        sys.exit(f"error: could not read {path}: {exc}")
-    except json.JSONDecodeError as exc:
-        sys.exit(f"error: {path} is not valid JSON: {exc}")
+                text = fh.read()
+        except OSError as exc:
+            sys.exit(f"error: could not read {path}: {exc}")
+        raw_rows = _parse_import_text(text, path.lower().endswith(".json"), path)
+        source = path
 
     data = load()
     seen = {(e["date"], round(e["amount"], 2), e["category"], e["note"],
@@ -1368,13 +1386,13 @@ def cmd_import(args):
         added += 1
 
     if getattr(args, "dry_run", False):
-        print(f"dry run of {path} (nothing imported)")
+        print(f"dry run of {source} (nothing imported)")
         print(f"  would add {added}, skip {skipped} duplicate(s), "
               f"{bad} malformed row(s)")
         return
 
     save(data)
-    print(f"imported from {path}")
+    print(f"imported from {source}")
     print(f"  added {added}, skipped {skipped} duplicate(s), "
           f"{bad} malformed row(s)")
 
@@ -7416,10 +7434,14 @@ def build_parser():
     x.set_defaults(func=cmd_export)
 
     im = sub.add_parser("import",
-                        help="import entries from a CSV or JSON file in the data folder")
-    im.add_argument("--file", required=True,
+                        help="import entries from a CSV/JSON file or stdin")
+    im.add_argument("--file",
                     help="file name (.csv or .json; looked up in exports/ then "
                          "the data folder)")
+    im.add_argument("--stdin", action="store_true",
+                    help="read entries from standard input (for piping)")
+    im.add_argument("--format", choices=["csv", "json"], default="csv",
+                    help="format when reading from stdin (default csv)")
     im.add_argument("--dry-run", action="store_true",
                     help="preview counts without importing anything")
     im.set_defaults(func=cmd_import)
