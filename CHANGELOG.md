@@ -4,6 +4,14 @@ All notable changes to Ledgerling are documented here. The format is based on
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and this project
 adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.176.0] - 2026-10-03
+
+### Added
+
+- `recent` command: the entries you most recently recorded, ordered by entry id
+  (insertion order) rather than date - useful right after adding or backdating a
+  batch. Supports the income/all scope, `--limit`, and `--json`.
+
 ## [1.175.0] - 2026-10-03
 
 ### Added
@@ -2154,6 +2162,7 @@ file, standard library only, strictly confined to its own folder.
   guard (`_within_app`) that refuses any path escaping the app folder; imports
   and restores are reduced to a basename and looked up only within the folder.
 
+[1.176.0]: #11760---2026-10-03
 [1.175.0]: #11750---2026-10-03
 [1.174.0]: #11740---2026-10-03
 [1.173.0]: #11730---2026-10-03

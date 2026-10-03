@@ -34,7 +34,7 @@ GROUP_DEFS = [
                  "heatmap", "streak", "pace", "forecast", "sources", "anomalies",
                  "cashflow", "net", "subscriptions", "payees", "worthtrend",
                  "categories", "category",
-                 "tags", "untagged", "search", "list"]),
+                 "tags", "untagged", "search", "list", "recent"]),
     ("Budgets & goals", ["budget", "unbudget", "allowance", "overbudget", "goal",
                          "networth", "pot", "transfer", "savingsplan",
                          "challenge", "achievements", "suggest", "autobudget",
