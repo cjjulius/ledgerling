@@ -3641,6 +3641,29 @@ class CLI(TempAppCase):
         self._main(["check", "--fix"])
         self.assertEqual(list(L.load()["pots"]), ["ok"])
 
+    def test_check_flags_and_fixes_bad_pot_fields(self):
+        # A sound pot shell (valid saved) but a bad due date and a bad target.
+        L.save({"expenses": [], "budgets": {}, "recurring": [], "goal": None,
+                "pots": {"trip": {"saved": 50.0, "target": -5,
+                                  "due": "not-a-date"}}})
+        issues = json.loads(self._main(["check", "--json"]))["issues"]
+        kinds = [i["kind"] for i in issues]
+        self.assertEqual(kinds.count("bad_pot_field"), 2)
+        self.assertNotIn("bad_pot", kinds)   # the pot itself is kept, not flagged
+        self._main(["check", "--fix"])
+        pot = L.load()["pots"]["trip"]
+        self.assertEqual(pot["saved"], 50.0)   # balance preserved
+        self.assertNotIn("target", pot)
+        self.assertNotIn("due", pot)
+        # clean afterwards
+        self.assertTrue(json.loads(self._main(["check", "--json"]))["ok"])
+
+    def test_check_accepts_valid_pot_fields(self):
+        L.save({"expenses": [], "budgets": {}, "recurring": [], "goal": None,
+                "pots": {"trip": {"saved": 50.0, "target": 500,
+                                  "due": "2030-01-01"}}})
+        self.assertTrue(json.loads(self._main(["check", "--json"]))["ok"])
+
     def test_networth_totals_pure(self):
         acc = {"checking": {"amount": 2500.0, "debt": False},
                "card": {"amount": 800.0, "debt": True},
