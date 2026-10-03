@@ -28,7 +28,7 @@ GROUP_DEFS = [
     ("Analyze", ["today", "month", "insights", "scorecard", "scoretrend", "range", "summary", "report",
                  "statement", "receipt", "stats",
                  "week", "weekly", "day", "onthisday", "year", "years",
-                 "quarter", "weekday",
+                 "quarter", "weekday", "persona",
                  "trend", "tagtrend", "matrix", "tagmatrix", "cumulative", "top",
                  "compare", "average", "distribution", "balance", "savings",
                  "heatmap", "streak", "pace", "forecast", "sources", "anomalies",

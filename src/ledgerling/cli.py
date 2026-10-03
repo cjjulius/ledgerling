@@ -38,6 +38,7 @@ Commands:
     weekly    Weekly spending trend over the last N weeks
     streak    No-spend-day streaks for a month
     weekday   Spending by day of week (which days you spend most)
+    persona   A playful read of your spending personality (from real data)
     heatmap   Daily-spending calendar for a month (with a web calendar view)
     cumulative  Cumulative spending by day within a month
     month     One-screen dashboard for a month (income, spend, net, budgets)
@@ -145,7 +146,7 @@ import tempfile
 import time
 from datetime import datetime, date, timedelta
 
-__version__ = "1.163.0"
+__version__ = "1.164.0"
 
 # --------------------------------------------------------------------------- #
 # Sandbox + storage
@@ -4066,6 +4067,71 @@ def cmd_category(args):
 _WEEKDAY_NAMES = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"]
 
 
+def spending_persona(rows):
+    """Derive a playful spending-personality profile from expense entries. Pure.
+    `rows` should be expenses only. Returns the underlying metrics (top category
+    and its share, busiest weekday, weekend share, an impulse score) plus a
+    chosen archetype and a one-line read. For fun, not judgement."""
+    count = len(rows)
+    total = round(sum(e["amount"] for e in rows), 2)
+    if not count:
+        return {"count": 0, "total": 0.0, "archetype": "The Blank Slate",
+                "blurb": "No spending recorded yet - your story is unwritten."}
+    avg = round(total / count, 2)
+    cats = category_totals(rows)
+    top_category, top_total = max(cats.items(), key=lambda kv: kv[1])
+    top_share = round(top_total / total, 2) if total else 0.0
+    wd_total = {}
+    weekend = 0.0
+    for e in rows:
+        wd = date.fromisoformat(e["date"]).weekday()
+        wd_total[wd] = round(wd_total.get(wd, 0.0) + e["amount"], 2)
+        if wd >= 5:
+            weekend = round(weekend + e["amount"], 2)
+    busiest_day = _WEEKDAY_NAMES[max(wd_total, key=lambda k: wd_total[k])]
+    weekend_share = round(weekend / total, 2) if total else 0.0
+    # Impulse: share of transactions smaller than the average size. A long tail
+    # of little buys (coffees, snacks) reads as impulsive; a few large, planned
+    # purchases reads as deliberate.
+    small = sum(1 for e in rows if e["amount"] < avg)
+    impulse_score = round(100 * small / count)
+
+    if weekend_share >= 0.5:
+        arch = "The Weekender"
+    elif impulse_score >= 65:
+        arch = "The Impulse Grazer"
+    elif impulse_score <= 35:
+        arch = "The Big-Ticket Planner"
+    elif top_share >= 0.5:
+        arch = "The Specialist"
+    else:
+        arch = "The Balanced Spender"
+    blurb = (f"Most of your money goes to {top_category} "
+             f"({round(top_share * 100)}%), you spend most on {busiest_day}s, "
+             f"and your impulse score is {impulse_score}/100.")
+    return {"count": count, "total": total, "average": avg,
+            "top_category": top_category, "top_share": top_share,
+            "busiest_weekday": busiest_day, "weekend_share": weekend_share,
+            "impulse_score": impulse_score, "archetype": arch, "blurb": blurb}
+
+
+def cmd_persona(args):
+    """A playful, horoscope-style read of your spending personality, derived
+    entirely from your real ledger. For fun, not judgement."""
+    check_month(args.month)
+    data = load()
+    rows = filter_month(expenses_only(data["expenses"]), args.month)
+    prof = spending_persona(rows)
+    if getattr(args, "json", False):
+        print(json.dumps({"scope": args.month or "all time", **prof}, indent=2))
+        return
+    scope = args.month or "all time"
+    print(f"Spending personality ({scope})")
+    print("=" * 48)
+    print(f"  {prof['archetype']}")
+    print(f"  {prof['blurb']}")
+
+
 def cmd_weekday(args):
     check_month(args.month)
     data = load()
@@ -7217,6 +7283,12 @@ def build_parser():
     wd.add_argument("--json", action="store_true", help="output JSON instead of text")
     wd.set_defaults(func=cmd_weekday)
 
+    ps = sub.add_parser("persona",
+                        help="a playful read of your spending personality")
+    ps.add_argument("--month", help="restrict to a month, YYYY-MM")
+    ps.add_argument("--json", action="store_true", help="output JSON instead of text")
+    ps.set_defaults(func=cmd_persona)
+
     hm = sub.add_parser("heatmap", help="daily-spending calendar for a month")
     hm.add_argument("--month", help="which month, YYYY-MM (default: current)")
     hm.add_argument("--json", action="store_true", help="output JSON instead of text")
@@ -8016,7 +8088,7 @@ CATCHUP_COMMANDS = frozenset({
     "net", "subscriptions", "payees", "overbudget", "today", "worthtrend",
     "statement", "reconcile", "scorecard", "scoretrend", "category",
     "savingsplan", "bills", "challenge", "achievements", "onthisday", "mascot",
-    "fire", "receipt",
+    "fire", "receipt", "persona",
 })
 MUTATING_COMMANDS = frozenset({
     "add", "income", "edit", "delete", "clone", "refund", "note", "tag",
