@@ -30,9 +30,8 @@ ledgerling gui --theme light
 Ledgerling ships a **native desktop application** built on Tkinter (still
 standard library only — no extra dependencies). It opens a real OS window with:
 
-- two clean **themes** — a light theme and a dark theme, both built on neutral
-  surfaces with green used only as an accent — toggled with a short colour
-  crossfade;
+- three **themes** — light, dark, and a high-contrast theme for low-vision
+  readability — cycled with Ctrl+T through a short colour crossfade;
 - a **menu bar** — File (Run, open web UI, Quit), a **Commands** menu with every
   command organized into submenus, View (toggle light/dark, focus search), and
   Help;
@@ -67,7 +66,7 @@ standard library only — no extra dependencies). It opens a real OS window with
   formatted, and clicking a column header sorts by it (numeric-aware);
 - it **remembers** your theme and window size/position between launches;
 - **keyboard shortcuts**: `Ctrl+Enter` to run, `Ctrl+K` to focus the filter,
-  `Ctrl+T` to toggle the theme, `Ctrl+Q` to quit — and Enter in any field runs
+  `Ctrl+T` to cycle the theme, `Ctrl+Q` to quit — and Enter in any field runs
   the command;
 - **adjustable text size** for readability: set a scale with
   `ledgerling config --ui-scale 1.25` (anywhere from 0.5 to 3.0) and the app
