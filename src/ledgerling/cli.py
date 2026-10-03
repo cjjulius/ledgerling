@@ -150,7 +150,7 @@ import tempfile
 import time
 from datetime import datetime, date, timedelta
 
-__version__ = "1.177.0"
+__version__ = "1.178.0"
 
 # --------------------------------------------------------------------------- #
 # Sandbox + storage
@@ -459,6 +459,24 @@ def parse_tags(note):
     return sorted({m.lower() for m in _TAG_RE.findall(note or "")})
 
 
+def merge_tag_flags(note, tag_flags):
+    """Fold --tag values into a note as #tags so they feed the normal tag
+    parsing. Each value is sanitized to word characters (matching how #tags are
+    read) and skipped if already present. Returns the (possibly) extended note."""
+    if not tag_flags:
+        return note
+    have = set(parse_tags(note))
+    extra = []
+    for raw in tag_flags:
+        t = re.sub(r"\W", "", (raw or "").lstrip("#").lower())
+        if t and t not in have:
+            have.add(t)
+            extra.append(t)
+    if not extra:
+        return note
+    return (note + " " + " ".join("#" + t for t in extra)).strip()
+
+
 def money(amount):
     cur = _CONFIG.get("currency", "$")
     # Put the sign in front of the whole thing ("-$5.00", not "$-5.00") to match
@@ -720,7 +738,7 @@ def cmd_add(args):
     data = load()
     if args.amount <= 0:
         sys.exit("error: amount must be greater than zero")
-    note = args.note.strip()
+    note = merge_tag_flags(args.note.strip(), getattr(args, "tag", None))
     amount, conv = _entry_amount(args)
     entry = {
         "id": next_id(data["expenses"]),
@@ -744,7 +762,7 @@ def cmd_income(args):
     data = load()
     if args.amount <= 0:
         sys.exit("error: amount must be greater than zero")
-    note = args.note.strip()
+    note = merge_tag_flags(args.note.strip(), getattr(args, "tag", None))
     amount, conv = _entry_amount(args)
     entry = {
         "id": next_id(data["expenses"]),
@@ -7338,6 +7356,8 @@ def build_parser():
                    help="YYYY-MM-DD, 'today', or 'yesterday'")
     a.add_argument("--in", dest="in_", metavar="CODE",
                    help="amount is in this currency; convert to home via fx rates")
+    a.add_argument("--tag", action="append", metavar="TAG",
+                   help="attach a #tag without typing it in the note (repeatable)")
     a.set_defaults(func=cmd_add)
 
     inc = sub.add_parser("income", help="record an income entry")
@@ -7348,6 +7368,8 @@ def build_parser():
                      help="YYYY-MM-DD, 'today', or 'yesterday'")
     inc.add_argument("--in", dest="in_", metavar="CODE",
                      help="amount is in this currency; convert to home via fx rates")
+    inc.add_argument("--tag", action="append", metavar="TAG",
+                     help="attach a #tag without typing it in the note (repeatable)")
     inc.set_defaults(func=cmd_income)
 
     l = sub.add_parser("list", help="show recent expenses")
