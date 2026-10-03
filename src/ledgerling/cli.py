@@ -59,6 +59,7 @@ Commands:
     matrix    Category x month spending grid (pivot table)
     tagmatrix  #tag x month spending grid (pivot table)
     top       List your largest expenses (optionally by month/category)
+    topdays   Your highest-spending days, ranked
     net       Income, expenses, net and savings rate (all-time or a month)
     average   Average spending per day / week / month
     distribution  Histogram of expense sizes
@@ -147,7 +148,7 @@ import tempfile
 import time
 from datetime import datetime, date, timedelta
 
-__version__ = "1.171.0"
+__version__ = "1.172.0"
 
 # --------------------------------------------------------------------------- #
 # Sandbox + storage
@@ -3365,6 +3366,47 @@ def cmd_top(args):
               f"[{e['category']}]{note}{mark}")
     print("-" * 56)
     print(f"shown total {money(sum(e['amount'] for e in rows))}")
+
+
+def daily_totals(rows):
+    """Sum entry amounts by date into a {date: {"total", "count"}} map, with
+    running 2dp rounding. Pure; callers pass rows already scoped/filtered."""
+    agg = {}
+    for e in rows:
+        d = agg.setdefault(e["date"], {"total": 0.0, "count": 0})
+        d["total"] = round(d["total"] + e["amount"], 2)
+        d["count"] += 1
+    return agg
+
+
+def cmd_topdays(args):
+    """Your highest-spending days: entry amounts grouped by date and ranked,
+    honoring the shared filters (month / date-range / category / tag / kind)."""
+    check_month(args.month)
+    data = load()
+    rows = _filter_range_amount(_filter_entries(data["expenses"], args), args)
+    agg = daily_totals(rows)
+    days = sorted(agg.items(), key=lambda kv: (kv[1]["total"], kv[0]),
+                  reverse=True)
+    limit = args.limit if args.limit and args.limit > 0 else 10
+    days = days[:limit]
+    out = [{"date": d, "total": v["total"], "count": v["count"]}
+           for d, v in days]
+
+    if getattr(args, "json", False):
+        print(json.dumps(out, indent=2))
+        return
+    if not out:
+        print("no matching entries")
+        return
+
+    print(f"Top {len(out)} spending day{'' if len(out) == 1 else 's'}")
+    print("=" * 52)
+    peak = max(r["total"] for r in out) or 1.0
+    for rank, r in enumerate(out, 1):
+        n = r["count"]
+        print(f"{rank:>2}. {r['date']}  {money(r['total']):>12}  "
+              f"{bar(r['total'] / peak, 18)}  ({n} item{'' if n == 1 else 's'})")
 
 
 def cmd_payees(args):
@@ -7855,6 +7897,19 @@ def build_parser():
     tp.add_argument("--json", action="store_true", help="output JSON instead of text")
     tp.set_defaults(func=cmd_top)
 
+    td = sub.add_parser("topdays", help="your highest-spending days, ranked")
+    td.add_argument("--limit", type=int, default=10,
+                    help="how many days to show (default 10)")
+    td.add_argument("--month", help="restrict to a month, YYYY-MM")
+    td.add_argument("--since", help="only entries on/after this date (YYYY-MM-DD/today)")
+    td.add_argument("--until", help="only entries on/before this date (YYYY-MM-DD/today)")
+    td.add_argument("--category", help="restrict to a category")
+    td.add_argument("--tag", help="restrict to a #tag (with or without the #)")
+    td.add_argument("--income", action="store_true", help="rank income days instead")
+    td.add_argument("--all", action="store_true", help="include expenses and income")
+    td.add_argument("--json", action="store_true", help="output JSON instead of text")
+    td.set_defaults(func=cmd_topdays)
+
     pay = sub.add_parser("payees",
                          help="rank spending by payee (merchant), from the note")
     pay.add_argument("--month", help="restrict to a month, YYYY-MM")
@@ -8232,6 +8287,7 @@ CATCHUP_COMMANDS = frozenset({
     "tagtrend", "range", "matrix", "cumulative", "allowance", "tagmatrix",
     "weekly", "years", "anomalies", "roundup", "cashflow", "target", "runway",
     "net", "subscriptions", "payees", "overbudget", "today", "worthtrend",
+    "topdays",
     "statement", "reconcile", "scorecard", "scoretrend", "category",
     "savingsplan", "bills", "challenge", "achievements", "onthisday", "mascot",
     "fire", "receipt", "persona", "countdown",
