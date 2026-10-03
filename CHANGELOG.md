@@ -4,6 +4,15 @@ All notable changes to Ledgerling are documented here. The format is based on
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and this project
 adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.169.0] - 2026-10-03
+
+### Added
+
+- `top` now accepts the shared date-range and amount filters (`--since`,
+  `--until`, `--min`, `--max`), so you can rank your largest entries within a
+  period or above a threshold. Its filtering now reuses the same routines as
+  `list` and `search`.
+
 ## [1.168.0] - 2026-10-03
 
 ### Added
@@ -2083,6 +2092,7 @@ file, standard library only, strictly confined to its own folder.
   guard (`_within_app`) that refuses any path escaping the app folder; imports
   and restores are reduced to a basename and looked up only within the folder.
 
+[1.169.0]: #11690---2026-10-03
 [1.168.0]: #11680---2026-10-03
 [1.167.1]: #11671---2026-10-03
 [1.167.0]: #11670---2026-10-03

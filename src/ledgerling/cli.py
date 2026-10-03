@@ -147,7 +147,7 @@ import tempfile
 import time
 from datetime import datetime, date, timedelta
 
-__version__ = "1.168.0"
+__version__ = "1.169.0"
 
 # --------------------------------------------------------------------------- #
 # Sandbox + storage
@@ -3329,14 +3329,11 @@ def cmd_average(args):
 
 def cmd_top(args):
     check_month(args.month)
+    _check_amount_bounds(args)
     data = load()
-    rows = _scope_by_kind(data["expenses"], args)
-    if args.category:
-        rows = [e for e in rows if e["category"] == args.category.strip().lower()]
-    if getattr(args, "tag", None):
-        want = args.tag.strip().lstrip("#").lower()
-        rows = [e for e in rows if want in e.get("tags", [])]
-    rows = filter_month(rows, args.month)
+    # Shared kind/category/tag/month filters, then the shared date-range and
+    # amount-bound filters, then rank by amount.
+    rows = _filter_range_amount(_filter_entries(data["expenses"], args), args)
     rows = sorted(rows, key=lambda e: e["amount"], reverse=True)
     limit = args.limit if args.limit and args.limit > 0 else 10
     rows = rows[:limit]
@@ -7841,6 +7838,10 @@ def build_parser():
     tp.add_argument("--limit", type=int, default=10,
                     help="how many to show (default 10)")
     tp.add_argument("--month", help="restrict to a month, YYYY-MM")
+    tp.add_argument("--since", help="only entries on/after this date (YYYY-MM-DD/today)")
+    tp.add_argument("--until", help="only entries on/before this date (YYYY-MM-DD/today)")
+    tp.add_argument("--min", type=float, help="minimum amount")
+    tp.add_argument("--max", type=float, help="maximum amount")
     tp.add_argument("--category", help="restrict to a category")
     tp.add_argument("--tag", help="restrict to a #tag (with or without the #)")
     tp.add_argument("--income", action="store_true", help="rank income instead")

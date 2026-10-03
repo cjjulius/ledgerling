@@ -2377,6 +2377,21 @@ class CLI(TempAppCase):
         d = json.loads(self._main(["top", "--category", "food", "--json"]))
         self.assertEqual([e["amount"] for e in d], [40.0, 10.0])
 
+    def test_top_date_and_amount_filters(self):
+        self._main(["add", "5", "food", "a", "--date", "2026-01-01"])
+        self._main(["add", "80", "food", "b", "--date", "2026-01-20"])
+        self._main(["add", "900", "rent", "c", "--date", "2026-02-01"])
+        # amount floor
+        d = json.loads(self._main(["top", "--min", "50", "--json"]))
+        self.assertEqual([e["amount"] for e in d], [900.0, 80.0])
+        # date range narrows to January, still ranked by amount
+        jan = json.loads(self._main(["top", "--since", "2026-01-01",
+                                     "--until", "2026-01-31", "--json"]))
+        self.assertEqual([e["amount"] for e in jan], [80.0, 5.0])
+        with self.assertRaises(SystemExit):
+            with contextlib.redirect_stderr(io.StringIO()):
+                L.main(["top", "--min", "9", "--max", "1"])
+
     def test_payees_json(self):
         # two charges to "netflix", one to "spotify"; income excluded
         self._main(["add", "15.99", "ent", "netflix", "--date", "2026-01-05"])
