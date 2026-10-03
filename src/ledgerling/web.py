@@ -81,6 +81,7 @@ def describe():
     cfg = L.load_config()
     return {"version": L.__version__, "currency": cfg.get("currency", "$"),
             "symbol_position": cfg.get("symbol_position", "before"),
+            "ui_scale": cfg.get("ui_scale", 1.0),
             "commands": commands}
 
 

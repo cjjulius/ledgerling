@@ -68,7 +68,10 @@ standard library only — no extra dependencies). It opens a real OS window with
 - it **remembers** your theme and window size/position between launches;
 - **keyboard shortcuts**: `Ctrl+Enter` to run, `Ctrl+K` to focus the filter,
   `Ctrl+T` to toggle the theme, `Ctrl+Q` to quit — and Enter in any field runs
-  the command.
+  the command;
+- **adjustable text size** for readability: set a scale with
+  `ledgerling config --ui-scale 1.25` (anywhere from 0.5 to 3.0) and the app
+  sizes all of its text to match on the next launch.
 
 When built as an executable (see below), this is the **double-clickable app**:
 `ledgerling-gui.exe` launches straight into the window with no console.

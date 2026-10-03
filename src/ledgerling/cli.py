@@ -147,7 +147,7 @@ import tempfile
 import time
 from datetime import datetime, date, timedelta
 
-__version__ = "1.166.0"
+__version__ = "1.167.0"
 
 # --------------------------------------------------------------------------- #
 # Sandbox + storage
@@ -173,7 +173,16 @@ _SUPPRESS_UNDO = False
 
 DEFAULT_DATA = {"expenses": [], "budgets": {}, "recurring": []}
 DEFAULT_CONFIG = {"currency": "$", "list_limit": 20, "symbol_position": "before",
-                  "fx": {}, "home_code": ""}
+                  "fx": {}, "home_code": "", "ui_scale": 1.0}
+
+# Supported range for the desktop app's text-size multiplier (an accessibility
+# aid for larger, more readable type). 1.0 is the system default.
+UI_SCALE_MIN, UI_SCALE_MAX = 0.5, 3.0
+
+
+def _clamp_ui_scale(x):
+    """Clamp a UI font-scale into the supported range, rounded to 2dp. Pure."""
+    return round(max(UI_SCALE_MIN, min(UI_SCALE_MAX, float(x))), 2)
 
 # Live settings, loaded from CONFIG_FILE at startup (see main()). Kept as a
 # module-level dict so helpers like money() can read it without threading it
@@ -6744,6 +6753,9 @@ def cmd_config(args):
             sys.exit("error: --home-code must be a currency code (letters only)")
         cfg["home_code"] = hc.upper()
         changed = True
+    if getattr(args, "ui_scale", None) is not None:
+        cfg["ui_scale"] = _clamp_ui_scale(args.ui_scale)
+        changed = True
 
     if changed:
         save_config(cfg)
@@ -6755,6 +6767,7 @@ def cmd_config(args):
     print(f"{'list_limit':<16} {cfg['list_limit']}")
     print(f"{'symbol_position':<16} {cfg.get('symbol_position', 'before')}")
     print(f"{'home_code':<16} {cfg.get('home_code') or '(unset)'}")
+    print(f"{'ui_scale':<16} {cfg.get('ui_scale', 1.0):g} (desktop text size)")
     print(f"{'sample':<16} {money(1234.5)}")
 
 
@@ -7949,6 +7962,8 @@ def build_parser():
                     help="show the currency symbol before or after amounts")
     cf.add_argument("--home-code", dest="home_code",
                     help="your home currency's fx code (e.g. USD) for `add --in`")
+    cf.add_argument("--ui-scale", type=float, dest="ui_scale",
+                    help="desktop app text-size multiplier (0.5-3.0, e.g. 1.25)")
     cf.add_argument("--reset", action="store_true", help="restore default settings")
     cf.set_defaults(func=cmd_config)
 

@@ -4,6 +4,15 @@ All notable changes to Ledgerling are documented here. The format is based on
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and this project
 adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.167.0] - 2026-10-03
+
+### Added
+
+- Desktop text-size scaling for readability: `config --ui-scale 1.25` sets a
+  font multiplier (0.5 to 3.0) that the desktop app applies to every label and
+  table on launch - an accessibility aid for larger, clearer type. The value is
+  shown in `config` and persists with your other settings.
+
 ## [1.166.0] - 2026-10-03
 
 ### Changed
@@ -2057,6 +2066,7 @@ file, standard library only, strictly confined to its own folder.
   guard (`_within_app`) that refuses any path escaping the app folder; imports
   and restores are reduced to a basename and looked up only within the folder.
 
+[1.167.0]: #11670---2026-10-03
 [1.166.0]: #11660---2026-10-03
 [1.165.0]: #11650---2026-10-03
 [1.164.0]: #11640---2026-10-02
