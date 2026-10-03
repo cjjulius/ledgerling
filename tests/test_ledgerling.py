@@ -42,6 +42,25 @@ class PureLogic(unittest.TestCase):
         self.assertEqual(sorted(missing), [],
                          "catch-up commands missing --json: %s" % sorted(missing))
 
+    def test_paired_filter_options_consistent(self):
+        # A command that offers one side of a paired filter must offer the other,
+        # so --min/--max and --since/--until can never drift apart as commands
+        # gain filters over time.
+        import argparse
+        parser = L.build_parser()
+        sub = next(a for a in parser._actions
+                   if isinstance(a, argparse._SubParsersAction))
+        pairs = [("--min", "--max"), ("--since", "--until")]
+        problems = []
+        for name, p in sub.choices.items():
+            opts = set()
+            for a in p._actions:
+                opts.update(a.option_strings)
+            for lo, hi in pairs:
+                if (lo in opts) != (hi in opts):
+                    problems.append(f"{name}: has only one of {lo}/{hi}")
+        self.assertEqual(problems, [], "; ".join(problems))
+
     def test_docstring_lists_every_command(self):
         # Guard against help-text drift: every top-level command must appear in
         # the module docstring's command list (indented "name   description").
@@ -909,6 +928,19 @@ class CLI(TempAppCase):
         self._main(["add", "10", "food", "a", "--date", "2026-05-01"])
         with self.assertRaises(SystemExit):
             self._main(["export", "--month", "2026-05", "--start", "2026-05-01"])
+
+    def test_export_amount_filter(self):
+        self._main(["add", "5", "food", "a"])
+        self._main(["add", "80", "shoes", "b"])
+        self._main(["add", "900", "rent", "c"])
+        self._main(["export", "--format", "json", "--file", "big.json",
+                    "--min", "50", "--max", "500"])
+        with open(os.path.join(L.EXPORT_DIR, "big.json"), encoding="utf-8") as fh:
+            rows = json.load(fh)
+        self.assertEqual([r["amount"] for r in rows], [80.0])
+        with self.assertRaises(SystemExit):
+            with contextlib.redirect_stderr(io.StringIO()):
+                L.main(["export", "--min", "100", "--max", "1"])
 
     def test_add_then_list_json(self):
         self._main(["add", "10", "food", "lunch #x"])

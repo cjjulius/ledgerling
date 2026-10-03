@@ -4,6 +4,16 @@ All notable changes to Ledgerling are documented here. The format is based on
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and this project
 adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.170.0] - 2026-10-03
+
+### Added
+
+- `export` now accepts `--min` and `--max` amount bounds, so you can export just
+  the large (or small) transactions alongside the existing month, date-range,
+  category, and kind filters.
+- A guard test ensures paired filter options (`--min`/`--max`,
+  `--since`/`--until`) can never be added to a command one-sided.
+
 ## [1.169.0] - 2026-10-03
 
 ### Added
@@ -2092,6 +2102,7 @@ file, standard library only, strictly confined to its own folder.
   guard (`_within_app`) that refuses any path escaping the app folder; imports
   and restores are reduced to a basename and looked up only within the folder.
 
+[1.170.0]: #11700---2026-10-03
 [1.169.0]: #11690---2026-10-03
 [1.168.0]: #11680---2026-10-03
 [1.167.1]: #11671---2026-10-03
