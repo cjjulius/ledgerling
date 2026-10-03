@@ -60,6 +60,7 @@ Commands:
     tagmatrix  #tag x month spending grid (pivot table)
     top       List your largest expenses (optionally by month/category)
     topdays   Your highest-spending days, ranked
+    recent    Entries you most recently recorded (by insertion order)
     net       Income, expenses, net and savings rate (all-time or a month)
     average   Average spending per day / week / month
     distribution  Histogram of expense sizes
@@ -149,7 +150,7 @@ import tempfile
 import time
 from datetime import datetime, date, timedelta
 
-__version__ = "1.175.0"
+__version__ = "1.176.0"
 
 # --------------------------------------------------------------------------- #
 # Sandbox + storage
@@ -871,6 +872,27 @@ def cmd_list(args):
     else:
         print(f"{len(rows)} item(s), total {money(exp_sum)}"
               f"   (* = from a recurring rule)")
+
+
+def cmd_recent(args):
+    """The entries you most recently recorded, by entry id (insertion order)
+    rather than date - handy right after adding or backdating a few things."""
+    data = load()
+    rows = _filter_entries(data["expenses"], args)   # kind scope (income/all)
+    rows = sorted(rows, key=lambda e: e["id"], reverse=True)
+    limit = args.limit if args.limit and args.limit > 0 else 10
+    rows = rows[:limit]
+
+    if getattr(args, "json", False):
+        print(json.dumps(rows, indent=2))
+        return
+    if not rows:
+        print("no entries yet")
+        return
+    for e in rows:
+        print(_entry_line(e))
+    print("-" * 50)
+    print(f"{len(rows)} most recently recorded")
 
 
 def cmd_edit(args):
@@ -7351,6 +7373,15 @@ def build_parser():
     l.add_argument("--json", action="store_true", help="output JSON instead of text")
     l.set_defaults(func=cmd_list)
 
+    rec = sub.add_parser("recent",
+                         help="entries you most recently recorded (by id)")
+    rec.add_argument("--limit", type=int, default=10,
+                     help="how many to show (default 10)")
+    rec.add_argument("--income", action="store_true", help="show income instead")
+    rec.add_argument("--all", action="store_true", help="show expenses and income")
+    rec.add_argument("--json", action="store_true", help="output JSON instead of text")
+    rec.set_defaults(func=cmd_recent)
+
     e = sub.add_parser("edit", help="change fields on an expense")
     e.add_argument("id", type=int, help="expense id (see `list`)")
     e.add_argument("--amount", type=float, help="new amount")
@@ -8329,7 +8360,7 @@ CATCHUP_COMMANDS = frozenset({
     "tagtrend", "range", "matrix", "cumulative", "allowance", "tagmatrix",
     "weekly", "years", "anomalies", "roundup", "cashflow", "target", "runway",
     "net", "subscriptions", "payees", "overbudget", "today", "worthtrend",
-    "topdays",
+    "topdays", "recent",
     "statement", "reconcile", "scorecard", "scoretrend", "category",
     "savingsplan", "bills", "challenge", "achievements", "onthisday", "mascot",
     "fire", "receipt", "persona", "countdown",

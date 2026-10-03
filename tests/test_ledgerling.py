@@ -2140,6 +2140,26 @@ class CLI(TempAppCase):
                                       "--limit", "2", "--json"]))
         self.assertEqual([e["amount"] for e in top2], [30.0, 20.0])
 
+    def test_recent_by_insertion_order(self):
+        # add out of date order; recent ranks by id (insertion), not date
+        self._main(["add", "10", "food", "a", "--date", "2026-06-01"])
+        self._main(["add", "20", "rent", "b", "--date", "2026-01-01"])  # backdated
+        self._main(["add", "30", "fun", "c", "--date", "2026-03-01"])
+        d = json.loads(self._main(["recent", "--json"]))
+        self.assertEqual([e["id"] for e in d], [3, 2, 1])   # newest-recorded first
+        # income excluded by default; --income scopes to it
+        self._main(["income", "500", "salary", "s", "--date", "2026-02-01"])
+        exp = json.loads(self._main(["recent", "--json"]))
+        self.assertTrue(all(e["category"] != "salary" for e in exp))
+        inc = json.loads(self._main(["recent", "--income", "--json"]))
+        self.assertEqual([e["category"] for e in inc], ["salary"])
+        # limit + empty store
+        self.assertEqual(len(json.loads(self._main(["recent", "--limit", "1",
+                                                    "--json"]))), 1)
+
+    def test_recent_empty(self):
+        self.assertIn("no entries yet", self._main(["recent"]))
+
     def test_list_amount_and_date_filters(self):
         self._main(["add", "5", "food", "a", "--date", "2026-01-01"])
         self._main(["add", "50", "food", "b", "--date", "2026-01-15"])
