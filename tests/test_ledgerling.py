@@ -2426,6 +2426,32 @@ class CLI(TempAppCase):
         d = json.loads(self._main(["top", "--category", "food", "--json"]))
         self.assertEqual([e["amount"] for e in d], [40.0, 10.0])
 
+    def test_daily_totals_pure(self):
+        rows = [{"amount": 10.0, "date": "2026-01-01"},
+                {"amount": 5.0, "date": "2026-01-01"},
+                {"amount": 20.0, "date": "2026-01-02"}]
+        agg = L.daily_totals(rows)
+        self.assertEqual(agg["2026-01-01"], {"total": 15.0, "count": 2})
+        self.assertEqual(agg["2026-01-02"], {"total": 20.0, "count": 1})
+        self.assertEqual(L.daily_totals([]), {})
+
+    def test_topdays(self):
+        self._main(["add", "10", "food", "a", "--date", "2026-01-01"])
+        self._main(["add", "5", "food", "b", "--date", "2026-01-01"])
+        self._main(["add", "40", "rent", "c", "--date", "2026-01-02"])
+        self._main(["income", "999", "salary", "d", "--date", "2026-01-03"])
+        d = json.loads(self._main(["topdays", "--json"]))
+        # ranked by daily expense total; income excluded by default
+        self.assertEqual([r["date"] for r in d], ["2026-01-02", "2026-01-01"])
+        self.assertEqual(d[0]["total"], 40.0)
+        self.assertEqual(d[1]["count"], 2)
+        # limit + text form
+        one = json.loads(self._main(["topdays", "--limit", "1", "--json"]))
+        self.assertEqual(len(one), 1)
+        self.assertIn("spending day", self._main(["topdays"]))
+        # empty scope is a clean message
+        self.assertIn("no matching", self._main(["topdays", "--month", "1999-01"]))
+
     def test_top_date_and_amount_filters(self):
         self._main(["add", "5", "food", "a", "--date", "2026-01-01"])
         self._main(["add", "80", "food", "b", "--date", "2026-01-20"])

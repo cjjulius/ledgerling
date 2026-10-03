@@ -29,7 +29,7 @@ GROUP_DEFS = [
                  "statement", "receipt", "stats",
                  "week", "weekly", "day", "onthisday", "year", "years",
                  "quarter", "weekday", "persona",
-                 "trend", "tagtrend", "matrix", "tagmatrix", "cumulative", "top",
+                 "trend", "tagtrend", "matrix", "tagmatrix", "cumulative", "top", "topdays",
                  "compare", "average", "distribution", "balance", "savings",
                  "heatmap", "streak", "pace", "forecast", "sources", "anomalies",
                  "cashflow", "net", "subscriptions", "payees", "worthtrend",
