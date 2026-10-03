@@ -147,7 +147,7 @@ import tempfile
 import time
 from datetime import datetime, date, timedelta
 
-__version__ = "1.169.0"
+__version__ = "1.170.0"
 
 # --------------------------------------------------------------------------- #
 # Sandbox + storage
@@ -1211,6 +1211,7 @@ def cmd_unbudget(args):
 
 def cmd_export(args):
     check_month(args.month)
+    _check_amount_bounds(args)
     arg_start = getattr(args, "start", None)
     arg_end = getattr(args, "end", None)
     if args.month and (arg_start or arg_end):
@@ -1232,6 +1233,9 @@ def cmd_export(args):
         rows = [e for e in rows if kind_of(e) == "income"]
     elif getattr(args, "expenses", False):
         rows = [e for e in rows if kind_of(e) == "expense"]
+    # Optional amount bounds (export has no since/until, so only --min/--max
+    # apply here); shares the same routine as list/search/top.
+    rows = _filter_range_amount(rows, args)
 
     fmt = args.format
     if args.file:
@@ -7348,6 +7352,8 @@ def build_parser():
     x.add_argument("--start", help="range start date (with --end); YYYY-MM-DD/today")
     x.add_argument("--end", help="range end date (with --start); YYYY-MM-DD/today")
     x.add_argument("--category", help="only export this category")
+    x.add_argument("--min", type=float, help="only entries at or above this amount")
+    x.add_argument("--max", type=float, help="only entries at or below this amount")
     x.add_argument("--income", action="store_true", help="only income entries")
     x.add_argument("--expenses", action="store_true", help="only expense entries")
     x.add_argument("--format", choices=["csv", "json"], default="csv",
