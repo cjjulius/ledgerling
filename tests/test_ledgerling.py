@@ -2880,6 +2880,18 @@ class CLI(TempAppCase):
         out = self._main(["sources"])
         self.assertIn("no income recorded", out)
 
+    def test_categories_and_sources_have_bars(self):
+        self._main(["add", "40", "food", "a"])
+        self._main(["add", "10", "transit", "b"])
+        self._main(["income", "3000", "salary", "c"])
+        self._main(["income", "500", "freelance", "d"])
+        cat_out = self._main(["categories"])
+        food_line = next(l for l in cat_out.splitlines() if l.startswith("food"))
+        self.assertIn("#" * 14, food_line)          # largest category: full bar
+        src_out = self._main(["sources"])
+        sal_line = next(l for l in src_out.splitlines() if l.startswith("salary"))
+        self.assertIn("#" * 14, sal_line)           # largest source: full bar
+
     def test_untagged_json(self):
         self._main(["add", "10", "food", "tagged #x"])
         self._main(["add", "20", "food", "plain lunch"])

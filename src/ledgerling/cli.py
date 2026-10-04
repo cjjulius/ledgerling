@@ -18,7 +18,7 @@ Data lives in `<data folder>/ledgerling_data.json`; exports go to
 Commands:
     add       Record an expense (supports #tags in the note)
     income    Record an income entry
-    sources   Income broken down by source
+    sources   Income broken down by source (with a chart)
     list      Show recent expenses (with optional filters)
     edit      Change fields on an existing expense
     delete    Remove an expense by id
@@ -90,7 +90,7 @@ Commands:
     subscriptions  Detect subscription-like charges from spending history
     suggest   Suggest per-category budgets from recent average spending
     autobudget  Apply suggested budgets from recent spending (undoable)
-    categories  List categories with counts and totals
+    categories  List categories with counts, totals and a chart
     category  A full profile for one category (drill-down)
     payees    Rank spending by payee (merchant), from the note
     tags      List #tags with counts, totals and a chart (or profile: tags NAME)
@@ -150,7 +150,7 @@ import tempfile
 import time
 from datetime import datetime, date, timedelta
 
-__version__ = "1.189.0"
+__version__ = "1.190.0"
 
 # --------------------------------------------------------------------------- #
 # Sandbox + storage
@@ -3874,10 +3874,13 @@ def cmd_sources(args):
 
     print("Income by source" + (f" ({args.month})" if args.month else ""))
     print("=" * 48)
+    ranked = sorted(agg.items(), key=lambda kv: kv[1]["total"], reverse=True)
+    peak = max(v["total"] for _, v in ranked) or 1.0
     total = 0.0
-    for cat, v in sorted(agg.items(), key=lambda kv: kv[1]["total"], reverse=True):
+    for cat, v in ranked:
         total += v["total"]
-        print(f"{cat:<16} {v['count']:>3} entr(y/ies)  {money(v['total']):>12}")
+        print(f"{cat:<16} {v['count']:>3} entr(y/ies)  {money(v['total']):>12}  "
+              f"{bar(v['total'] / peak, 14)}")
     print("-" * 48)
     print(f"{'TOTAL':<16} {'':>3}              {money(round(total, 2)):>12}")
 
@@ -4324,10 +4327,12 @@ def cmd_categories(args):
 
     print("Categories" + (f" ({args.month})" if args.month else ""))
     print("=" * 56)
-    for cat, v in sorted(result.items(), key=lambda kv: kv[1]["total"],
-                         reverse=True):
+    ranked = sorted(result.items(), key=lambda kv: kv[1]["total"], reverse=True)
+    peak = max((v["total"] for _, v in ranked), default=0.0) or 1.0
+    for cat, v in ranked:
         budget = f"  budget {money(v['budget'])}" if v["budget"] else ""
-        print(f"{cat:<14} {v['count']:>3} item(s)  {money(v['total']):>12}{budget}")
+        print(f"{cat:<14} {v['count']:>3} item(s)  {money(v['total']):>12}  "
+              f"{bar(v['total'] / peak, 14)}{budget}")
 
 
 def cmd_category(args):
