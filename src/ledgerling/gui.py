@@ -63,6 +63,21 @@ TOOLBAR = [
     ("upcoming", "Upcoming recurring charges"),
 ]
 
+# One-line descriptions for the launcher's category tiles, so the home screen
+# explains each group at a glance instead of showing a wall of command names.
+# Anything without a blurb still works (the tile just shows its command count).
+GROUP_BLURBS = {
+    "Record": "Add, edit and organise your expenses and income.",
+    "Analyze": "See where your money goes - summaries, trends and reports.",
+    "Budgets & goals": "Set budgets, track goals and plan your savings.",
+    "Calculators": "Tips, loans, interest, currency and other quick maths.",
+    "Recurring": "Manage repeating bills and subscriptions.",
+    "Data": "Import, export, back up and tidy your ledger.",
+    "Settings": "Preferences, file locations and app info.",
+    "Almanac": "A little daily colour - briefings, fortunes and weather.",
+    "More": "Everything else.",
+}
+
 # Two palettes, toggled at runtime with a short colour crossfade. Both keep
 # neutral surfaces with green reserved strictly as an accent -- a calmer, more
 # modern look than tinting every panel green. "sel" is the soft selection /
@@ -361,8 +376,6 @@ class LedgerlingGUI:
         self.current = None       # selected command name
         self.fields = {}          # dest -> (widget, arg-spec)
         self._results = queue.Queue()
-        self._nav = {}            # command -> {row, bar, gl, tx}
-        self._nav_order = []      # flat, filtered command order (keyboard nav)
         self._alive = True
         self._spin = 0
         self._spinning = False
@@ -521,6 +534,10 @@ class LedgerlingGUI:
         self.toolbar = ttk.Frame(self.root, style="Toolbar.TFrame",
                                  padding=(12, 8))
         self.toolbar.pack(side="top", fill="x")
+        home = ttk.Button(self.toolbar, text="Home", style="Tool.TButton",
+                          command=self.show_launcher)
+        home.pack(side="left", padx=(0, 10))
+        _Tooltip(home, "Browse all commands  (search with Ctrl+K)")
         for name, tip in TOOLBAR:
             if name not in self.commands:
                 continue
@@ -544,50 +561,77 @@ class LedgerlingGUI:
 
     # ----- body ------------------------------------------------------------ #
     def _build_body(self):
+        """Two swappable full-width views share the main area: a browseable
+        launcher (search + category tiles -> command cards) and the single
+        command's form/results. No permanent sidebar - the old long command
+        list is gone in favour of a calmer, more spacious home screen."""
+        ttk = self.ttk
+        self.body = ttk.Frame(self.root, style="Main.TFrame")
+        self.body.pack(side="top", fill="both", expand=True)
+
+        self.launcher = ttk.Frame(self.body, style="Main.TFrame",
+                                  padding=(20, 14))
+        self.detail = ttk.Frame(self.body, style="Main.TFrame", padding=16)
+        self._build_launcher(self.launcher)
+        self._build_detail(self.detail)
+
+        self._view = "home"        # home | category | results | detail
+        self._active_group = None
+        self.show_launcher()
+
+    def _build_launcher(self, parent):
         tk, ttk = self.tk, self.ttk
-        body = ttk.Panedwindow(self.root, orient="horizontal")
-        body.pack(side="top", fill="both", expand=True)
-
-        # --- left: filter + scrollable icon-button nav ---
-        left = ttk.Frame(body, style="Side.TFrame", padding=(8, 8))
+        # Hero search across every command - the primary way to get anywhere.
         self.filter_var = tk.StringVar()
-        self.filter_entry = ttk.Entry(left, textvariable=self.filter_var)
-        self.filter_entry.pack(side="top", fill="x")
-
-        navhost = tk.Frame(left, highlightthickness=0, bd=0)
-        navhost.pack(side="top", fill="both", expand=True, pady=(8, 0))
-        self.navcanvas = tk.Canvas(navhost, highlightthickness=0, bd=0)
-        navscroll = ttk.Scrollbar(navhost, orient="vertical",
-                                  command=self.navcanvas.yview)
-        self.navcanvas.configure(yscrollcommand=navscroll.set)
-        navscroll.pack(side="right", fill="y")
-        self.navcanvas.pack(side="left", fill="both", expand=True)
-        self.nav_inner = tk.Frame(self.navcanvas, highlightthickness=0, bd=0)
-        self._nav_win = self.navcanvas.create_window((0, 0), window=self.nav_inner,
-                                                     anchor="nw")
-        self.nav_inner.bind(
-            "<Configure>",
-            lambda _e: self.navcanvas.configure(
-                scrollregion=self.navcanvas.bbox("all")))
-        self.navcanvas.bind(
-            "<Configure>",
-            lambda e: self.navcanvas.itemconfigure(self._nav_win, width=e.width))
-        self._bind_wheel(self.navcanvas)
-        body.add(left, weight=1)
-
-        _Placeholder(self.filter_entry, "Filter commands  (Ctrl+K)")
-        self.filter_var.trace_add("write", lambda *_: self._refill_nav())
-        # Keyboard-first flow: Enter opens the first match, Up/Down step through
-        # matches, Esc clears the filter.
-        self.filter_entry.bind("<Return>", lambda _e: self._filter_open(0))
-        self.filter_entry.bind("<Down>", lambda _e: self._filter_step(1))
-        self.filter_entry.bind("<Up>", lambda _e: self._filter_step(-1))
+        self.filter_entry = ttk.Entry(parent, textvariable=self.filter_var,
+                                      font=("Segoe UI", 12))
+        self.filter_entry.pack(side="top", fill="x", ipady=5)
+        _Placeholder(self.filter_entry, "Find a command  (Ctrl+K)")
+        self.filter_var.trace_add("write", lambda *_: self._on_search_change())
+        self.filter_entry.bind("<Return>", lambda _e: self._open_first_match())
         self.filter_entry.bind("<Escape>", lambda _e: self._filter_clear())
 
-        # --- right: command header, form, results ---
-        right = ttk.Frame(body, style="Main.TFrame", padding=14)
+        # A breadcrumb line that doubles as the "go back one level" control.
+        self.crumb = tk.Label(parent, text="", anchor="w",
+                              font=("Segoe UI", 9), cursor="hand2")
+        self.crumb.pack(side="top", anchor="w", pady=(12, 6))
+
+        host = tk.Frame(parent, highlightthickness=0, bd=0)
+        host.pack(side="top", fill="both", expand=True)
+        self.launch_canvas = tk.Canvas(host, highlightthickness=0, bd=0)
+        sb = ttk.Scrollbar(host, orient="vertical",
+                           command=self.launch_canvas.yview)
+        self.launch_canvas.configure(yscrollcommand=sb.set)
+        sb.pack(side="right", fill="y")
+        self.launch_canvas.pack(side="left", fill="both", expand=True)
+        self.launcher_inner = tk.Frame(self.launch_canvas, highlightthickness=0,
+                                       bd=0)
+        self._launch_win = self.launch_canvas.create_window(
+            (0, 0), window=self.launcher_inner, anchor="nw")
+        self.launcher_inner.bind(
+            "<Configure>",
+            lambda _e: self.launch_canvas.configure(
+                scrollregion=self.launch_canvas.bbox("all")))
+        self.launch_canvas.bind(
+            "<Configure>",
+            lambda e: self.launch_canvas.itemconfigure(self._launch_win,
+                                                       width=e.width))
+        self._bind_wheel(self.launch_canvas)
+
+    def _build_detail(self, right):
+        tk, ttk = self.tk, self.ttk
+        topbar = ttk.Frame(right, style="Main.TFrame")
+        topbar.pack(side="top", fill="x")
+        self.back_btn = ttk.Button(topbar, text="←  All commands",
+                                   style="Tool.TButton",
+                                   command=self.show_launcher)
+        self.back_btn.pack(side="left")
+        self.pin_btn = ttk.Button(topbar, text="☆  Pin", style="Tool.TButton",
+                                  command=self._toggle_pin_current)
+        self.pin_btn.pack(side="left", padx=(6, 0))
+
         self.cmd_title = ttk.Label(right, text="", style="Title.TLabel")
-        self.cmd_title.pack(side="top", anchor="w")
+        self.cmd_title.pack(side="top", anchor="w", pady=(10, 0))
         self.cmd_help = ttk.Label(right, text="", style="Muted.TLabel",
                                   wraplength=680, justify="left")
         self.cmd_help.pack(side="top", anchor="w", pady=(2, 12))
@@ -645,13 +689,10 @@ class LedgerlingGUI:
         self._sort_state = {}
         self.results.hide(self._table_tab)
 
-        body.add(right, weight=3)
-        self._refill_nav()
-
     def _bind_wheel(self, widget):
         def on_wheel(e):
             try:
-                self.navcanvas.yview_scroll(int(-e.delta / 120), "units")
+                self.launch_canvas.yview_scroll(int(-e.delta / 120), "units")
             except Exception:
                 pass
         widget.bind("<MouseWheel>", on_wheel)
@@ -683,154 +724,233 @@ class LedgerlingGUI:
         except Exception:
             pass
 
-    # ----- nav (icon buttons) --------------------------------------------- #
+    # ----- launcher (search + category tiles -> command cards) ------------ #
     def _filter_query(self):
         q = (self.filter_var.get() or "").strip()
-        return "" if q.lower() == "filter commands  (ctrl+k)" else q
+        return "" if q.lower() == "find a command  (ctrl+k)" else q
 
-    def _refill_nav(self):
-        tk = self.tk
-        q = self._filter_query().lower()
-        for child in self.nav_inner.winfo_children():
-            child.destroy()
-        self._nav = {}
-        c = self.colors
-        self.navcanvas.configure(background=c["panel"])
-        self.nav_inner.configure(background=c["panel"])
-
-        # The flat, ordered list of currently-shown commands drives keyboard
-        # navigation from the filter box; the grouped layout below shows them.
-        self._nav_order = ordered_commands(self.commands, q)
-        shown = set(self._nav_order)
+    def _all_groups(self):
+        """(group, [present command names]) in sidebar order, trailing 'More'
+        catch-all, groups with no present commands dropped."""
         present = set(self.commands)
-        groups = [(g, names) for g, names in GROUP_DEFS]
+        groups = [(g, [n for n in names if n in present])
+                  for g, names in GROUP_DEFS]
         more = sorted(n for n in present if _group_of(n) == "More")
         if more:
             groups.append(("More", more))
-        for group, names in groups:
-            listed = [n for n in names if n in shown]
-            if not listed:
-                continue
-            hdr = tk.Label(self.nav_inner, text=group.upper(),
-                           bg=c["panel"], fg=c["muted"],
-                           font=("Segoe UI Semibold", 8), anchor="w")
-            hdr.pack(fill="x", padx=(16, 8), pady=(14, 4))
-            self._bind_wheel(hdr)
-            for n in listed:
-                self._make_nav_button(n)
-        if self.current:
-            self._highlight_nav(self.current)
+        return [(g, ns) for g, ns in groups if ns]
 
-    def _filter_open(self, index):
-        order = getattr(self, "_nav_order", [])
-        if order:
-            self.open_command(order[index])
-        return "break"
-
-    def _filter_step(self, delta):
-        order = getattr(self, "_nav_order", [])
-        if not order:
-            return "break"
+    def show_launcher(self):
+        """Swap to the browse view (home, a category, or search results)."""
         try:
-            i = order.index(self.current)
-        except ValueError:
-            i = -1 if delta > 0 else 0
-        self.open_command(order[(i + delta) % len(order)])
-        self.filter_entry.focus_set()   # keep typing/stepping
+            self.detail.pack_forget()
+        except Exception:
+            pass
+        self.launcher.pack(side="top", fill="both", expand=True)
+        self._view = ("results" if self._filter_query()
+                      else "category" if self._active_group else "home")
+        self._render_launcher()
+        try:
+            self.root.title("Ledgerling")
+        except Exception:
+            pass
+
+    def _set_crumb(self, text, on_click=None):
+        c = self.colors
+        self.crumb.config(text=text,
+                          fg=c["accent"] if on_click else c["muted"],
+                          cursor="hand2" if on_click else "")
+        self.crumb.unbind("<Button-1>")
+        if on_click:
+            self.crumb.bind("<Button-1>", lambda _e: on_click())
+
+    def _render_launcher(self):
+        c = self.colors
+        for ch in self.launcher_inner.winfo_children():
+            ch.destroy()
+        self.launch_canvas.configure(background=c["bg"])
+        self.launcher_inner.configure(background=c["bg"])
+        self.crumb.configure(background=c["bg"])
+        q = self._filter_query()
+        if q:
+            self._render_results(q)
+        elif self._active_group:
+            self._render_category(self._active_group)
+        else:
+            self._render_categories()
+
+    def _grid_columns(self, cols, tag):
+        for col in range(cols):
+            self.launcher_inner.columnconfigure(col, weight=1, uniform=tag)
+
+    def _render_categories(self):
+        self._set_crumb("Browse by category, or search above to jump anywhere.")
+        groups = self._all_groups()
+        cols = 3
+        for i, (group, names) in enumerate(groups):
+            r, col = divmod(i, cols)
+            self._make_tile(group, names, r, col)
+        self._grid_columns(cols, "tiles")
+
+    def _render_category(self, group):
+        names = dict(self._all_groups()).get(group, [])
+        self._set_crumb("‹  All categories",
+                        lambda: self._open_group(None))
+        cols = 3
+        for i, n in enumerate(names):
+            r, col = divmod(i, cols)
+            self._make_command_card(n, r, col)
+        self._grid_columns(cols, "cards")
+
+    def _render_results(self, q):
+        names = ordered_commands(self.commands, q)
+        self._set_crumb("‹  Clear search", self._filter_clear)
+        if not names:
+            self.tk.Label(self.launcher_inner,
+                          text=f'No commands match "{q}".',
+                          bg=self.colors["bg"], fg=self.colors["muted"],
+                          font=("Segoe UI", 11)).grid(row=0, column=0,
+                                                      sticky="w", padx=8, pady=12)
+            return
+        cols = 3
+        for i, n in enumerate(names):
+            r, col = divmod(i, cols)
+            self._make_command_card(n, r, col)
+        self._grid_columns(cols, "cards")
+
+    def _make_tile(self, group, names, r, col):
+        tk, c = self.tk, self.colors
+        card = tk.Frame(self.launcher_inner, bg=c["panel"], highlightthickness=1,
+                        highlightbackground=c["line"], cursor="hand2")
+        card.grid(row=r, column=col, sticky="nsew", padx=8, pady=8)
+        title = tk.Label(card, text=group, bg=c["panel"], fg=c["ink"],
+                         font=("Segoe UI Semibold", 13), anchor="w")
+        title.pack(fill="x", padx=14, pady=(13, 3))
+        blurb = tk.Label(card, text=GROUP_BLURBS.get(group, ""), bg=c["panel"],
+                         fg=c["muted"], font=("Segoe UI", 9), anchor="w",
+                         justify="left", wraplength=230)
+        blurb.pack(fill="x", padx=14)
+        n = len(names)
+        count = tk.Label(card, text=f"{n} command{'' if n == 1 else 's'}  ›",
+                         bg=c["panel"], fg=c["accent"],
+                         font=("Segoe UI Semibold", 9), anchor="w")
+        count.pack(fill="x", padx=14, pady=(10, 13))
+        widgets = (card, title, blurb, count)
+        for w in widgets:
+            w.bind("<Button-1>", lambda _e, g=group: self._open_group(g))
+            w.bind("<Enter>", lambda _e, ws=widgets: self._card_hover(ws, True))
+            w.bind("<Leave>", lambda _e, ws=widgets: self._card_hover(ws, False))
+            self._bind_wheel(w)
+
+    def _make_command_card(self, name, r, col):
+        tk, c = self.tk, self.colors
+        cmd = self.commands[name]
+        card = tk.Frame(self.launcher_inner, bg=c["panel"], highlightthickness=1,
+                        highlightbackground=c["line"], cursor="hand2")
+        card.grid(row=r, column=col, sticky="nsew", padx=8, pady=8)
+        star = "★  " if name in self.pinned else ""
+        title = tk.Label(card, text=star + name, bg=c["panel"], fg=c["ink"],
+                         font=("Segoe UI Semibold", 11), anchor="w")
+        title.pack(fill="x", padx=12, pady=(11, 2))
+        sub = tk.Label(card, text=cmd.get("help", ""), bg=c["panel"],
+                       fg=c["muted"], font=("Segoe UI", 9), anchor="w",
+                       justify="left", wraplength=230)
+        sub.pack(fill="x", padx=12, pady=(0, 11))
+        widgets = (card, title, sub)
+        for w in widgets:
+            w.bind("<Button-1>", lambda _e, n=name: self.open_command(n))
+            w.bind("<Button-3>", lambda _e, n=name: self._toggle_pin(n))
+            w.bind("<Enter>", lambda _e, ws=widgets: self._card_hover(ws, True))
+            w.bind("<Leave>", lambda _e, ws=widgets: self._card_hover(ws, False))
+            self._bind_wheel(w)
+        _Tooltip(card, (cmd.get("help", "") + "  •  ").lstrip() +
+                 "right-click to pin")
+
+    def _card_hover(self, widgets, entering):
+        bg = self.colors["hover"] if entering else self.colors["panel"]
+        for w in widgets:
+            try:
+                w.configure(bg=bg)
+            except Exception:
+                pass
+
+    def _open_group(self, group):
+        self._active_group = group
+        self._view = "category" if group else "home"
+        self._render_launcher()
+        try:
+            self.launch_canvas.yview_moveto(0)
+        except Exception:
+            pass
+
+    def _on_search_change(self):
+        # Typing anywhere drops any category drill-down and shows flat results.
+        if self._filter_query():
+            self._active_group = None
+        self._render_launcher()
+
+    def _open_first_match(self):
+        names = ordered_commands(self.commands, self._filter_query())
+        if names:
+            self.open_command(names[0])
         return "break"
 
     def _filter_clear(self):
         self.filter_var.set("")
-        self._refill_nav()
+        self._active_group = None
+        self._render_launcher()
         return "break"
 
     def _focus_filter(self):
-        self.filter_entry.focus_set()
+        self.show_launcher()
         try:
+            self.filter_entry.focus_set()
             self.filter_entry.selection_range(0, "end")   # ready to retype
         except Exception:
             pass
 
-    def _make_nav_button(self, name):
-        tk, c = self.tk, self.colors
-        row = tk.Frame(self.nav_inner, bg=c["panel"], cursor="hand2")
-        bar = tk.Frame(row, bg=c["panel"], width=3)
-        bar.pack(side="left", fill="y")
-        tx = tk.Label(row, text=name, bg=c["panel"], fg=c["ink"],
-                      font=("Segoe UI", 10), anchor="w")
-        tx.pack(side="left", fill="x", expand=True, padx=(13, 8), pady=6)
-        row.pack(fill="x", padx=(6, 6), pady=1)
-        btn = {"row": row, "bar": bar, "tx": tx, "base": c["panel"]}
-        self._nav[name] = btn
-        for w in (row, bar, tx):
-            w.bind("<ButtonPress-1>",
-                   lambda e, n=name: self._drag_start(n, e, "nav"))
-            w.bind("<B1-Motion>", self._drag_motion)
-            w.bind("<ButtonRelease-1>", self._drag_release)
-            w.bind("<Enter>", lambda _e, n=name: self._hover_nav(n, True))
-            w.bind("<Leave>", lambda _e, n=name: self._hover_nav(n, False))
-            self._bind_wheel(w)
-        tip = self.commands[name].get("help", "")
-        if tip:
-            _Tooltip(row, tip)
+    def _toggle_pin(self, name):
+        if name in self.pinned:
+            self.unpin(name)
+        else:
+            self.pin(name)
+        if getattr(self, "_view", "") != "detail":
+            self._render_launcher()
 
-    def _nav_set_bg(self, btn, color):
-        for key in ("row", "tx"):
-            try:
-                btn[key].configure(bg=color)
-            except Exception:
-                pass
+    def _toggle_pin_current(self):
+        if self.current:
+            self._toggle_pin(self.current)
+            self._update_pin_btn()
 
-    def _hover_nav(self, name, entering):
-        if name == self.current:
+    def _update_pin_btn(self):
+        if not getattr(self, "pin_btn", None) or not self.current:
             return
-        btn = self._nav.get(name)
-        if not btn:
-            return
-        target = self.colors.get("hover", self.colors["panel"]) if entering \
-            else self.colors["panel"]
-        self._animate_nav_bg(btn, target)
-
-    def _animate_nav_bg(self, btn, target, step=0):
-        start = btn.get("_bg", btn["base"])
-        if step == 0:
-            btn["_from"] = start
-        frm = btn["_from"]
-        t = min(1.0, (step + 1) / 5)
-        cur = _lerp(frm, target, t)
-        btn["_bg"] = cur
-        self._nav_set_bg(btn, cur)
-        if step + 1 < 5:
-            self._after(16, lambda: self._animate_nav_bg(btn, target, step + 1))
-
-    def _highlight_nav(self, name):
-        for n, btn in self._nav.items():
-            active = n == name
-            bg = self.colors["sel"] if active else self.colors["panel"]
-            btn["_bg"] = bg
-            self._nav_set_bg(btn, bg)
-            try:
-                btn["bar"].configure(bg=self.colors["accent"] if active
-                                     else self.colors["panel"])
-                btn["tx"].configure(
-                    fg=self.colors["accent"] if active else self.colors["ink"],
-                    font=("Segoe UI", 10, "bold" if active else "normal"))
-            except Exception:
-                pass
+        pinned = self.current in self.pinned
+        try:
+            self.pin_btn.config(text="★  Pinned" if pinned else "☆  Pin")
+        except Exception:
+            pass
 
     # ----- command form ---------------------------------------------------- #
     def open_command(self, name):
         if name not in self.commands:
             return
         self.current = name
+        self._view = "detail"
+        # Swap the browse view out for the single-command detail pane.
+        try:
+            self.launcher.pack_forget()
+            self.detail.pack(side="top", fill="both", expand=True)
+        except Exception:
+            pass
         cmd = self.commands[name]
         self.cmd_title.config(text=name)
         self.cmd_help.config(text=cmd.get("help", ""))
+        self._update_pin_btn()
         try:
             self.root.title(f"Ledgerling — {name}")
         except Exception:
             pass
-        self._highlight_nav(name)
 
         for child in self.form.winfo_children():
             child.destroy()
@@ -1145,8 +1265,10 @@ class LedgerlingGUI:
             self.output.tag_configure("err", foreground=c["err"])
         if hasattr(self, "header"):
             self._draw_header_static()
-        if hasattr(self, "nav_inner"):
-            self._refill_nav()
+        if hasattr(self, "launcher_inner"):
+            self._render_launcher()
+        if hasattr(self, "pin_btn"):
+            self._update_pin_btn()
         if hasattr(self, "pinbar"):
             self._render_pins()
 
@@ -1290,9 +1412,7 @@ class LedgerlingGUI:
         if not d["moved"]:
             self.open_command(d["name"])      # a plain click opens
             return
-        if d["kind"] == "nav" and self._over_pinbar(e):
-            self.pin(d["name"])
-        elif d["kind"] == "pin":
+        if d["kind"] == "pin":
             if self._over_pinbar(e):
                 self._reorder_pin(d["name"], e.x_root)
             else:
@@ -1497,16 +1617,18 @@ class _Assistant:
          "out the essentials - you can reopen it any time from Help → "
          "Getting started."),
         ("Find any command",
-         "The left sidebar lists every command as an icon button, grouped by "
-         "purpose. Type in the filter box (or press Ctrl+K) to narrow the list, "
-         "and click a command to open its form."),
+         "The home screen groups everything into a few friendly categories - "
+         "click one to see its commands as cards. In a hurry? Just start typing "
+         "in the search box (or press Ctrl+K) to jump straight to any command."),
         ("Run it",
-         "Fill in the fields on the right and press Run (or Ctrl+Enter). Results "
-         "appear below as text, and - when the command supports it - as a "
-         "sortable Table you can click to re-sort."),
+         "Open a command, fill in the fields and press Run (or Ctrl+Enter). "
+         "Results appear below as text, and - when the command supports it - as "
+         "a sortable Table you can click to re-sort. 'All commands' takes you "
+         "back home."),
         ("Pin your favourites",
-         "Drag a command from the sidebar onto the Pinned bar at the top to keep "
-         "it handy. Drag pinned items to reorder them; right-click to unpin."),
+         "Right-click any command card, or use the Pin button on a command, to "
+         "add it to the Pinned bar at the top. Drag pinned items to reorder "
+         "them; right-click a pin to remove it."),
         ("Work in several windows",
          "File → New window (Ctrl+N) opens another command window, so you "
          "can run things side by side. 'Pop out current command' detaches the "

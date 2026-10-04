@@ -35,16 +35,17 @@ standard library only — no extra dependencies). It opens a real OS window with
 - a **menu bar** — File (Run, open web UI, Quit), a **Commands** menu with every
   command organized into submenus, View (toggle light/dark, focus search), and
   Help;
-- a **toolbar** of quick-access buttons for the common actions;
-- a **sidebar** listing every command, grouped (Record / Analyze /
-  Budgets & goals / Calculators / Recurring / Data / Settings / Almanac), with a
-  clear accent marker on the active one and a tooltip of each command's help,
-  plus a live **filter** box. The filter is keyboard-first: **Ctrl+K** focuses
-  it, **Enter** opens the first match, **↑/↓** step through matches, and **Esc**
-  clears it;
-- a **Pinned bar** with **drag-and-drop**: drag any command from the sidebar
-  onto it to pin a favourite, drag the chips to reorder, right-click to unpin;
-  your pins persist between launches;
+- a **toolbar** of quick-access buttons for the common actions, with a **Home**
+  button that always returns you to the start screen;
+- a calm **home screen** instead of one long list: commands are grouped into a
+  handful of friendly categories (Record / Analyze / Budgets & goals /
+  Calculators / Recurring / Data / Settings / Almanac) shown as tiles. Click a
+  tile to see that category's commands as cards, each with a short description.
+  In a hurry? The **search box** jumps straight to any command — **Ctrl+K**
+  focuses it, **Enter** opens the first match, and **Esc** clears it;
+- a **Pinned bar** for your favourites: right-click any command card (or use the
+  Pin button on a command) to add it, drag the chips to reorder, right-click a
+  pin to remove it; your pins persist between launches;
 - **multiple windows** — File → New window (Ctrl+N) opens another command
   window so you can run things side by side, and "Pop out current command"
   detaches the one you're viewing; the windows share the main window's
