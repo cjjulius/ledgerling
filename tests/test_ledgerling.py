@@ -1387,6 +1387,18 @@ class CLI(TempAppCase):
         with self.assertRaises(SystemExit):
             self._main(["delete", "999"])
 
+    def test_delete_multiple_ids(self):
+        for amt, cat in [(10, "a"), (20, "b"), (30, "c"), (40, "d")]:
+            self._main(["add", str(amt), cat, "x"])
+        out = self._main(["delete", "1", "3", "3"])   # dup id tolerated
+        self.assertIn("deleted 2 entries", out)
+        self.assertEqual(sorted(e["id"] for e in L.load()["expenses"]), [2, 4])
+        # if any id is missing, nothing is deleted (all-or-nothing)
+        with self.assertRaises(SystemExit):
+            with contextlib.redirect_stderr(io.StringIO()):
+                L.main(["delete", "2", "999"])
+        self.assertEqual(sorted(e["id"] for e in L.load()["expenses"]), [2, 4])
+
     def test_backup_and_restore_roundtrip(self):
         self._main(["add", "10", "food", "a"])
         out = self._main(["backup"])
