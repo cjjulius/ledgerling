@@ -2218,6 +2218,30 @@ class CLI(TempAppCase):
                                       "--limit", "2", "--json"]))
         self.assertEqual([e["amount"] for e in top2], [30.0, 20.0])
 
+    def test_catchup_commands_emit_valid_json(self):
+        # Every read command invoked bare with --json must print parseable JSON
+        # (not a plain-text message), so --json consumers never get a surprise.
+        # Runs against this test's isolated empty store; commands needing a
+        # positional exit via argparse and are skipped.
+        import argparse
+        bad = []
+        parser = L.build_parser()
+        next(a for a in parser._actions
+             if isinstance(a, argparse._SubParsersAction))
+        for name in sorted(L.CATCHUP_COMMANDS):
+            buf = io.StringIO()
+            try:
+                with contextlib.redirect_stdout(buf), \
+                        contextlib.redirect_stderr(io.StringIO()):
+                    L.main([name, "--json"])
+            except SystemExit:
+                continue   # needs a positional arg; can't run bare
+            try:
+                json.loads(buf.getvalue().strip())
+            except Exception:
+                bad.append(name)
+        self.assertEqual(bad, [], "non-JSON under --json: %s" % bad)
+
     def test_add_tag_flag(self):
         self._main(["add", "10", "food", "lunch", "--tag", "work", "--tag", "food"])
         e = json.loads(self._main(["list", "--json"]))[0]
