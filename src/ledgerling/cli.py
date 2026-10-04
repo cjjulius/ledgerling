@@ -150,7 +150,7 @@ import tempfile
 import time
 from datetime import datetime, date, timedelta
 
-__version__ = "1.184.1"
+__version__ = "1.185.0"
 
 # --------------------------------------------------------------------------- #
 # Sandbox + storage
@@ -1917,6 +1917,23 @@ def _list_backups():
     return sorted(files)
 
 
+def _prune_backups(keep):
+    """Delete all but the newest `keep` backups (by filename, which sorts
+    chronologically). Returns the number removed. Confined to backups/."""
+    files = _list_backups()   # ascending: oldest first
+    old = files[:-keep] if keep > 0 else files
+    removed = 0
+    for f in old:
+        path = os.path.join(BACKUP_DIR, f)
+        _within_home(path)
+        try:
+            os.remove(path)
+            removed += 1
+        except OSError:
+            pass
+    return removed
+
+
 def _print_backups():
     files = _list_backups()
     if not files:
@@ -1932,6 +1949,12 @@ def _print_backups():
 def cmd_backup(args):
     if args.list:
         _print_backups()
+        return
+    if getattr(args, "prune", None) is not None:
+        if args.prune < 1:
+            sys.exit("error: --prune must keep at least 1 backup")
+        removed = _prune_backups(args.prune)
+        print(f"pruned {removed} old backup(s); {len(_list_backups())} kept")
         return
     path = _make_backup()
     if not path:
@@ -8244,6 +8267,8 @@ def build_parser():
 
     bk = sub.add_parser("backup", help="save a timestamped copy of your data")
     bk.add_argument("--list", action="store_true", help="list existing backups")
+    bk.add_argument("--prune", type=int, metavar="N",
+                    help="keep only the newest N backups, delete older ones")
     bk.set_defaults(func=cmd_backup)
 
     rs = sub.add_parser("restore", help="restore data from a backup file")

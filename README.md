@@ -202,8 +202,9 @@ use):
 - **Data**: `export` and `import` CSV or JSON (export filters by
   month/range/category/kind/amount; export to stdout and import from stdin let
   you pipe between the two), `backup` and `restore`,
-  `reconcile` against your bank, find and remove `duplicates`, and `undo` the
-  last change. `check` scans your data for problems and repairs the safe ones
+  `reconcile` against your bank, find and remove `duplicates`, prune old backups
+  (`backup --prune N`), and `undo` the last change. `check` scans your data for
+  problems and repairs the safe ones
   with `check --fix`.
 
 Most read commands accept `--json` (handy for piping into other local tools),
