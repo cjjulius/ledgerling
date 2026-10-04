@@ -150,7 +150,7 @@ import tempfile
 import time
 from datetime import datetime, date, timedelta
 
-__version__ = "1.183.0"
+__version__ = "1.183.1"
 
 # --------------------------------------------------------------------------- #
 # Sandbox + storage
@@ -1246,9 +1246,12 @@ def cmd_budget(args):
         return
 
     period = args.month or this_month()
+    # One pass over the month's expenses, then look up per budgeted category,
+    # instead of re-scanning the ledger once per budget.
+    month_totals = category_totals(month_expenses(data, period))
     rows = []
     for cat, limit in sorted(data["budgets"].items()):
-        spent = round(category_spent(data, cat, period), 2)
+        spent = round(month_totals.get(cat, 0.0), 2)
         rows.append({
             "category": cat, "limit": limit, "spent": spent,
             "remaining": round(limit - spent, 2),
@@ -4280,10 +4283,16 @@ def cmd_category(args):
     lo, hi = stats["min"], stats["max"]
     first, last, active_months = stats["first"], stats["last"], stats["active_months"]
 
+    # Group this category's entries by month once, then read off each displayed
+    # month, instead of re-scanning the ledger per month.
+    by_month = {}
+    for e in rows:
+        m = month_of(e["date"])
+        by_month[m] = round(by_month.get(m, 0.0) + e["amount"], 2)
     first_month = date.today().replace(day=1)
     monthly = [{"month": add_months(first_month, -i).isoformat()[:7],
-                "total": round(category_spent(
-                    data, cat, add_months(first_month, -i).isoformat()[:7]), 2)}
+                "total": by_month.get(add_months(first_month, -i).isoformat()[:7],
+                                      0.0)}
                for i in range(months - 1, -1, -1)]
 
     budget = data["budgets"].get(cat)
