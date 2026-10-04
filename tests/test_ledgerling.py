@@ -1062,6 +1062,16 @@ class CLI(TempAppCase):
         self.assertTrue(csv_text.startswith("id,date,amount"))
         self.assertNotIn("\r\n", csv_text)   # LF line endings, not CRLF
 
+    def test_export_tag_filter(self):
+        self._main(["add", "40", "travel", "flight #work"])
+        self._main(["add", "10", "food", "lunch #work"])
+        self._main(["add", "25", "food", "dinner"])          # no tag
+        self._main(["export", "--format", "json", "--file", "work.json",
+                    "--tag", "work"])
+        with open(os.path.join(L.EXPORT_DIR, "work.json"), encoding="utf-8") as fh:
+            rows = json.load(fh)
+        self.assertEqual(sorted(r["amount"] for r in rows), [10.0, 40.0])
+
     def test_export_amount_filter(self):
         self._main(["add", "5", "food", "a"])
         self._main(["add", "80", "shoes", "b"])
