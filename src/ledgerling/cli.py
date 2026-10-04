@@ -150,7 +150,7 @@ import tempfile
 import time
 from datetime import datetime, date, timedelta
 
-__version__ = "1.182.0"
+__version__ = "1.183.0"
 
 # --------------------------------------------------------------------------- #
 # Sandbox + storage
@@ -1666,10 +1666,19 @@ def cmd_search(args):
     # own keyword filter plus the shared date-range and amount-bound filters.
     # All AND together.
     rows = _filter_entries(data["expenses"], args)
-    kw = (args.keyword or "").strip().lower()
+    kw = (args.keyword or "").strip()
     if kw:
-        rows = [e for e in rows
-                if kw in e["note"].lower() or kw in e["category"].lower()]
+        if getattr(args, "regex", False):
+            try:
+                pat = re.compile(kw, re.IGNORECASE)
+            except re.error as exc:
+                sys.exit(f"error: invalid regex: {exc}")
+            rows = [e for e in rows
+                    if pat.search(e["note"]) or pat.search(e["category"])]
+        else:
+            kwl = kw.lower()
+            rows = [e for e in rows
+                    if kwl in e["note"].lower() or kwl in e["category"].lower()]
     rows = _filter_range_amount(rows, args)
 
     sort = getattr(args, "sort", None) or "date"
@@ -7594,6 +7603,8 @@ def build_parser():
     sr = sub.add_parser("search", help="find expenses by keyword and filters")
     sr.add_argument("keyword", nargs="?", default="",
                     help="substring to match in note or category")
+    sr.add_argument("--regex", action="store_true",
+                    help="treat the keyword as a regular expression")
     sr.add_argument("--category", help="restrict to this exact category")
     sr.add_argument("--tag", help="restrict to a #tag (with or without the #)")
     sr.add_argument("--month", help="restrict to a month, YYYY-MM")
