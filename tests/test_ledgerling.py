@@ -1413,6 +1413,19 @@ class CLI(TempAppCase):
         self.assertEqual(len(exp), 1)
         self.assertEqual(exp[0]["category"], "food")
 
+    def test_backup_prune(self):
+        os.makedirs(L.BACKUP_DIR, exist_ok=True)
+        names = [f"ledgerling_data_2026010{i}_000000.json" for i in range(1, 6)]
+        for n in names:
+            with open(os.path.join(L.BACKUP_DIR, n), "w", encoding="utf-8") as fh:
+                fh.write("{}")
+        out = self._main(["backup", "--prune", "2"])
+        self.assertIn("pruned 3", out)
+        self.assertEqual(sorted(os.listdir(L.BACKUP_DIR)), names[-2:])  # newest 2
+        with self.assertRaises(SystemExit):           # must keep at least one
+            with contextlib.redirect_stderr(io.StringIO()):
+                L.main(["backup", "--prune", "0"])
+
     def test_restore_backfills_all_sections(self):
         # an older backup that predates newer sections (no pots/accounts/etc.)
         os.makedirs(L.BACKUP_DIR, exist_ok=True)
