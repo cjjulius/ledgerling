@@ -174,7 +174,8 @@ Commands are grouped by theme (the same groups the desktop and web interfaces
 use):
 
 - **Record** your money: `add`, `income`, `edit`, `delete` (one id or several at
-  once), `split`, `clone`, `refund`, and reusable quick-entry `template`s. Attach
+  once), `split`, `clone` (with optional amount/note/date overrides), `refund`,
+  and reusable quick-entry `template`s. Attach
   tags inline with `#tags` in the note, or with a repeatable `--tag` flag.
 - **Analyze** it: a month `dashboard`, plain-language `insights`, an A-to-F
   health `scorecard` and its `scoretrend`, per-`category` and per-`tag`
