@@ -2279,6 +2279,26 @@ class CLI(TempAppCase):
                                       "--json"]))
         self.assertEqual(len(hits), 1)
 
+    def test_list_recurring_manual_filter(self):
+        # one manual entry, plus a recurring rule that generates one
+        self._main(["add", "10", "food", "manual lunch", "--date",
+                    date.today().isoformat()])
+        self._main(["recur", "add", "50", "rent", "flat", "--every", "month",
+                    "--start", date.today().isoformat()])
+        rec = json.loads(self._main(["list", "--recurring", "--json"]))
+        self.assertTrue(rec and all(e.get("recur_id") for e in rec))
+        self.assertTrue(all(e["category"] == "rent" for e in rec))
+        man = json.loads(self._main(["list", "--manual", "--json"]))
+        self.assertTrue(man and all(not e.get("recur_id") for e in man))
+        self.assertTrue(all(e["category"] == "food" for e in man))
+        # mutually exclusive
+        with self.assertRaises(SystemExit):
+            with contextlib.redirect_stderr(io.StringIO()):
+                L.main(["list", "--recurring", "--manual"])
+        # search honours it too
+        s = json.loads(self._main(["search", "--recurring", "--json"]))
+        self.assertTrue(all(e.get("recur_id") for e in s))
+
     def test_recent_by_insertion_order(self):
         # add out of date order; recent ranks by id (insertion), not date
         self._main(["add", "10", "food", "a", "--date", "2026-06-01"])
