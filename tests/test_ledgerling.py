@@ -2778,6 +2778,16 @@ class CLI(TempAppCase):
         out = self._main(["average"])
         self.assertIn("no expenses to average", out)
 
+    def test_average_month_scope(self):
+        self._main(["add", "30", "food", "a", "--date", "2026-01-10"])
+        self._main(["add", "90", "rent", "b", "--date", "2026-02-10"])
+        d = json.loads(self._main(["average", "--month", "2026-01", "--json"]))
+        self.assertEqual(d["total"], 30.0)           # only January
+        self.assertEqual(d["transactions"], 1)
+        # a month with no spending is a clean message
+        self.assertIn("no expenses to average for 2026-03",
+                      self._main(["average", "--month", "2026-03"]))
+
     def test_top_json(self):
         for amt, cat in [(10, "food"), (500, "rent"), (30, "food"),
                          (200, "travel"), (5, "coffee")]:
