@@ -4,6 +4,14 @@ All notable changes to Ledgerling are documented here. The format is based on
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and this project
 adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.182.0] - 2026-10-04
+
+### Added
+
+- The `budget` view now ends with a TOTAL line - total spent against total
+  budgeted, with the overall amount left (or over) - so you can see your whole
+  month's budget health at a glance. `--json` gains a matching `totals` object.
+
 ## [1.181.1] - 2026-10-03
 
 ### Changed
@@ -2217,6 +2225,7 @@ file, standard library only, strictly confined to its own folder.
   guard (`_within_app`) that refuses any path escaping the app folder; imports
   and restores are reduced to a basename and looked up only within the folder.
 
+[1.182.0]: #11820---2026-10-04
 [1.181.1]: #11811---2026-10-03
 [1.181.0]: #11810---2026-10-03
 [1.180.0]: #11800---2026-10-03
