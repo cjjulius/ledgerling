@@ -2762,6 +2762,17 @@ class CLI(TempAppCase):
         self.assertEqual(d["per_day"], round(200 / 11, 2))
         self.assertEqual(d["first"], "2026-01-01")
         self.assertEqual(d["last"], "2026-01-11")
+        self.assertEqual(d["transactions"], 2)
+        self.assertEqual(d["per_transaction"], 100.0)
+        self.assertEqual(d["median_transaction"], 100.0)
+
+    def test_average_median_robust_to_outlier(self):
+        for amt in ("5", "5", "5", "500"):          # one big outlier
+            self._main(["add", amt, "food", "x"])
+        d = json.loads(self._main(["average", "--json"]))
+        self.assertEqual(d["transactions"], 4)
+        self.assertEqual(d["median_transaction"], 5.0)   # median ignores the 500
+        self.assertGreater(d["per_transaction"], d["median_transaction"])
 
     def test_average_empty(self):
         out = self._main(["average"])
