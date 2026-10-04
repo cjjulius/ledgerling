@@ -2365,6 +2365,21 @@ class CLI(TempAppCase):
         self.assertEqual(d["total"], 0)
         self.assertEqual(d["categories"], [])
 
+    def test_summary_limit_rolls_up_other(self):
+        t = date.today().isoformat()
+        for amt, cat in [(100, "rent"), (40, "food"), (20, "fun"), (10, "misc")]:
+            self._main(["add", str(amt), cat, "x", "--date", t])
+        d = json.loads(self._main(["summary", "--limit", "2", "--json"]))
+        cats = d["categories"]
+        self.assertEqual([c["category"] for c in cats], ["rent", "food", "(other)"])
+        other = cats[-1]
+        self.assertEqual(other["total"], 30.0)        # fun + misc
+        self.assertEqual(other["rolled_up"], 2)
+        self.assertEqual(d["total"], 170.0)           # grand total unchanged
+        # no roll-up when limit >= category count
+        full = json.loads(self._main(["summary", "--limit", "10", "--json"]))
+        self.assertTrue(all(c["category"] != "(other)" for c in full["categories"]))
+
     def test_budget_json_view(self):
         self._main(["budget", "--category", "food", "--amount", "100"])
         self._main(["add", "30", "food", "a", "--date", date.today().isoformat()])

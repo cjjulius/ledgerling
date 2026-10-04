@@ -150,7 +150,7 @@ import tempfile
 import time
 from datetime import datetime, date, timedelta
 
-__version__ = "1.180.0"
+__version__ = "1.181.0"
 
 # --------------------------------------------------------------------------- #
 # Sandbox + storage
@@ -1203,6 +1203,15 @@ def cmd_summary(args):
              "percent": round(t / grand * 100, 1) if grand else 0.0}
             for c, t in sorted(totals.items(), key=lambda kv: kv[1],
                                reverse=True)]
+
+    # --limit shows the top N categories and rolls the remainder into "(other)".
+    limit = getattr(args, "limit", None)
+    if limit and limit > 0 and len(cats) > limit:
+        tail = cats[limit:]
+        other = round(sum(r["total"] for r in tail), 2)
+        cats = cats[:limit] + [{"category": "(other)", "total": other,
+                                "percent": round(other / grand * 100, 1)
+                                if grand else 0.0, "rolled_up": len(tail)}]
 
     if getattr(args, "json", False):
         print(json.dumps({"month": period, "total": grand,
@@ -7510,6 +7519,8 @@ def build_parser():
 
     s = sub.add_parser("summary", help="totals by category with a chart")
     s.add_argument("--month", help="month to summarize, YYYY-MM (default: current)")
+    s.add_argument("--limit", type=int,
+                   help="show only the top N categories, rest rolled into (other)")
     s.add_argument("--json", action="store_true", help="output JSON instead of text")
     s.set_defaults(func=cmd_summary)
 
