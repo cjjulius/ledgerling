@@ -175,22 +175,20 @@ use):
 
 - **Record** your money: `add`, `income`, `edit`, `delete` (one id or several at
   once), `split`, `clone` (with optional amount/note/date overrides), `refund`,
-  and reusable quick-entry `template`s. Attach
-  tags inline with `#tags` in the note, or with a repeatable `--tag` flag.
+  and reusable quick-entry `template`s. Attach tags inline with `#tags` in the
+  note, or with a repeatable `--tag` flag.
 - **Analyze** it: a month `dashboard`, plain-language `insights`, an A-to-F
-  health `scorecard` and its `scoretrend`, per-`category` and per-`tag`
-  profiles, an `onthisday` flashback, your highest-spending days (`topdays`), a
-  printable `receipt` for any day or entry, a playful `persona` read of your
-  habits, `search` (plain or `--regex`), your most recently recorded entries
-  (`recent`), a category
-  `summary` (optionally by tag or top-N), and rollups by week, month, quarter,
-  year, and weekday.
+  health `scorecard` and its `scoretrend`, per-`category` and per-`tag` profiles,
+  an `onthisday` flashback, your highest-spending days (`topdays`), a printable
+  `receipt` for any day or entry, a playful `persona` read of your habits,
+  `search` (plain or `--regex`), your most recently recorded entries (`recent`),
+  a category `summary` (optionally by tag or top-N), and rollups by week, month,
+  quarter, year, and weekday.
 - **Budgets and goals**: monthly `budget`s (with a spent-vs-budgeted total),
-  `pace` and daily `allowance`, a
-  savings `goal`, `networth` tracking, savings `pot`s (sinking funds) with
-  optional target dates and a combined `savingsplan`, gamified savings
-  `challenge`s (52-week, no-spend, round-up jar), and `achievements` badges
-  you unlock from your history.
+  `pace` and daily `allowance`, a savings `goal`, `networth` tracking, savings
+  `pot`s (sinking funds) with optional target dates and a combined `savingsplan`,
+  gamified savings `challenge`s (52-week, no-spend, round-up jar), and
+  `achievements` badges you unlock from your history.
 - **Recurring and bills**: define `recur`ring charges or income, see what is due
   soon (`upcoming`) or scheduled across a month (`bills`), export them to a
   calendar file, and preview what a catch-up would add with `recur run --dry-run`.
@@ -202,11 +200,10 @@ use):
   `target`-date planner, `runway`, and an offline currency converter (`fx`).
 - **Data**: `export` and `import` CSV or JSON (export filters by
   month/range/category/tag/kind/amount; export to stdout and import from stdin
-  let you pipe between the two), `backup` and `restore`,
-  `reconcile` against your bank, find and remove `duplicates`, prune old backups
-  (`backup --prune N`), and `undo` the last change. `check` scans your data for
-  problems and repairs the safe ones
-  with `check --fix`.
+  let you pipe between the two), `backup` and `restore`, `reconcile` against your
+  bank, find and remove `duplicates`, prune old backups (`backup --prune N`), and
+  `undo` the last change. `check` scans your data for problems and repairs the
+  safe ones with `check --fix`.
 
 Most read commands accept `--json` (handy for piping into other local tools),
 and most accept `--month YYYY-MM` to scope to a single month.

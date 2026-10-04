@@ -150,7 +150,7 @@ import tempfile
 import time
 from datetime import datetime, date, timedelta
 
-__version__ = "1.193.0"
+__version__ = "1.194.0"
 
 # --------------------------------------------------------------------------- #
 # Sandbox + storage
@@ -3513,13 +3513,16 @@ def cmd_net(args):
 
 
 def cmd_average(args):
+    check_month(getattr(args, "month", None))
     data = load()
-    exp = expenses_only(data["expenses"])
+    exp = filter_month(expenses_only(data["expenses"]),
+                       getattr(args, "month", None))
     if not exp:
         if getattr(args, "json", False):
             print(json.dumps({"total": 0}, indent=2))
         else:
-            print("no expenses to average")
+            where = f" for {args.month}" if getattr(args, "month", None) else ""
+            print(f"no expenses to average{where}")
         return
 
     dates = [date.fromisoformat(e["date"]) for e in exp]
@@ -8176,6 +8179,7 @@ def build_parser():
     nt.set_defaults(func=cmd_net)
 
     av = sub.add_parser("average", help="average spending per day/week/month")
+    av.add_argument("--month", help="restrict to a month, YYYY-MM")
     av.add_argument("--json", action="store_true", help="output JSON instead of text")
     av.set_defaults(func=cmd_average)
 
