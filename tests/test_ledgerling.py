@@ -2907,6 +2907,16 @@ class CLI(TempAppCase):
         out = self._main(["tags"])
         self.assertIn("no tags yet", out)
 
+    def test_tags_text_has_bar(self):
+        self._main(["add", "40", "food", "dinner #work"])
+        self._main(["add", "10", "food", "cab #errand"])
+        out = self._main(["tags"])
+        self.assertIn("#work", out)
+        self.assertIn("#", out)          # bar chart present
+        # the largest tag's bar is full width
+        work_line = next(l for l in out.splitlines() if l.startswith("#work"))
+        self.assertIn("#" * 16, work_line)
+
     def test_tag_profile(self):
         # #work spans two categories; coffee is untagged (share denominator)
         self._main(["add", "40", "food", "dinner #work", "--date", "2026-07-02"])

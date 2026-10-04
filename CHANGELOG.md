@@ -4,6 +4,13 @@ All notable changes to Ledgerling are documented here. The format is based on
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and this project
 adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.189.0] - 2026-10-04
+
+### Changed
+
+- The `tags` list now draws a bar chart next to each tag's total, matching the
+  `summary` view, so relative tag spending is easy to see at a glance.
+
 ## [1.188.0] - 2026-10-04
 
 ### Added
@@ -2290,6 +2297,7 @@ file, standard library only, strictly confined to its own folder.
   guard (`_within_app`) that refuses any path escaping the app folder; imports
   and restores are reduced to a basename and looked up only within the folder.
 
+[1.189.0]: #11890---2026-10-04
 [1.188.0]: #11880---2026-10-04
 [1.187.0]: #11870---2026-10-04
 [1.186.0]: #11860---2026-10-04
