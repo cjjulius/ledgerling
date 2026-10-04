@@ -62,7 +62,7 @@ Commands:
     topdays   Your highest-spending days, ranked
     recent    Entries you most recently recorded (by insertion order)
     net       Income, expenses, net and savings rate (all-time/month/range)
-    average   Average spending per day / week / month
+    average   Average spending per day/week/month and per transaction (+median)
     distribution  Histogram of expense sizes
     anomalies  Flag unusually large expenses within each category
     roundup   Simulate round-up savings (round each expense up to $N)
@@ -150,7 +150,7 @@ import tempfile
 import time
 from datetime import datetime, date, timedelta
 
-__version__ = "1.192.0"
+__version__ = "1.193.0"
 
 # --------------------------------------------------------------------------- #
 # Sandbox + storage
@@ -3530,23 +3530,31 @@ def cmd_average(args):
     per_week = round(per_day * 7, 2)
     per_month = round(per_day * 30.44, 2)  # avg calendar-month length
     per_day = round(per_day, 2)
+    # Per-transaction mean and median (median is robust to the odd big purchase).
+    count = len(exp)
+    per_txn = round(total / count, 2)
+    median_txn = round(_median([e["amount"] for e in exp]), 2)
 
     if getattr(args, "json", False):
         print(json.dumps({
             "first": first.isoformat(), "last": last.isoformat(),
             "days": span, "total": total, "per_day": per_day,
             "per_week": per_week, "per_month": per_month,
+            "transactions": count, "per_transaction": per_txn,
+            "median_transaction": median_txn,
         }, indent=2))
         return
 
     print("Average spending")
     print("=" * 48)
-    print(f"{'range':<12} {first.isoformat()} to {last.isoformat()} "
+    print(f"{'range':<14} {first.isoformat()} to {last.isoformat()} "
           f"({span} day(s))")
-    print(f"{'total':<12} {money(total)}")
-    print(f"{'per day':<12} {money(per_day)}")
-    print(f"{'per week':<12} {money(per_week)}")
-    print(f"{'per month':<12} {money(per_month)}")
+    print(f"{'total':<14} {money(total)}")
+    print(f"{'per day':<14} {money(per_day)}")
+    print(f"{'per week':<14} {money(per_week)}")
+    print(f"{'per month':<14} {money(per_month)}")
+    print(f"{'per txn':<14} {money(per_txn)}  ({count} txns)")
+    print(f"{'median txn':<14} {money(median_txn)}")
 
 
 def cmd_top(args):
