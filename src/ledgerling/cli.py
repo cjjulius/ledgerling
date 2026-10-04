@@ -150,7 +150,7 @@ import tempfile
 import time
 from datetime import datetime, date, timedelta
 
-__version__ = "1.181.0"
+__version__ = "1.181.1"
 
 # --------------------------------------------------------------------------- #
 # Sandbox + storage
@@ -1191,13 +1191,9 @@ def cmd_summary(args):
     check_month(args.month)
     data = load()
     period = args.month or this_month()
-    rows = [e for e in expenses_only(data["expenses"])
-            if month_of(e["date"]) == period]
+    rows = month_expenses(data, period)
 
-    totals = {}
-    for e in rows:
-        totals[e["category"]] = round(totals.get(e["category"], 0)
-                                      + e["amount"], 2)
+    totals = category_totals(rows)
     grand = round(sum(totals.values()), 2)
     cats = [{"category": c, "total": t,
              "percent": round(t / grand * 100, 1) if grand else 0.0}
@@ -5268,7 +5264,7 @@ def _score_month(data, period, today=None):
     {month, grade, score, has_data, components:[{name,points,max,detail}], tips}.
     Shared by `scorecard` (one month) and `scoretrend` (many months)."""
     today = today or date.today()
-    exp = [e for e in expenses_only(data["expenses"]) if month_of(e["date"]) == period]
+    exp = month_expenses(data, period)
     inc = [e for e in income_only(data["expenses"]) if month_of(e["date"]) == period]
     spending = round(sum(e["amount"] for e in exp), 2)
     income = round(sum(e["amount"] for e in inc), 2)
