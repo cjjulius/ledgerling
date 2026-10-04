@@ -4,6 +4,15 @@ All notable changes to Ledgerling are documented here. The format is based on
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and this project
 adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.197.0] - 2026-10-04
+
+### Added
+
+- The desktop home screen is now fully keyboard navigable: the arrow keys move a
+  highlight across the category tiles and command cards, and Enter opens the
+  highlighted one. Left/Right still edit the search text until a card is focused.
+  The grid index maths is a pure, unit-tested helper.
+
 ## [1.196.0] - 2026-10-04
 
 ### Changed
@@ -2365,6 +2374,7 @@ file, standard library only, strictly confined to its own folder.
   guard (`_within_app`) that refuses any path escaping the app folder; imports
   and restores are reduced to a basename and looked up only within the folder.
 
+[1.197.0]: #11970---2026-10-04
 [1.196.0]: #11960---2026-10-04
 [1.195.0]: #11950---2026-10-04
 [1.194.0]: #11940---2026-10-04

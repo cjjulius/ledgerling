@@ -835,6 +835,25 @@ class WebUI(TempAppCase):
                             for n in pay))
         self.assertEqual(gui.ordered_commands(commands, "zzzznope"), [])
 
+    def test_gui_grid_move(self):
+        from ledgerling import gui
+        gm = gui.grid_move
+        # 7 items in a 3-column grid: 0 1 2 / 3 4 5 / 6
+        self.assertEqual(gm(-1, 7, 3, "Down"), 0)    # enter grid from the top
+        self.assertEqual(gm(-1, 7, 3, "Up"), 6)      # ...or the bottom
+        self.assertEqual(gm(0, 7, 3, "Right"), 1)
+        self.assertEqual(gm(2, 7, 3, "Right"), 3)    # wraps to next row via step
+        self.assertEqual(gm(0, 7, 3, "Left"), 0)     # clamped at the start
+        self.assertEqual(gm(6, 7, 3, "Right"), 6)    # clamped at the end
+        self.assertEqual(gm(0, 7, 3, "Down"), 3)     # down one full row
+        self.assertEqual(gm(5, 7, 3, "Down"), 5)     # no partial-row jump (8>=7)
+        self.assertEqual(gm(6, 7, 3, "Up"), 3)
+        self.assertEqual(gm(0, 7, 3, "Up"), 0)       # clamped at the top row
+        # degenerate inputs stay in range
+        self.assertEqual(gm(0, 0, 3, "Down"), -1)    # empty grid
+        self.assertEqual(gm(2, 5, 0, "Down"), 3)     # cols coerced to >=1
+        self.assertEqual(gm(1, 5, 3, "Enter"), 1)    # unknown key is a no-op
+
     def test_gui_build_argv(self):
         from ledgerling import gui, web
         cmds = {c["name"]: c for c in web.describe()["commands"]}

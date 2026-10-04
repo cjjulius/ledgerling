@@ -156,6 +156,32 @@ def ordered_commands(commands, query=""):
     return out
 
 
+def grid_move(index, count, cols, key):
+    """Next item index after an arrow-key press in a `count`-item grid laid out
+    row-major in `cols` columns. Returns an index in [0, count-1].
+
+    Right/Left step one and clamp at the ends; Down/Up move a whole row and
+    stay put rather than jumping to a partial last row. index == -1 means
+    "nothing focused yet": Down/Right selects the first item, Up/Left the last.
+    Pure, so the launcher's keyboard navigation is unit-tested without Tk."""
+    if count <= 0:
+        return -1
+    cols = max(1, cols)
+    if index < 0:
+        return 0 if key in ("Down", "Right") else count - 1
+    if key == "Right":
+        return min(count - 1, index + 1)
+    if key == "Left":
+        return max(0, index - 1)
+    if key == "Down":
+        nxt = index + cols
+        return nxt if nxt < count else index
+    if key == "Up":
+        nxt = index - cols
+        return nxt if nxt >= 0 else index
+    return index
+
+
 def _humanize(dest):
     return dest.replace("_", " ").strip().capitalize()
 
@@ -376,6 +402,9 @@ class LedgerlingGUI:
         self.current = None       # selected command name
         self.fields = {}          # dest -> (widget, arg-spec)
         self._results = queue.Queue()
+        self._focus_items = []    # launcher cards for keyboard navigation
+        self._focus_idx = -1      # currently key-focused card (-1 = none)
+        self._focus_cols = 3      # columns in the current launcher grid
         self._alive = True
         self._spin = 0
         self._spinning = False
@@ -588,8 +617,15 @@ class LedgerlingGUI:
         self.filter_entry.pack(side="top", fill="x", ipady=5)
         _Placeholder(self.filter_entry, "Find a command  (Ctrl+K)")
         self.filter_var.trace_add("write", lambda *_: self._on_search_change())
-        self.filter_entry.bind("<Return>", lambda _e: self._open_first_match())
+        self.filter_entry.bind("<Return>", lambda _e: self._enter())
         self.filter_entry.bind("<Escape>", lambda _e: self._filter_clear())
+        # Arrow keys move a highlight through the cards below. Down/Up always
+        # navigate; Left/Right only once a card is focused, so they still edit
+        # the search text while you are typing.
+        self.filter_entry.bind("<Down>", lambda _e: self._focus_move("Down"))
+        self.filter_entry.bind("<Up>", lambda _e: self._focus_move("Up"))
+        self.filter_entry.bind("<Left>", lambda _e: self._nav_key("Left"))
+        self.filter_entry.bind("<Right>", lambda _e: self._nav_key("Right"))
 
         # A breadcrumb line that doubles as the "go back one level" control.
         self.crumb = tk.Label(parent, text="", anchor="w",
@@ -768,6 +804,8 @@ class LedgerlingGUI:
         c = self.colors
         for ch in self.launcher_inner.winfo_children():
             ch.destroy()
+        self._focus_items = []        # rebuilt below; resets keyboard focus
+        self._focus_idx = -1
         self.launch_canvas.configure(background=c["bg"])
         self.launcher_inner.configure(background=c["bg"])
         self.crumb.configure(background=c["bg"])
@@ -786,7 +824,7 @@ class LedgerlingGUI:
     def _render_categories(self):
         self._set_crumb("Browse by category, or search above to jump anywhere.")
         groups = self._all_groups()
-        cols = 3
+        cols = self._focus_cols = 3
         for i, (group, names) in enumerate(groups):
             r, col = divmod(i, cols)
             self._make_tile(group, names, r, col)
@@ -796,7 +834,7 @@ class LedgerlingGUI:
         names = dict(self._all_groups()).get(group, [])
         self._set_crumb("‹  All categories",
                         lambda: self._open_group(None))
-        cols = 3
+        cols = self._focus_cols = 3
         for i, n in enumerate(names):
             r, col = divmod(i, cols)
             self._make_command_card(n, r, col)
@@ -812,7 +850,7 @@ class LedgerlingGUI:
                           font=("Segoe UI", 11)).grid(row=0, column=0,
                                                       sticky="w", padx=8, pady=12)
             return
-        cols = 3
+        cols = self._focus_cols = 3
         for i, n in enumerate(names):
             r, col = divmod(i, cols)
             self._make_command_card(n, r, col)
@@ -841,6 +879,8 @@ class LedgerlingGUI:
             w.bind("<Enter>", lambda _e, ws=widgets: self._card_hover(ws, True))
             w.bind("<Leave>", lambda _e, ws=widgets: self._card_hover(ws, False))
             self._bind_wheel(w)
+        self._focus_items.append(
+            {"w": widgets, "go": lambda g=group: self._open_group(g)})
 
     def _make_command_card(self, name, r, col):
         tk, c = self.tk, self.colors
@@ -863,6 +903,8 @@ class LedgerlingGUI:
             w.bind("<Enter>", lambda _e, ws=widgets: self._card_hover(ws, True))
             w.bind("<Leave>", lambda _e, ws=widgets: self._card_hover(ws, False))
             self._bind_wheel(w)
+        self._focus_items.append(
+            {"w": widgets, "go": lambda n=name: self.open_command(n)})
         _Tooltip(card, (cmd.get("help", "") + "  •  ").lstrip() +
                  "right-click to pin")
 
@@ -894,6 +936,62 @@ class LedgerlingGUI:
         if names:
             self.open_command(names[0])
         return "break"
+
+    # ----- keyboard navigation of the launcher grid ----------------------- #
+    def _nav_key(self, key):
+        # Left/Right edit the search text until a card is actually focused, then
+        # they navigate the grid; return None so Tk's default cursor move runs.
+        if self._focus_idx < 0:
+            return None
+        return self._focus_move(key)
+
+    def _focus_move(self, key):
+        items = self._focus_items
+        if not items:
+            return "break"
+        self._set_focus(grid_move(self._focus_idx, len(items),
+                                  self._focus_cols, key))
+        return "break"
+
+    def _set_focus(self, idx):
+        if 0 <= self._focus_idx < len(self._focus_items):
+            self._paint_focus(self._focus_items[self._focus_idx], False)
+        self._focus_idx = idx
+        if 0 <= idx < len(self._focus_items):
+            item = self._focus_items[idx]
+            self._paint_focus(item, True)
+            self._scroll_into_view(item["w"][0])
+
+    def _paint_focus(self, item, on):
+        c = self.colors
+        bg = c["sel"] if on else c["panel"]
+        for w in item["w"]:
+            try:
+                w.configure(bg=bg)
+            except Exception:
+                pass
+        try:
+            item["w"][0].configure(
+                highlightbackground=c["accent"] if on else c["line"])
+            item["w"][1].configure(fg=c["accent"] if on else c["ink"])
+        except Exception:
+            pass
+
+    def _scroll_into_view(self, widget):
+        try:
+            self.launch_canvas.update_idletasks()
+            y = widget.winfo_y()
+            total = max(1, self.launcher_inner.winfo_height())
+            self.launch_canvas.yview_moveto(max(0.0, (y - 16) / total))
+        except Exception:
+            pass
+
+    def _enter(self):
+        # Enter activates the focused card, else opens the top search match.
+        if 0 <= self._focus_idx < len(self._focus_items):
+            self._focus_items[self._focus_idx]["go"]()
+            return "break"
+        return self._open_first_match()
 
     def _filter_clear(self):
         self.filter_var.set("")
@@ -1619,7 +1717,9 @@ class _Assistant:
         ("Find any command",
          "The home screen groups everything into a few friendly categories - "
          "click one to see its commands as cards. In a hurry? Just start typing "
-         "in the search box (or press Ctrl+K) to jump straight to any command."),
+         "in the search box (or press Ctrl+K) to jump straight to any command. "
+         "You can also use the arrow keys to move across the cards and Enter to "
+         "open the highlighted one."),
         ("Run it",
          "Open a command, fill in the fields and press Run (or Ctrl+Enter). "
          "Results appear below as text, and - when the command supports it - as "
