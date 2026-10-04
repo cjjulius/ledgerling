@@ -150,7 +150,7 @@ import tempfile
 import time
 from datetime import datetime, date, timedelta
 
-__version__ = "1.187.0"
+__version__ = "1.188.0"
 
 # --------------------------------------------------------------------------- #
 # Sandbox + storage
@@ -842,10 +842,11 @@ def _filter_cleared(rows, args):
 
 def _filter_entries(rows, args):
     """Apply the filters shared by `list` and `search`: the income/all kind
-    scope, an exact --category, --tag membership, the --recurring/--manual source
-    filter, the --month filter, and the --cleared/--pending flag. Each is applied
-    only when its arg is present, and they all AND together, so callers can layer
-    their own extra filters (keyword, date range, amount bounds) in any order."""
+    scope, an exact --category, --tag membership, a --payee substring, the
+    --recurring/--manual source filter, the --month filter, and the
+    --cleared/--pending flag. Each is applied only when its arg is present, and
+    they all AND together, so callers can layer their own extra filters (keyword,
+    date range, amount bounds) in any order."""
     rows = _scope_by_kind(rows, args)
     if getattr(args, "category", None):
         cat = args.category.strip().lower()
@@ -853,6 +854,9 @@ def _filter_entries(rows, args):
     if getattr(args, "tag", None):
         want = args.tag.strip().lstrip("#").lower()
         rows = [e for e in rows if want in e.get("tags", [])]
+    if getattr(args, "payee", None):
+        pwant = " ".join(args.payee.split()).strip().lower()
+        rows = [e for e in rows if pwant in _normalize_payee(e)]
     rec = getattr(args, "recurring", False)
     man = getattr(args, "manual", False)
     if rec and man:
@@ -7521,6 +7525,7 @@ def build_parser():
     l = sub.add_parser("list", help="show recent expenses")
     l.add_argument("--category", help="filter by category")
     l.add_argument("--tag", help="filter by #tag (with or without the #)")
+    l.add_argument("--payee", help="filter by payee/merchant (substring of the note)")
     l.add_argument("--month", help="filter by month, YYYY-MM")
     l.add_argument("--since", help="only entries on/after this date (YYYY-MM-DD/today)")
     l.add_argument("--until", help="only entries on/before this date (YYYY-MM-DD/today)")
@@ -7682,6 +7687,7 @@ def build_parser():
                     help="treat the keyword as a regular expression")
     sr.add_argument("--category", help="restrict to this exact category")
     sr.add_argument("--tag", help="restrict to a #tag (with or without the #)")
+    sr.add_argument("--payee", help="restrict to a payee/merchant (substring of the note)")
     sr.add_argument("--month", help="restrict to a month, YYYY-MM")
     sr.add_argument("--since", help="only entries on/after this date (YYYY-MM-DD/today)")
     sr.add_argument("--until", help="only entries on/before this date (YYYY-MM-DD/today)")
