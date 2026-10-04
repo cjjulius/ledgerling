@@ -1371,6 +1371,19 @@ class CLI(TempAppCase):
         self.assertEqual(c["date"], "2026-06-01")
         self.assertNotEqual(c["id"], 1)
 
+    def test_clone_overrides(self):
+        self._main(["add", "12", "food", "lunch #work", "--date", "2026-05-01"])
+        self._main(["clone", "1", "--date", "2026-06-01", "--amount", "20",
+                    "--note", "dinner #home"])
+        c = L.load()["expenses"][1]
+        self.assertEqual(c["amount"], 20.0)            # amount overridden
+        self.assertEqual(c["note"], "dinner #home")    # note overridden
+        self.assertEqual(c["tags"], ["home"])          # tags re-parsed from note
+        self.assertEqual(c["category"], "food")        # category still copied
+        with self.assertRaises(SystemExit):            # zero amount rejected
+            with contextlib.redirect_stderr(io.StringIO()):
+                L.main(["clone", "1", "--amount", "0"])
+
     def test_clone_missing(self):
         with self.assertRaises(SystemExit):
             self._main(["clone", "99"])

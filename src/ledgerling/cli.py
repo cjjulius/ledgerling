@@ -150,7 +150,7 @@ import tempfile
 import time
 from datetime import datetime, date, timedelta
 
-__version__ = "1.185.0"
+__version__ = "1.186.0"
 
 # --------------------------------------------------------------------------- #
 # Sandbox + storage
@@ -974,10 +974,15 @@ def cmd_clone(args):
     e = find(data["expenses"], args.id)
     if not e:
         sys.exit(f"error: no entry with id #{args.id}")
-    note = e["note"]
+    note = args.note if getattr(args, "note", None) is not None else e["note"]
+    amount = e["amount"]
+    if getattr(args, "amount", None) is not None:
+        if args.amount <= 0:
+            sys.exit("error: amount must be greater than zero")
+        amount = round(args.amount, 2)
     entry = {
         "id": next_id(data["expenses"]),
-        "amount": e["amount"],
+        "amount": amount,
         "category": e["category"],
         "note": note,
         "date": parse_date(args.date),
@@ -7578,6 +7583,8 @@ def build_parser():
     cl.add_argument("id", type=int, help="entry id to copy (see `list`)")
     cl.add_argument("--date", default="today",
                     help="date for the copy: YYYY-MM-DD, 'today', or 'yesterday'")
+    cl.add_argument("--amount", type=float, help="override the amount on the copy")
+    cl.add_argument("--note", help="override the note on the copy")
     cl.set_defaults(func=cmd_clone)
 
     rf = sub.add_parser("refund",
