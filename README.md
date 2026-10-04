@@ -182,8 +182,8 @@ use):
   printable `receipt` for any day or entry, a playful `persona` read of your
   habits, `search` (plain or `--regex`), your most recently recorded entries
   (`recent`), a category
-  `summary` (with an optional top-N), and rollups by week, month, quarter, year,
-  and weekday.
+  `summary` (optionally by tag or top-N), and rollups by week, month, quarter,
+  year, and weekday.
 - **Budgets and goals**: monthly `budget`s (with a spent-vs-budgeted total),
   `pace` and daily `allowance`, a
   savings `goal`, `networth` tracking, savings `pot`s (sinking funds) with
