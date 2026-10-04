@@ -2908,6 +2908,38 @@ class CLI(TempAppCase):
         d = json.loads(self._main(["payees", "--json"]))
         self.assertEqual(d["payees"][0]["payee"], "(groceries)")
 
+    def test_payee_profile_json(self):
+        # two netflix charges (one tagged) group together; spotify is separate
+        self._main(["add", "15.99", "ent", "Netflix", "--date", "2026-01-05"])
+        self._main(["add", "16.99", "ent", "netflix #fun", "--date", "2026-02-05"])
+        self._main(["add", "9.99", "ent", "spotify", "--date", "2026-01-20"])
+        self._main(["income", "3000", "salary", "payday"])      # excluded
+        # name is case-insensitive and #tags are stripped before matching
+        d = json.loads(self._main(["payee", "NETFLIX", "--months", "3",
+                                   "--json"]))
+        self.assertEqual(d["payee"], "netflix")
+        self.assertEqual(d["count"], 2)
+        self.assertEqual(d["total"], 32.98)
+        self.assertEqual(d["average"], 16.49)
+        self.assertEqual(d["min"]["amount"], 15.99)
+        self.assertEqual(d["max"]["amount"], 16.99)
+        self.assertEqual(d["first"], "2026-01-05")
+        self.assertEqual(d["last"], "2026-02-05")
+        self.assertEqual(d["active_months"], 2)
+        self.assertEqual(len(d["monthly"]), 3)                  # --months window
+        # share is of all spending (32.98 of 42.97), income excluded
+        self.assertAlmostEqual(d["share_pct"], round(32.98 / 42.97 * 100, 1))
+
+    def test_payee_profile_unknown_and_text(self):
+        self._main(["add", "12", "groceries", "", "--date", "2026-03-01"])
+        # blank-note entries are reachable via the (category) fallback key
+        out = self._main(["payee", "(groceries)"])
+        self.assertIn("Payee: (groceries)", out)
+        self.assertIn("Spent", out)
+        # an unknown payee reports nothing rather than erroring
+        self.assertIn("no spending recorded",
+                      self._main(["payee", "nope-no-such"]))
+
     def test_trend_json(self):
         this = date.today().isoformat()[:7]
         last = L.add_months(date.today().replace(day=1), -1).isoformat()[:7]

@@ -93,6 +93,7 @@ Commands:
     categories  List categories with counts, totals and a chart
     category  A full profile for one category (drill-down)
     payees    Rank spending by payee (merchant), from the note
+    payee     A full profile for one payee (merchant drill-down)
     tags      List #tags with counts, totals and a chart (or profile: tags NAME)
     untagged  List expenses that have no #tags
     recategorize  Rename a category across all records
@@ -150,7 +151,7 @@ import tempfile
 import time
 from datetime import datetime, date, timedelta
 
-__version__ = "1.197.0"
+__version__ = "1.198.0"
 
 # --------------------------------------------------------------------------- #
 # Sandbox + storage
@@ -3689,6 +3690,74 @@ def cmd_payees(args):
         print(f"showing top {len(payees)} of {len(ranked)} payees")
     else:
         print(f"{len(ranked)} payee(s)")
+
+
+def cmd_payee(args):
+    """A full profile for one payee (merchant): total spend and its share of all
+    spending, entry count, average/median, smallest/largest charges with dates,
+    the active span, and a recent monthly trend. The payee is matched the way
+    `payees`/`subscriptions` group them - the note with #tags stripped,
+    lowercased and whitespace-collapsed, falling back to the category in
+    parentheses - so the name is case-insensitive."""
+    data = load()
+    months = args.months
+    if months < 1:
+        sys.exit("error: --months must be at least 1")
+    want = " ".join((args.payee or "").split()).strip().lower()
+    if not want:
+        sys.exit("error: payee must not be empty")
+
+    exp = expenses_only(data["expenses"])
+    rows = [e for e in exp if _normalize_payee(e) == want]
+    total_all = round(sum(e["amount"] for e in exp), 2)
+    stats = _profile_stats(rows, total_all)
+    total, count = stats["total"], stats["count"]
+    average, median, share = stats["average"], stats["median"], stats["share_pct"]
+    lo, hi = stats["min"], stats["max"]
+    first, last, active_months = stats["first"], stats["last"], stats["active_months"]
+
+    # Group this payee's charges by month once, then read off each shown month.
+    by_month = {}
+    for e in rows:
+        m = month_of(e["date"])
+        by_month[m] = round(by_month.get(m, 0.0) + e["amount"], 2)
+    first_month = date.today().replace(day=1)
+    monthly = [{"month": add_months(first_month, -i).isoformat()[:7],
+                "total": by_month.get(add_months(first_month, -i).isoformat()[:7],
+                                      0.0)}
+               for i in range(months - 1, -1, -1)]
+
+    if getattr(args, "json", False):
+        print(json.dumps({
+            "payee": want, "total": total, "share_pct": share, "count": count,
+            "average": average, "median": median, "min": lo, "max": hi,
+            "first": first, "last": last, "active_months": active_months,
+            "monthly": monthly}, indent=2))
+        return
+
+    if not count:
+        print(f'no spending recorded for payee "{want}"')
+        return
+
+    print(f"Payee: {want}")
+    print("=" * 56)
+    print(f"  Spent        {money(total):>12}   ({share:g}% of all spending)")
+    print(f"  Charges      {count:>12}   avg {money(average)}, "
+          f"median {money(median)}")
+    if lo and hi:
+        print(f"  Smallest     {money(lo['amount']):>12}   on {lo['date']}")
+        print(f"  Largest      {money(hi['amount']):>12}   on {hi['date']}")
+    if first:
+        print(f"  Active       {active_months:>12} month"
+              f"{'' if active_months == 1 else 's'}   "
+              f"first {first}, last {last}")
+    nonzero = [m for m in monthly if m["total"]]
+    if nonzero:
+        peak = max(m["total"] for m in monthly) or 1.0
+        print(f"  Last {months} months:")
+        for m in monthly:
+            print(f"    {m['month']}  {money(m['total']):>11}  "
+                  f"{bar(m['total'] / peak, 20)}")
 
 
 def cmd_trend(args):
@@ -8219,6 +8288,15 @@ def build_parser():
     pay.add_argument("--json", action="store_true", help="output JSON instead of text")
     pay.set_defaults(func=cmd_payees)
 
+    pay1 = sub.add_parser("payee",
+                          help="a full profile for one payee (merchant drill-down)")
+    pay1.add_argument("payee", help="the payee to profile, e.g. netflix")
+    pay1.add_argument("--months", type=int, default=6,
+                      help="months of trend to show (default 6)")
+    pay1.add_argument("--json", action="store_true",
+                      help="output JSON instead of text")
+    pay1.set_defaults(func=cmd_payee)
+
     tr = sub.add_parser("trend", help="monthly spending trend for one category")
     tr.add_argument("category", help="category to chart")
     tr.add_argument("--months", type=int, default=6,
@@ -8597,7 +8675,7 @@ CATCHUP_COMMANDS = frozenset({
     "weekly", "years", "anomalies", "roundup", "cashflow", "target", "runway",
     "net", "subscriptions", "payees", "overbudget", "today", "worthtrend",
     "topdays", "recent",
-    "statement", "reconcile", "scorecard", "scoretrend", "category",
+    "statement", "reconcile", "scorecard", "scoretrend", "category", "payee",
     "savingsplan", "bills", "challenge", "achievements", "onthisday", "mascot",
     "fire", "receipt", "persona", "countdown",
 })
