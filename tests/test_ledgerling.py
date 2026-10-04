@@ -2279,6 +2279,19 @@ class CLI(TempAppCase):
                                       "--json"]))
         self.assertEqual(len(hits), 1)
 
+    def test_list_search_payee_filter(self):
+        t = date.today().isoformat()
+        self._main(["add", "15.99", "ent", "Netflix", "--date", t])
+        self._main(["add", "9.99", "ent", "Netflix #fun", "--date", t])
+        self._main(["add", "12", "food", "Spotify lunch", "--date", t])
+        # case-insensitive substring on the payee (note minus #tags)
+        d = json.loads(self._main(["list", "--payee", "netflix", "--json"]))
+        self.assertEqual(len(d), 2)
+        self.assertTrue(all("netflix" in e["note"].lower() for e in d))
+        # search honours it too
+        s = json.loads(self._main(["search", "--payee", "spotify", "--json"]))
+        self.assertEqual([e["amount"] for e in s], [12.0])
+
     def test_list_recurring_manual_filter(self):
         # one manual entry, plus a recurring rule that generates one
         self._main(["add", "10", "food", "manual lunch", "--date",

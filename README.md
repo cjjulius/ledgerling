@@ -267,8 +267,8 @@ the category-totals accumulation (`{category: total}` with running 2dp rounding)
 that `summary`, `insights`, `scorecard`, and `range` share,
 the drill-down summary stats (total, share, count, average/median, min/max,
 span) that `category` and `tags NAME` share,
-the common entry filters (kind scope, category, tag, month, cleared/pending,
-recurring/manual) that `list` and `search` share, the date-range and amount-bound filters
+the common entry filters (kind scope, category, tag, payee, month,
+cleared/pending, recurring/manual) that `list` and `search` share, the date-range and amount-bound filters
 (`--since`/`--until`/`--min`/`--max`) that `list`, `search`, and `top` share,
 the formatted entry line (`#id date amount [category] …` with its markers)
 that `list` and `search` share,
