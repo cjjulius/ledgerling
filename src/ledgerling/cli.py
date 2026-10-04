@@ -150,7 +150,7 @@ import tempfile
 import time
 from datetime import datetime, date, timedelta
 
-__version__ = "1.184.0"
+__version__ = "1.184.1"
 
 # --------------------------------------------------------------------------- #
 # Sandbox + storage
@@ -1619,7 +1619,11 @@ def cmd_overbudget(args):
     check_month(getattr(args, "month", None))
     data = load()
     if not data["budgets"]:
-        print("no budgets set. Try: budget --category food --amount 400")
+        if getattr(args, "json", False):
+            print(json.dumps({"breaches": [], "count": 0,
+                              "months_checked": 0, "total_over": 0.0}, indent=2))
+        else:
+            print("no budgets set. Try: budget --category food --amount 400")
         return
 
     exp_months = sorted({month_of(e["date"])
@@ -2146,7 +2150,12 @@ def cmd_pace(args):
     check_month(args.month)
     data = load()
     if not data["budgets"]:
-        print("no budgets set. Try: budget --category food --amount 400")
+        if getattr(args, "json", False):
+            print(json.dumps({"month": args.month or this_month(),
+                              "elapsed_days": 0, "days_in_month": 0,
+                              "categories": {}}, indent=2))
+        else:
+            print("no budgets set. Try: budget --category food --amount 400")
         return
     today = date.today()
     period = args.month or today.isoformat()[:7]
@@ -2186,7 +2195,13 @@ def cmd_allowance(args):
     check_month(args.month)
     data = load()
     if not data["budgets"]:
-        print("no budgets set. Try: budget --category food --amount 400")
+        if getattr(args, "json", False):
+            print(json.dumps({"month": args.month or this_month(),
+                              "days_left": 0, "categories": {},
+                              "total_remaining": 0.0,
+                              "daily_allowance": None}, indent=2))
+        else:
+            print("no budgets set. Try: budget --category food --amount 400")
         return
     today = date.today()
     period = args.month or today.isoformat()[:7]
