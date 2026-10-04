@@ -42,7 +42,9 @@ standard library only — no extra dependencies). It opens a real OS window with
   Calculators / Recurring / Data / Settings / Almanac) shown as tiles. Click a
   tile to see that category's commands as cards, each with a short description.
   In a hurry? The **search box** jumps straight to any command — **Ctrl+K**
-  focuses it, **Enter** opens the first match, and **Esc** clears it;
+  focuses it, **Enter** opens the first match, and **Esc** clears it. You can
+  also drive the whole screen from the keyboard: the **arrow keys** move a
+  highlight across the tiles and cards, and **Enter** opens the highlighted one;
 - a **Pinned bar** for your favourites: right-click any command card (or use the
   Pin button on a command) to add it, drag the chips to reorder, right-click a
   pin to remove it; your pins persist between launches;
