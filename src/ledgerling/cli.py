@@ -150,7 +150,7 @@ import tempfile
 import time
 from datetime import datetime, date, timedelta
 
-__version__ = "1.179.0"
+__version__ = "1.180.0"
 
 # --------------------------------------------------------------------------- #
 # Sandbox + storage
@@ -1021,13 +1021,22 @@ def cmd_refund(args):
 
 def cmd_delete(args):
     data = load()
-    e = find(data["expenses"], args.id)
-    if not e:
-        sys.exit(f"error: no expense with id #{args.id}")
-    data["expenses"] = [x for x in data["expenses"] if x["id"] != args.id]
+    ids = list(dict.fromkeys(args.ids))   # de-dup, preserve order
+    missing = [i for i in ids if not find(data["expenses"], i)]
+    if missing:
+        sys.exit("error: no entr" + ("y" if len(missing) == 1 else "ies")
+                 + " with id " + ", ".join(f"#{i}" for i in missing))
+    victims = [find(data["expenses"], i) for i in ids]
+    idset = set(ids)
+    data["expenses"] = [x for x in data["expenses"] if x["id"] not in idset]
     save(data)
-    print(f"deleted #{e['id']}: {money(e['amount'])} [{e['category']}] "
-          f"on {e['date']}")
+    if len(victims) == 1:
+        e = victims[0]
+        print(f"deleted #{e['id']}: {money(e['amount'])} [{e['category']}] "
+              f"on {e['date']}")
+    else:
+        print(f"deleted {len(victims)} entries: "
+              + ", ".join(f"#{e['id']}" for e in victims))
 
 
 def _set_cleared(args, value):
@@ -7454,8 +7463,9 @@ def build_parser():
     e.add_argument("--date", help="new date: YYYY-MM-DD, 'today', or 'yesterday'")
     e.set_defaults(func=cmd_edit)
 
-    d = sub.add_parser("delete", help="remove an expense by id")
-    d.add_argument("id", type=int, help="expense id (see `list`)")
+    d = sub.add_parser("delete", help="remove one or more entries by id")
+    d.add_argument("ids", type=int, nargs="+", metavar="ID",
+                   help="entry id(s) to remove (see `list`)")
     d.set_defaults(func=cmd_delete)
 
     clr = sub.add_parser("clear", help="mark entries as cleared (reconciled)")
