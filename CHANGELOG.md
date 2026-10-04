@@ -4,6 +4,17 @@ All notable changes to Ledgerling are documented here. The format is based on
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and this project
 adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.196.0] - 2026-10-04
+
+### Changed
+
+- Redesigned the desktop home screen. The long scrolling command list on the
+  left is gone; commands are now grouped into friendly category tiles that open
+  to cards with a short description each, and a prominent search box jumps
+  straight to any command. A Home button and a per-command back link make moving
+  around obvious. Pinning moves to a right-click (or a Pin button on a command),
+  and the getting-started tour and README were updated to match.
+
 ## [1.195.0] - 2026-10-04
 
 ### Changed
@@ -2354,6 +2365,7 @@ file, standard library only, strictly confined to its own folder.
   guard (`_within_app`) that refuses any path escaping the app folder; imports
   and restores are reduced to a basename and looked up only within the folder.
 
+[1.196.0]: #11960---2026-10-04
 [1.195.0]: #11950---2026-10-04
 [1.194.0]: #11940---2026-10-04
 [1.193.0]: #11930---2026-10-04
