@@ -150,7 +150,7 @@ import tempfile
 import time
 from datetime import datetime, date, timedelta
 
-__version__ = "1.181.1"
+__version__ = "1.182.0"
 
 # --------------------------------------------------------------------------- #
 # Sandbox + storage
@@ -1256,8 +1256,15 @@ def cmd_budget(args):
             "over": spent > limit,
         })
 
+    total_limit = round(sum(r["limit"] for r in rows), 2)
+    total_spent = round(sum(r["spent"] for r in rows), 2)
+    totals = {"limit": total_limit, "spent": total_spent,
+              "remaining": round(total_limit - total_spent, 2),
+              "over": total_spent > total_limit}
+
     if getattr(args, "json", False):
-        print(json.dumps({"month": period, "budgets": rows}, indent=2))
+        print(json.dumps({"month": period, "budgets": rows, "totals": totals},
+                         indent=2))
         return
 
     if not rows:
@@ -1274,6 +1281,11 @@ def cmd_budget(args):
             tail = f"  {money(r['remaining'])} left"
         print(f"{r['category']:<14} {money(r['spent']):>10} / "
               f"{money(r['limit']):<10} {bar(frac)} {r['percent']:4.0f}%{tail}")
+    print("=" * 60)
+    tot_tail = (f"  OVER by {money(-totals['remaining'])}" if totals["over"]
+                else f"  {money(totals['remaining'])} left")
+    print(f"{'TOTAL':<14} {money(total_spent):>10} / {money(total_limit):<10}"
+          f"{tot_tail}")
 
 
 def cmd_unbudget(args):

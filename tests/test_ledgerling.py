@@ -2392,6 +2392,20 @@ class CLI(TempAppCase):
         self.assertEqual(row["remaining"], 70.0)
         self.assertFalse(row["over"])
 
+    def test_budget_totals(self):
+        t = date.today().isoformat()
+        self._main(["budget", "--category", "food", "--amount", "100"])
+        self._main(["budget", "--category", "rent", "--amount", "500"])
+        self._main(["add", "30", "food", "a", "--date", t])
+        self._main(["add", "550", "rent", "b", "--date", t])   # over its limit
+        d = json.loads(self._main(["budget", "--json"]))
+        tot = d["totals"]
+        self.assertEqual(tot["limit"], 600.0)
+        self.assertEqual(tot["spent"], 580.0)
+        self.assertEqual(tot["remaining"], 20.0)
+        self.assertFalse(tot["over"])          # under total despite rent breach
+        self.assertIn("TOTAL", self._main(["budget"]))
+
     def test_budget_json_empty(self):
         d = json.loads(self._main(["budget", "--json"]))
         self.assertEqual(d["budgets"], [])
