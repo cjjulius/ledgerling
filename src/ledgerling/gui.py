@@ -56,6 +56,7 @@ GROUP_DEFS = [
 TOOLBAR = [
     ("add", "Record an expense"),
     ("income", "Record income"),
+    ("month", "This month's dashboard"),
     ("summary", "Category summary"),
     ("payees", "Spending by merchant"),
     ("search", "Search entries"),

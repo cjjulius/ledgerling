@@ -771,6 +771,13 @@ class WebUI(TempAppCase):
         self.assertEqual((mode, cols), ("scalars", ["value"]))
         self.assertIsNone(gui._tabular(None))
 
+    def test_gui_toolbar_commands_exist(self):
+        from ledgerling import gui, web
+        names = {c["name"] for c in web.describe()["commands"]}
+        bad = [cmd for cmd, _tip in gui.TOOLBAR if cmd not in names]
+        self.assertEqual(bad, [], "toolbar lists unknown command(s): %s" % bad)
+        self.assertIn("month", [cmd for cmd, _ in gui.TOOLBAR])
+
     def test_gui_shortcuts_defined(self):
         from ledgerling import gui
         accels = [s[0] for s in gui.SHORTCUTS]
