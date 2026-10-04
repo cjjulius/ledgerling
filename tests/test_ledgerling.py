@@ -281,6 +281,13 @@ class PureLogic(unittest.TestCase):
         with self.assertRaises(SystemExit):
             L.parse_date("2026-99-99")
 
+    def test_normalize_tag_pure(self):
+        self.assertEqual(L.normalize_tag("work"), "work")
+        self.assertEqual(L.normalize_tag("#Work"), "work")
+        self.assertEqual(L.normalize_tag("  #Work  "), "work")   # space then '#'
+        self.assertEqual(L.normalize_tag(None), "")
+        self.assertEqual(L.normalize_tag(""), "")
+
     def test_merge_tag_flags_pure(self):
         self.assertEqual(L.merge_tag_flags("lunch", None), "lunch")
         self.assertEqual(L.merge_tag_flags("lunch", ["work"]), "lunch #work")
@@ -2928,6 +2935,13 @@ class CLI(TempAppCase):
         self._main(["add", "5", "food", "no tags here"])
         out = self._main(["tags"])
         self.assertIn("no tags yet", out)
+
+    def test_tags_profile_tolerates_spaced_hash_name(self):
+        # the leading-space + '#' case the old inline parse mishandled
+        self._main(["add", "40", "food", "dinner #work"])
+        d = json.loads(self._main(["tags", " #Work ", "--json"]))
+        self.assertEqual(d["tag"], "work")
+        self.assertEqual(d["count"], 1)
 
     def test_tags_text_has_bar(self):
         self._main(["add", "40", "food", "dinner #work"])

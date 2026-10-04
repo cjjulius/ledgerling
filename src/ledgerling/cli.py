@@ -150,7 +150,7 @@ import tempfile
 import time
 from datetime import datetime, date, timedelta
 
-__version__ = "1.191.0"
+__version__ = "1.191.1"
 
 # --------------------------------------------------------------------------- #
 # Sandbox + storage
@@ -457,6 +457,12 @@ _TAG_RE = re.compile(r"#(\w+)")
 def parse_tags(note):
     """Extract unique, lowercased #tags from a note (without the '#')."""
     return sorted({m.lower() for m in _TAG_RE.findall(note or "")})
+
+
+def normalize_tag(raw):
+    """Canonical tag key: surrounding space stripped, a leading '#' removed,
+    lowercased. The single spelling used wherever a tag name is read from args."""
+    return (raw or "").strip().lstrip("#").lower()
 
 
 def merge_tag_flags(note, tag_flags):
@@ -852,7 +858,7 @@ def _filter_entries(rows, args):
         cat = args.category.strip().lower()
         rows = [e for e in rows if e["category"] == cat]
     if getattr(args, "tag", None):
-        want = args.tag.strip().lstrip("#").lower()
+        want = normalize_tag(args.tag)
         rows = [e for e in rows if want in e.get("tags", [])]
     if getattr(args, "payee", None):
         pwant = " ".join(args.payee.split()).strip().lower()
@@ -1211,7 +1217,7 @@ def cmd_summary(args):
     rows = month_expenses(data, period)
     tag = getattr(args, "tag", None)
     if tag:
-        want = tag.strip().lstrip("#").lower()
+        want = normalize_tag(tag)
         rows = [e for e in rows if want in e.get("tags", [])]
 
     totals = category_totals(rows)
@@ -1358,7 +1364,7 @@ def cmd_export(args):
         cat = clean_category(args.category)
         rows = [e for e in rows if e["category"] == cat]
     if getattr(args, "tag", None):
-        want = args.tag.strip().lstrip("#").lower()
+        want = normalize_tag(args.tag)
         rows = [e for e in rows if want in e.get("tags", [])]
     if getattr(args, "income", False):
         rows = [e for e in rows if kind_of(e) == "income"]
@@ -3812,7 +3818,7 @@ def cmd_tagmatrix(args):
 
 
 def cmd_tagtrend(args):
-    tag = args.tag.strip().lstrip("#").lower()
+    tag = normalize_tag(args.tag)
     if not tag:
         sys.exit("error: tag must not be empty")
     months = args.months
@@ -3917,7 +3923,7 @@ def cmd_tags(args):
     data = load()
     rows = month_expenses(data, args.month)
 
-    name = (getattr(args, "name", None) or "").lstrip("#").strip().lower()
+    name = normalize_tag(getattr(args, "name", None))
     if name:
         _tags_profile(args, rows, name)
         return
@@ -5577,8 +5583,8 @@ def cmd_range(args):
 
 
 def cmd_retag(args):
-    old = args.old.strip().lstrip("#").lower()
-    new = args.new.strip().lstrip("#").lower()
+    old = normalize_tag(args.old)
+    new = normalize_tag(args.new)
     if not old or not new:
         sys.exit("error: tag cannot be empty")
     if not re.fullmatch(r"\w+", new):
@@ -5611,7 +5617,7 @@ def cmd_retag(args):
 def _clean_tag_names(names):
     out = []
     for n in names:
-        n = n.strip().lstrip("#").lower()
+        n = normalize_tag(n)
         if not n:
             continue
         if not re.fullmatch(r"\w+", n):
