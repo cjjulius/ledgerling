@@ -150,7 +150,7 @@ import tempfile
 import time
 from datetime import datetime, date, timedelta
 
-__version__ = "1.183.1"
+__version__ = "1.184.0"
 
 # --------------------------------------------------------------------------- #
 # Sandbox + storage
@@ -1192,6 +1192,10 @@ def cmd_summary(args):
     data = load()
     period = args.month or this_month()
     rows = month_expenses(data, period)
+    tag = getattr(args, "tag", None)
+    if tag:
+        want = tag.strip().lstrip("#").lower()
+        rows = [e for e in rows if want in e.get("tags", [])]
 
     totals = category_totals(rows)
     grand = round(sum(totals.values()), 2)
@@ -1209,17 +1213,21 @@ def cmd_summary(args):
                                 "percent": round(other / grand * 100, 1)
                                 if grand else 0.0, "rolled_up": len(tail)}]
 
+    scope = f"{period} #{want}" if tag else period
+
     if getattr(args, "json", False):
-        print(json.dumps({"month": period, "total": grand,
-                          "categories": cats}, indent=2))
+        out = {"month": period, "total": grand, "categories": cats}
+        if tag:
+            out["tag"] = want
+        print(json.dumps(out, indent=2))
         return
 
     if not rows:
-        print(f"no expenses for {period}")
+        print(f"no expenses for {scope}")
         return
 
     biggest = max(totals.values())
-    print(f"Summary for {period}")
+    print(f"Summary for {scope}")
     print("=" * 50)
     for r in cats:
         print(f"{r['category']:<14} {money(r['total']):>12}  "
@@ -7545,6 +7553,7 @@ def build_parser():
 
     s = sub.add_parser("summary", help="totals by category with a chart")
     s.add_argument("--month", help="month to summarize, YYYY-MM (default: current)")
+    s.add_argument("--tag", help="only entries carrying this #tag")
     s.add_argument("--limit", type=int,
                    help="show only the top N categories, rest rolled into (other)")
     s.add_argument("--json", action="store_true", help="output JSON instead of text")

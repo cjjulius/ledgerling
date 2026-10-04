@@ -2365,6 +2365,19 @@ class CLI(TempAppCase):
         self.assertEqual(d["total"], 0)
         self.assertEqual(d["categories"], [])
 
+    def test_summary_tag_filter(self):
+        t = date.today().isoformat()
+        self._main(["add", "40", "travel", "flight #work", "--date", t])
+        self._main(["add", "10", "food", "lunch #work", "--date", t])
+        self._main(["add", "25", "food", "dinner", "--date", t])   # no tag
+        d = json.loads(self._main(["summary", "--tag", "work", "--json"]))
+        self.assertEqual(d["tag"], "work")
+        self.assertEqual(d["total"], 50.0)             # only #work entries
+        cats = {c["category"]: c["total"] for c in d["categories"]}
+        self.assertEqual(cats, {"travel": 40.0, "food": 10.0})
+        # leading '#' tolerated; heading reflects the tag
+        self.assertIn("#work", self._main(["summary", "--tag", "#work"]))
+
     def test_summary_limit_rolls_up_other(self):
         t = date.today().isoformat()
         for amt, cat in [(100, "rent"), (40, "food"), (20, "fun"), (10, "misc")]:
