@@ -93,7 +93,7 @@ Commands:
     categories  List categories with counts and totals
     category  A full profile for one category (drill-down)
     payees    Rank spending by payee (merchant), from the note
-    tags      List #tags with counts and totals (or profile one: tags NAME)
+    tags      List #tags with counts, totals and a chart (or profile: tags NAME)
     untagged  List expenses that have no #tags
     recategorize  Rename a category across all records
     retag     Rename a #tag across all records
@@ -150,7 +150,7 @@ import tempfile
 import time
 from datetime import datetime, date, timedelta
 
-__version__ = "1.188.0"
+__version__ = "1.189.0"
 
 # --------------------------------------------------------------------------- #
 # Sandbox + storage
@@ -3934,8 +3934,11 @@ def cmd_tags(args):
 
     print("Tags" + (f" ({args.month})" if args.month else ""))
     print("=" * 48)
-    for tag, v in sorted(agg.items(), key=lambda kv: kv[1]["total"], reverse=True):
-        print(f"#{tag:<14} {v['count']:>3} item(s)  {money(v['total']):>12}")
+    ranked = sorted(agg.items(), key=lambda kv: kv[1]["total"], reverse=True)
+    peak = max(v["total"] for _, v in ranked) or 1.0
+    for tag, v in ranked:
+        print(f"#{tag:<14} {v['count']:>3} item(s)  {money(v['total']):>12}  "
+              f"{bar(v['total'] / peak, 16)}")
 
 
 def _tags_profile(args, rows, name):
