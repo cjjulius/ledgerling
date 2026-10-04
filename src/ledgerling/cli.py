@@ -150,7 +150,7 @@ import tempfile
 import time
 from datetime import datetime, date, timedelta
 
-__version__ = "1.190.0"
+__version__ = "1.191.0"
 
 # --------------------------------------------------------------------------- #
 # Sandbox + storage
@@ -1357,6 +1357,9 @@ def cmd_export(args):
     if getattr(args, "category", None):
         cat = clean_category(args.category)
         rows = [e for e in rows if e["category"] == cat]
+    if getattr(args, "tag", None):
+        want = args.tag.strip().lstrip("#").lower()
+        rows = [e for e in rows if want in e.get("tags", [])]
     if getattr(args, "income", False):
         rows = [e for e in rows if kind_of(e) == "income"]
     elif getattr(args, "expenses", False):
@@ -7649,6 +7652,7 @@ def build_parser():
     x.add_argument("--start", help="range start date (with --end); YYYY-MM-DD/today")
     x.add_argument("--end", help="range end date (with --start); YYYY-MM-DD/today")
     x.add_argument("--category", help="only export this category")
+    x.add_argument("--tag", help="only entries carrying this #tag")
     x.add_argument("--min", type=float, help="only entries at or above this amount")
     x.add_argument("--max", type=float, help="only entries at or below this amount")
     x.add_argument("--income", action="store_true", help="only income entries")
