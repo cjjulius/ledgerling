@@ -4,6 +4,14 @@ All notable changes to Ledgerling are documented here. The format is based on
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and this project
 adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.183.0] - 2026-10-04
+
+### Added
+
+- `search --regex` treats the keyword as a regular expression (case-insensitive)
+  matched against the note and category, for power-user searches like
+  `search "coffee|tea" --regex`. An invalid pattern reports a clear error.
+
 ## [1.182.0] - 2026-10-04
 
 ### Added
@@ -2225,6 +2233,7 @@ file, standard library only, strictly confined to its own folder.
   guard (`_within_app`) that refuses any path escaping the app folder; imports
   and restores are reduced to a basename and looked up only within the folder.
 
+[1.183.0]: #11830---2026-10-04
 [1.182.0]: #11820---2026-10-04
 [1.181.1]: #11811---2026-10-03
 [1.181.0]: #11810---2026-10-03

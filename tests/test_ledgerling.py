@@ -3312,6 +3312,23 @@ class CLI(TempAppCase):
         d = json.loads(self._main(["search", "--sort", "amount", "--desc", "--json"]))
         self.assertEqual([e["amount"] for e in d], [80.0, 30.0, 10.0])
 
+    def test_search_regex(self):
+        self._main(["add", "10", "food", "coffee at cafe", "--date", "2026-05-01"])
+        self._main(["add", "20", "food", "tea at cafe", "--date", "2026-05-02"])
+        self._main(["add", "30", "rent", "flat", "--date", "2026-05-03"])
+        # regex alternation matches either note
+        d = json.loads(self._main(["search", "coffee|tea", "--regex", "--json"]))
+        self.assertEqual(sorted(e["amount"] for e in d), [10.0, 20.0])
+        # anchored regex on category
+        r = json.loads(self._main(["search", "^rent$", "--regex", "--json"]))
+        self.assertEqual([e["category"] for e in r], ["rent"])
+        # without --regex, the pipe is a literal substring (matches nothing here)
+        self.assertEqual(json.loads(self._main(["search", "coffee|tea", "--json"])), [])
+        # an invalid regex is a clean error
+        with self.assertRaises(SystemExit):
+            with contextlib.redirect_stderr(io.StringIO()):
+                L.main(["search", "(unclosed", "--regex"])
+
     def test_sources_month_scope(self):
         self._main(["income", "3000", "salary", "a", "--date", "2026-05-01"])
         self._main(["income", "200", "freelance", "b", "--date", "2026-05-15"])

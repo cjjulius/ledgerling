@@ -180,7 +180,8 @@ use):
   health `scorecard` and its `scoretrend`, per-`category` and per-`tag`
   profiles, an `onthisday` flashback, your highest-spending days (`topdays`), a
   printable `receipt` for any day or entry, a playful `persona` read of your
-  habits, `search`, your most recently recorded entries (`recent`), a category
+  habits, `search` (plain or `--regex`), your most recently recorded entries
+  (`recent`), a category
   `summary` (with an optional top-N), and rollups by week, month, quarter, year,
   and weekday.
 - **Budgets and goals**: monthly `budget`s (with a spent-vs-budgeted total),
