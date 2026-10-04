@@ -2731,6 +2731,21 @@ class CLI(TempAppCase):
         self.assertEqual(jan["net"], 60.0)      # 100 income - 40 expense
         self.assertEqual(jan["savings_rate"], 60.0)
 
+    def test_net_date_range(self):
+        self._main(["add", "40", "food", "a", "--date", "2026-01-10"])
+        self._main(["income", "100", "salary", "b", "--date", "2026-01-15"])
+        self._main(["add", "10", "food", "c", "--date", "2026-02-01"])
+        d = json.loads(self._main(["net", "--since", "2026-01-01",
+                                   "--until", "2026-01-31", "--json"]))
+        self.assertEqual(d["scope"], "2026-01-01 to 2026-01-31")
+        self.assertEqual(d["income"], 100.0)
+        self.assertEqual(d["spending"], 40.0)         # Feb entry excluded
+        self.assertEqual(d["net"], 60.0)
+        self.assertEqual(d["savings_rate"], 60.0)
+        with self.assertRaises(SystemExit):           # month + range is an error
+            with contextlib.redirect_stderr(io.StringIO()):
+                L.main(["net", "--month", "2026-01", "--since", "2026-01-01"])
+
     def test_net_no_income_rate_is_null(self):
         self._main(["add", "10", "food", "a"])
         d = json.loads(self._main(["net", "--json"]))

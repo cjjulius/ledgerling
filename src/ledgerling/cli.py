@@ -61,7 +61,7 @@ Commands:
     top       List your largest expenses (optionally by month/category)
     topdays   Your highest-spending days, ranked
     recent    Entries you most recently recorded (by insertion order)
-    net       Income, expenses, net and savings rate (all-time or a month)
+    net       Income, expenses, net and savings rate (all-time/month/range)
     average   Average spending per day / week / month
     distribution  Histogram of expense sizes
     anomalies  Flag unusually large expenses within each category
@@ -150,7 +150,7 @@ import tempfile
 import time
 from datetime import datetime, date, timedelta
 
-__version__ = "1.191.1"
+__version__ = "1.192.0"
 
 # --------------------------------------------------------------------------- #
 # Sandbox + storage
@@ -3470,12 +3470,21 @@ def cmd_countdown(args):
 
 
 def cmd_net(args):
-    """Income, expenses, net, and savings rate for all time or one month."""
+    """Income, expenses, net, and savings rate for all time, one month, or an
+    arbitrary date range."""
     check_month(args.month)
     data = load()
+    since = getattr(args, "since", None)
+    until = getattr(args, "until", None)
+    if args.month and (since or until):
+        sys.exit("error: use --month or --since/--until, not both")
     if args.month:
         rows = [e for e in data["expenses"] if month_of(e["date"]) == args.month]
         scope = args.month
+    elif since or until:
+        start, end = _date_bounds(since, until)
+        rows = [e for e in data["expenses"] if start <= e["date"] <= end]
+        scope = f"{start} to {end}"
     else:
         rows = data["expenses"]
         scope = "all time"
@@ -8151,8 +8160,10 @@ def build_parser():
     rw.set_defaults(func=cmd_runway)
 
     nt = sub.add_parser("net",
-                        help="income, expenses, net and savings rate (all-time or a month)")
+                        help="income, expenses, net and savings rate (all-time, month, or range)")
     nt.add_argument("--month", help="restrict to a month, YYYY-MM")
+    nt.add_argument("--since", help="range start (YYYY-MM-DD/today), with --until")
+    nt.add_argument("--until", help="range end (YYYY-MM-DD/today), with --since")
     nt.add_argument("--json", action="store_true", help="output JSON instead of text")
     nt.set_defaults(func=cmd_net)
 
