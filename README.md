@@ -192,8 +192,9 @@ use):
     `scorecard` (and its `scoretrend`), and a playful `persona` read of your habits;
   - where it goes: per-`category`, per-`payee` and per-`tag` profiles, your
     merchants ranked by spend (`payees`), and a category `summary`;
-  - over time: `average` spending per day, week and month, a month-by-month
-    income/expenses/net picture (`nettrend`), a two-month `compare`, a `vsaverage`
+  - over time: `average` spending per day, week and month (and for just one
+    category or tag), a month-by-month income/expenses/net picture (`nettrend`),
+    a two-month `compare`, a `vsaverage`
     check against your recent norm, a `ytd` year-to-date view with a year-end
     projection, and rollups by week, quarter, year and weekday;
   - find and revisit: `search` (plain or `--regex`), your most recent entries
