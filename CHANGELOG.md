@@ -4,6 +4,15 @@ All notable changes to Ledgerling are documented here. The format is based on
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and this project
 adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.202.0] - 2026-10-18
+
+### Added
+
+- Desktop app: runtime text zoom for the results area (output and table). Enlarge
+  with Ctrl+= , shrink with Ctrl+- and reset with Ctrl+0 (also on the View menu);
+  the chosen size is remembered between launches. A low-vision aid that no longer
+  needs editing the config and restarting.
+
 ## [1.201.0] - 2026-10-18
 
 ### Added
@@ -2409,6 +2418,7 @@ file, standard library only, strictly confined to its own folder.
   guard (`_within_app`) that refuses any path escaping the app folder; imports
   and restores are reduced to a basename and looked up only within the folder.
 
+[1.202.0]: #12020---2026-10-18
 [1.201.0]: #12010---2026-10-18
 [1.200.0]: #12000---2026-10-18
 [1.199.0]: #11990---2026-10-18
