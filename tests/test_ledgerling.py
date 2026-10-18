@@ -3098,6 +3098,22 @@ class CLI(TempAppCase):
         self.assertIn("no expenses to average on [nope]",
                       self._main(["average", "--category", "nope"]))
 
+    def test_average_tag_filter(self):
+        self._main(["add", "30", "food", "cafe #coffee", "--date", "2026-01-05"])
+        self._main(["add", "10", "food", "diner #coffee", "--date", "2026-01-15"])
+        self._main(["add", "99", "rent", "flat", "--date", "2026-01-20"])
+        # only #coffee entries are averaged, and the tag is echoed back
+        d = json.loads(self._main(["average", "--tag", "coffee", "--json"]))
+        self.assertEqual(d["tag"], "coffee")
+        self.assertEqual(d["total"], 40.0)
+        self.assertEqual(d["transactions"], 2)
+        # composes with --category; leading '#' tolerated in the header
+        out = self._main(["average", "--tag", "#coffee", "--category", "food"])
+        self.assertIn("on [food] #coffee", out)
+        # an unused tag is a clean message naming it
+        self.assertIn("no expenses to average on #nope",
+                      self._main(["average", "--tag", "nope"]))
+
     def test_top_json(self):
         for amt, cat in [(10, "food"), (500, "rent"), (30, "food"),
                          (200, "travel"), (5, "coffee")]:
