@@ -2010,6 +2010,35 @@ class CLI(TempAppCase):
         with self.assertRaises(SystemExit):
             self._main(["tip", "20", "--split", "0"])
 
+    def test_apply_discounts_pure(self):
+        # single discount
+        r = L.apply_discounts(80.0, [25.0])
+        self.assertEqual(r["discounted"], 60.0)
+        self.assertEqual(r["saved"], 20.0)
+        self.assertEqual(r["effective_pct"], 25.0)
+        self.assertEqual(r["final"], 60.0)        # no tax
+        # successive discounts stack multiplicatively (20% then extra 10%)
+        r2 = L.apply_discounts(100.0, [20.0, 10.0])
+        self.assertEqual(r2["steps"][0]["running"], 80.0)
+        self.assertEqual(r2["steps"][1]["running"], 72.0)
+        self.assertEqual(r2["discounted"], 72.0)
+        self.assertEqual(r2["effective_pct"], 28.0)   # not 30
+        # tax is applied after discounts
+        r3 = L.apply_discounts(50.0, [10.0], tax=8.0)
+        self.assertEqual(r3["discounted"], 45.0)
+        self.assertEqual(r3["tax_amount"], 3.6)
+        self.assertEqual(r3["final"], 48.6)
+
+    def test_discount_command(self):
+        d = json.loads(self._main(["discount", "80", "25", "--json"]))
+        self.assertEqual(d["final"], 60.0)
+        out = self._main(["discount", "100", "20", "10", "--tax", "5"])
+        self.assertIn("you pay", out)
+        self.assertIn(L.money(75.6), out)             # 72 + 5% tax
+        # invalid percent is rejected
+        with self.assertRaises(SystemExit):
+            self._main(["discount", "50", "150"])
+
     def test_recur_count_generates_fixed_number(self):
         self._main(["recur", "add", "450", "loan", "car", "--every", "month",
                     "--start", "2026-01-01", "--count", "3"])
