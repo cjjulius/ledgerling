@@ -186,20 +186,17 @@ use):
   once), `split`, `clone` (with optional amount/note/date overrides), `refund`,
   and reusable quick-entry `template`s. Attach tags inline with `#tags` in the
   note, or with a repeatable `--tag` flag.
-- **Analyze** it: a month `dashboard`, plain-language `insights`, an A-to-F
-  health `scorecard` and its `scoretrend`, per-`category`, per-`payee` and
-  per-`tag` profiles, your merchants ranked by spend (`payees`, for a month or a
-  date range), an `onthisday` flashback, your highest-spending days (`topdays`),
-  a printable
-  `receipt` for any day or entry, a playful `persona` read of your habits,
-  `search` (plain or `--regex`, with an optional result `--limit`), your most
-  recently recorded entries (`recent`),
-  a category `summary` (for a month, a date range, by tag, or top-N),
-  `average` spending per day, week and month (whole history, a month, a date
-  range, or a single category), a month-by-month income/expenses/`net`
-  picture with `nettrend`, a `compare` of two months and a `vsaverage` check of
-  one month against your recent norm, and rollups by week, month, quarter, year, and
-  weekday.
+- **Analyze** it, grouped by what you want to know:
+  - at a glance: a month `dashboard`, plain-language `insights`, an A-to-F health
+    `scorecard` (and its `scoretrend`), and a playful `persona` read of your habits;
+  - where it goes: per-`category`, per-`payee` and per-`tag` profiles, your
+    merchants ranked by spend (`payees`), and a category `summary`;
+  - over time: `average` spending per day, week and month, a month-by-month
+    income/expenses/net picture (`nettrend`), a two-month `compare`, a `vsaverage`
+    check against your recent norm, and rollups by week, quarter, year and weekday;
+  - find and revisit: `search` (plain or `--regex`), your most recent entries
+    (`recent`), your highest-spending days (`topdays`), an `onthisday` flashback,
+    and a printable `receipt` for any day or entry.
 - **Budgets and goals**: monthly `budget`s (with a spent-vs-budgeted total),
   `pace` and daily `allowance`, a savings `goal`, `networth` tracking, savings
   `pot`s (sinking funds) with optional target dates and a combined `savingsplan`,
