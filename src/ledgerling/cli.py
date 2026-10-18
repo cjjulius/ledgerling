@@ -151,7 +151,7 @@ import tempfile
 import time
 from datetime import datetime, date, timedelta
 
-__version__ = "1.204.0"
+__version__ = "1.205.0"
 
 # --------------------------------------------------------------------------- #
 # Sandbox + storage
@@ -3710,7 +3710,12 @@ def cmd_payees(args):
     uses. Complements `categories`/`top`, which group by category."""
     check_month(args.month)
     data = load()
-    rows = month_expenses(data, args.month)
+    since = getattr(args, "since", None)
+    until = getattr(args, "until", None)
+    pred, scope, _ranged = _resolve_scope(args.month, since, until)
+    rows = expenses_only(data["expenses"])
+    if pred:
+        rows = [e for e in rows if pred(e)]
 
     agg = {}
     for e in rows:
@@ -3741,11 +3746,11 @@ def cmd_payees(args):
         return
 
     if not payees:
-        print(f"no spending{f' in {args.month}' if args.month else ''} yet")
+        print(f"no spending{f' in {scope}' if scope else ''} yet")
         return
 
     peak = max(p["total"] for p in payees) or 1.0
-    print("Spending by payee" + (f" ({args.month})" if args.month else ""))
+    print("Spending by payee" + (f" ({scope})" if scope else ""))
     print("=" * 62)
     for p in payees:
         print(f"{money(p['total']):>12}  {p['payee'][:22]:<22} "
@@ -8329,6 +8334,8 @@ def build_parser():
     pay = sub.add_parser("payees",
                          help="rank spending by payee (merchant), from the note")
     pay.add_argument("--month", help="restrict to a month, YYYY-MM")
+    pay.add_argument("--since", help="range start (YYYY-MM-DD/today), with --until")
+    pay.add_argument("--until", help="range end (YYYY-MM-DD/today), with --since")
     pay.add_argument("--limit", type=int, default=20,
                      help="show the top N payees (default 20)")
     pay.add_argument("--json", action="store_true", help="output JSON instead of text")

@@ -3033,6 +3033,22 @@ class CLI(TempAppCase):
         d = json.loads(self._main(["payees", "--json"]))
         self.assertEqual(d["payees"][0]["payee"], "(groceries)")
 
+    def test_payees_date_range(self):
+        self._main(["add", "15", "ent", "netflix", "--date", "2026-01-05"])
+        self._main(["add", "40", "food", "diner", "--date", "2026-02-20"])
+        # a bounded range scopes which merchants are ranked
+        d = json.loads(self._main(["payees", "--since", "2026-01-01",
+                                   "--until", "2026-01-31", "--json"]))
+        self.assertEqual([p["payee"] for p in d["payees"]], ["netflix"])
+        self.assertEqual(d["total"], 15.0)
+        # the heading reflects the range
+        self.assertIn("2026-01-01 to 2026-01-31",
+                      self._main(["payees", "--since", "2026-01-01",
+                                  "--until", "2026-01-31"]))
+        # --month and --since/--until cannot be combined
+        with self.assertRaises(SystemExit):
+            self._main(["payees", "--month", "2026-01", "--since", "2026-01-01"])
+
     def test_payee_profile_json(self):
         # two netflix charges (one tagged) group together; spotify is separate
         self._main(["add", "15.99", "ent", "Netflix", "--date", "2026-01-05"])
