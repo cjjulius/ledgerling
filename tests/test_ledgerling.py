@@ -864,6 +864,24 @@ class WebUI(TempAppCase):
         self.assertEqual(set(seen), set(gui.THEMES))              # visited all
         self.assertEqual(gui._next_theme("nonsense"), gui.THEME_ORDER[0])
 
+    def test_gui_collect_suggestions(self):
+        from ledgerling import gui
+        data = {"expenses": [
+            {"category": "food", "note": "cafe #work", "tags": ["work"]},
+            {"category": "food", "note": "diner", "tags": []},
+            {"category": "rent", "note": "", "tags": ["fixed"]},
+        ]}
+        s = gui.collect_suggestions(data)
+        self.assertEqual(s["category"], ["food", "rent"])       # distinct, sorted
+        self.assertEqual(s["tag"], ["fixed", "work"])
+        # payees come from the note (tags stripped) with the (category) fallback
+        self.assertIn("cafe", s["payee"])
+        self.assertIn("diner", s["payee"])
+        self.assertIn("(rent)", s["payee"])                     # blank-note fallback
+        # empty ledger yields empty lists, not errors
+        self.assertEqual(gui.collect_suggestions({}),
+                         {"category": [], "tag": [], "payee": []})
+
     def test_gui_table_to_csv(self):
         from ledgerling import gui
         # rows mode: header from cols, raw values (not money-formatted), and
