@@ -4177,6 +4177,40 @@ class CLI(TempAppCase):
         out = self._main(["year", "1999"])
         self.assertIn("nothing recorded in 1999", out)
 
+    def test_ytd_past_year_full(self):
+        # a past year runs the whole Jan 1 -> Dec 31 span, no projection
+        self._main(["add", "100", "food", "a", "--date", "2024-02-10"])
+        self._main(["add", "300", "rent", "b", "--date", "2024-11-05"])
+        self._main(["income", "5000", "salary", "c", "--date", "2024-03-01"])
+        self._main(["add", "999", "food", "x", "--date", "2025-01-01"])  # other yr
+        d = json.loads(self._main(["ytd", "--year", "2024", "--json"]))
+        self.assertEqual(d["year"], 2024)
+        self.assertEqual((d["start"], d["end"]), ("2024-01-01", "2024-12-31"))
+        self.assertEqual(d["days_in_year"], 366)       # 2024 is a leap year
+        self.assertEqual(d["spending"], 400.0)
+        self.assertEqual(d["income"], 5000.0)
+        self.assertEqual(d["net"], 4600.0)
+        self.assertIsNone(d["projected_spending"])     # past year: no projection
+        self.assertEqual(d["by_category"], {"rent": 300.0, "food": 100.0})
+
+    def test_ytd_current_year_projects(self):
+        from datetime import date
+        yr = date.today().year
+        self._main(["add", "100", "food", "a", "--date", f"{yr}-01-01"])
+        d = json.loads(self._main(["ytd", "--json"]))
+        self.assertEqual(d["year"], yr)
+        self.assertEqual(d["start"], f"{yr}-01-01")
+        self.assertEqual(d["end"], date.today().isoformat())
+        # projection = per-day rate times days in the year (only mid-year)
+        if d["days_elapsed"] < d["days_in_year"]:
+            self.assertIsNotNone(d["projected_spending"])
+            self.assertGreaterEqual(d["projected_spending"], d["spending"])
+
+    def test_ytd_future_year(self):
+        from datetime import date
+        out = self._main(["ytd", "--year", str(date.today().year + 1)])
+        self.assertIn("nothing recorded yet", out)
+
     def test_day_json(self):
         self._main(["add", "10", "food", "a", "--date", "2026-09-15"])
         self._main(["income", "100", "salary", "b", "--date", "2026-09-15"])

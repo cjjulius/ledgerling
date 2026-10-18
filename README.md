@@ -193,7 +193,8 @@ use):
     merchants ranked by spend (`payees`), and a category `summary`;
   - over time: `average` spending per day, week and month, a month-by-month
     income/expenses/net picture (`nettrend`), a two-month `compare`, a `vsaverage`
-    check against your recent norm, and rollups by week, quarter, year and weekday;
+    check against your recent norm, a `ytd` year-to-date view with a year-end
+    projection, and rollups by week, quarter, year and weekday;
   - find and revisit: `search` (plain or `--regex`), your most recent entries
     (`recent`), your highest-spending days (`topdays`), an `onthisday` flashback,
     and a printable `receipt` for any day or entry.

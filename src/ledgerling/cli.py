@@ -52,6 +52,7 @@ Commands:
     balance   Running cumulative net (income - spending) month over month
     savings   Monthly savings rate (net / income) trend
     year      Calendar-year rollup by month (spending, income, net)
+    ytd       Year to date so far, with a year-end projection
     years     Multi-year rollup (spending, income, net per year)
     compare   Compare two months side by side (with per-category deltas)
     vsaverage  Compare a month to the average of the months before it
@@ -154,7 +155,7 @@ import tempfile
 import time
 from datetime import datetime, date, timedelta
 
-__version__ = "1.213.0"
+__version__ = "1.214.0"
 
 # --------------------------------------------------------------------------- #
 # Sandbox + storage
@@ -5325,6 +5326,70 @@ def cmd_year(args):
     print(f"average/mo {money(round(spending / 12, 2))}")
 
 
+def cmd_ytd(args):
+    """Year to date: income, expenses and net from January 1st through today,
+    with a per-day rate and - for the current year - a projection of the
+    full-year total at that pace. Distinct from `year` (a whole calendar year)
+    and `pace` (this month's run-rate). A past `--year` runs Jan 1 to Dec 31."""
+    data = load()
+    today = date.today()
+    year = args.year if args.year is not None else today.year
+    jan1 = date(year, 1, 1)
+    dec31 = date(year, 12, 31)
+    is_current = year == today.year
+    if year > today.year:
+        print(f"nothing recorded yet for {year}")
+        return
+    end = today if is_current else dec31
+    start_s, end_s = jan1.isoformat(), end.isoformat()
+
+    rows = [e for e in data["expenses"] if start_s <= e["date"] <= end_s]
+    exp = expenses_only(rows)
+    spending = round(sum(e["amount"] for e in exp), 2)
+    income = round(sum(e["amount"] for e in income_only(rows)), 2)
+    net = round(income - spending, 2)
+    days_elapsed = (end - jan1).days + 1
+    days_in_year = (dec31 - jan1).days + 1
+    per_day = round(spending / days_elapsed, 2) if days_elapsed else 0.0
+    projected = (round(per_day * days_in_year, 2)
+                 if is_current and days_elapsed < days_in_year else None)
+    cat_tot = category_totals(exp)
+    by_category = dict(sorted(cat_tot.items(), key=lambda kv: kv[1],
+                              reverse=True))
+
+    if getattr(args, "json", False):
+        print(json.dumps({
+            "year": year, "start": start_s, "end": end_s,
+            "days_elapsed": days_elapsed, "days_in_year": days_in_year,
+            "income": income, "spending": spending, "net": net,
+            "per_day": per_day, "projected_spending": projected,
+            "by_category": by_category,
+        }, indent=2))
+        return
+
+    if spending == 0 and income == 0:
+        print(f"nothing recorded for {year} year-to-date")
+        return
+
+    print(f"Year to date - {year} "
+          f"({start_s} to {end_s}, {days_elapsed} day"
+          f"{'' if days_elapsed == 1 else 's'})")
+    print("=" * 52)
+    print(f"{'income':<12} {money(income):>16}")
+    print(f"{'spending':<12} {money(spending):>16}")
+    print(f"{'net':<12} {money(net):>16}")
+    print(f"{'per day':<12} {money(per_day):>16}")
+    if projected is not None:
+        print(f"{'projected':<12} {money(projected):>16}   "
+              f"(spending by Dec 31 at this pace)")
+    if by_category:
+        peak = max(by_category.values()) or 1.0
+        print("-" * 52)
+        print("Top categories:")
+        for c, t in list(by_category.items())[:8]:
+            print(f"  {c:<14} {money(t):>12}  {bar(t / peak, 16)}")
+
+
 def cmd_day(args):
     data = load()
     d = parse_date(args.date)
@@ -8098,6 +8163,14 @@ def build_parser():
     yr.add_argument("--json", action="store_true", help="output JSON instead of text")
     yr.set_defaults(func=cmd_year)
 
+    ytd = sub.add_parser("ytd",
+                         help="year to date: totals so far, with a year-end projection")
+    ytd.add_argument("--year", type=int,
+                     help="which year, YYYY (default: current; a past year runs full)")
+    ytd.add_argument("--json", action="store_true",
+                     help="output JSON instead of text")
+    ytd.set_defaults(func=cmd_ytd)
+
     ys = sub.add_parser("years", help="multi-year rollup (spending/income/net)")
     ys.add_argument("--json", action="store_true", help="output JSON instead of text")
     ys.set_defaults(func=cmd_years)
@@ -8922,7 +8995,8 @@ CATCHUP_COMMANDS = frozenset({
     "untagged", "average", "distribution", "sources", "quarter", "forecast",
     "balance", "commitments", "savings", "heatmap", "suggest", "insights",
     "tagtrend", "range", "matrix", "cumulative", "allowance", "tagmatrix",
-    "weekly", "years", "anomalies", "roundup", "cashflow", "target", "runway",
+    "weekly", "years", "ytd", "anomalies", "roundup", "cashflow", "target",
+    "runway",
     "net", "nettrend", "subscriptions", "payees", "overbudget", "today",
     "worthtrend", "vsaverage",
     "topdays", "recent",

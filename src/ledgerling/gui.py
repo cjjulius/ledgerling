@@ -27,7 +27,7 @@ GROUP_DEFS = [
                 "template remove", "template rename"]),
     ("Analyze", ["today", "month", "insights", "scorecard", "scoretrend", "range", "summary", "report",
                  "statement", "receipt", "stats",
-                 "week", "weekly", "day", "onthisday", "year", "years",
+                 "week", "weekly", "day", "onthisday", "year", "years", "ytd",
                  "quarter", "weekday", "persona",
                  "trend", "tagtrend", "matrix", "tagmatrix", "cumulative", "top", "topdays",
                  "compare", "vsaverage", "average", "distribution", "balance",
