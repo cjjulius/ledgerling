@@ -117,6 +117,7 @@ SHORTCUTS = [
     ("Ctrl+T", "<Control-t>", "Cycle the theme (light / dark / high-contrast)",
      "theme"),
     ("Ctrl+N", "<Control-n>", "Open a new command window", "new"),
+    ("Ctrl+S", "<Control-s>", "Save the results to a file", "save"),
     ("Ctrl+=", "<Control-equal>", "Enlarge the results text", "zoomin"),
     ("Ctrl+-", "<Control-minus>", "Shrink the results text", "zoomout"),
     ("Ctrl+0", "<Control-0>", "Reset the results text size", "zoomreset"),
@@ -269,6 +270,38 @@ def _fmt_cell(key, v, currency="$", after=False):
 def _cmd_has_json(cmd):
     """True if the command exposes a --json flag (so we can render a table)."""
     return any(a.get("flag") == "--json" for a in cmd.get("args", []))
+
+
+def _csv_cell(v):
+    """Render one value for CSV export: blanks for None, lowercase booleans, JSON
+    for nested structures, the value itself otherwise (csv stringifies numbers)."""
+    if v is None:
+        return ""
+    if isinstance(v, bool):
+        return "true" if v else "false"
+    if isinstance(v, (dict, list)):
+        return json.dumps(v)
+    return v
+
+
+def table_to_csv(cols, rows, mode="rows"):
+    """Serialize the results table (columns + row dicts) to CSV text, using the
+    raw values rather than the on-screen money formatting so the file imports
+    cleanly into a spreadsheet. 'fields' mode writes field/value pairs; the other
+    modes read each row by column. Pure, so it is unit-tested without Tk."""
+    import csv
+    import io
+    buf = io.StringIO()
+    w = csv.writer(buf)
+    if mode == "fields":
+        w.writerow(["field", "value"])
+        for r in rows:
+            w.writerow([r.get("field", ""), _csv_cell(r.get("value"))])
+    else:
+        w.writerow(cols)
+        for r in rows:
+            w.writerow([_csv_cell(r.get(c)) for c in cols])
+    return buf.getvalue()
 
 
 def build_argv(cmd, values):
@@ -518,6 +551,8 @@ class LedgerlingGUI:
         filem = tk.Menu(bar, tearoff=0)
         filem.add_command(label="Run command", accelerator="Ctrl+Enter",
                           command=self.run_current)
+        filem.add_command(label="Save results…", accelerator="Ctrl+S",
+                          command=self._save_results)
         filem.add_separator()
         filem.add_command(label="New window", accelerator="Ctrl+N",
                           command=self.new_window)
@@ -721,6 +756,11 @@ class LedgerlingGUI:
         self.spinner.pack(side="left", padx=(10, 0))
         ttk.Button(runbar, text="Copy output", style="Tool.TButton",
                    command=self._copy_output).pack(side="right")
+        save_btn = ttk.Button(runbar, text="Save…", style="Tool.TButton",
+                              command=self._save_results)
+        save_btn.pack(side="right", padx=(0, 6))
+        _Tooltip(save_btn, "Save the results to a file - CSV for a table, "
+                 "otherwise plain text  (Ctrl+S)")
 
         self.results = ttk.Notebook(right)
         self.results.pack(side="top", fill="both", expand=True)
@@ -1205,6 +1245,40 @@ class LedgerlingGUI:
         self.root.clipboard_append(text)
         self._set_status("output copied to clipboard")
 
+    def _save_results(self, path=None):
+        """Save the current results to a file: CSV when the Table tab is showing
+        real rows, otherwise the plain Output text. `path` is injectable for
+        tests; without it a native Save dialog is shown."""
+        want_csv = False
+        try:
+            want_csv = (bool(self._table_rows)
+                        and self.results.select() == str(self._table_tab))
+        except Exception:
+            want_csv = False
+        base = self.current or "ledgerling"
+        if want_csv:
+            content = table_to_csv(self._table_cols, self._table_rows,
+                                   self._table_mode)
+            ext, ftypes, initial = ".csv", [("CSV files", "*.csv"),
+                                            ("All files", "*.*")], f"{base}.csv"
+        else:
+            content = self.output.get("1.0", "end-1c")
+            ext, ftypes, initial = ".txt", [("Text files", "*.txt"),
+                                            ("All files", "*.*")], f"{base}.txt"
+        if path is None:
+            from tkinter import filedialog
+            path = filedialog.asksaveasfilename(defaultextension=ext,
+                                                filetypes=ftypes,
+                                                initialfile=initial)
+            if not path:
+                return
+        try:
+            with open(path, "w", encoding="utf-8", newline="") as fh:
+                fh.write(content)
+            self._set_status(f"saved to {path}")
+        except OSError as exc:
+            self._set_status(f"could not save: {exc}")
+
     # ----- run spinner ----------------------------------------------------- #
     def _start_spinner(self):
         self._spinning = True
@@ -1445,6 +1519,7 @@ class LedgerlingGUI:
     def _bind_shortcuts(self):
         actions = {"run": self.run_current, "filter": self._focus_filter,
                    "theme": self.toggle_theme, "new": self.new_window,
+                   "save": self._save_results,
                    "zoomin": lambda: self.zoom_text(1),
                    "zoomout": lambda: self.zoom_text(-1),
                    "zoomreset": lambda: self.zoom_text(0),

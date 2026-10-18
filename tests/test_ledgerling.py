@@ -854,6 +854,26 @@ class WebUI(TempAppCase):
         self.assertEqual(set(seen), set(gui.THEMES))              # visited all
         self.assertEqual(gui._next_theme("nonsense"), gui.THEME_ORDER[0])
 
+    def test_gui_table_to_csv(self):
+        from ledgerling import gui
+        # rows mode: header from cols, raw values (not money-formatted), and
+        # nested structures JSON-encoded, booleans lowercased, None blank
+        cols = ["payee", "total", "cleared", "tags", "note"]
+        rows = [{"payee": "shop", "total": 12.5, "cleared": True,
+                 "tags": ["a", "b"], "note": None}]
+        out = gui.table_to_csv(cols, rows, "rows")
+        lines = out.splitlines()
+        self.assertEqual(lines[0], "payee,total,cleared,tags,note")
+        self.assertEqual(lines[1], 'shop,12.5,true,"[""a"", ""b""]",')
+        # fields mode: a field/value table
+        fout = gui.table_to_csv(["field", "value"],
+                                [{"field": "income", "value": 100.0},
+                                 {"field": "net", "value": -5.0}], "fields")
+        flines = fout.splitlines()
+        self.assertEqual(flines[0], "field,value")
+        self.assertEqual(flines[1], "income,100.0")
+        self.assertEqual(flines[2], "net,-5.0")
+
     def test_gui_text_zoom(self):
         from ledgerling import gui
         lo, hi, step = (gui.TEXT_SCALE_MIN, gui.TEXT_SCALE_MAX,

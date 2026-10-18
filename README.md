@@ -62,10 +62,12 @@ standard library only — no extra dependencies). It opens a real OS window with
   away), and the window title reflects the current command;
 - a **schema-driven form** for the selected command (it generates itself from
   the CLI, so every current and future command appears automatically), a
-  results area with an **Output** tab (text, with a Copy button) and a
+  results area with an **Output** tab (text, with Copy and Save buttons) and a
   **Table** tab, and a **status bar** whose right side always shows an
   at-a-glance summary of the current month (spent, net, entry count) that
   refreshes after every command;
+- **save any result to a file** — Ctrl+S (or the Save button) writes the output
+  as plain text, or as CSV when the Table tab is showing data;
 - a **sortable results table**: for any command that supports `--json`, the
   Table tab fills from its structured output — money and percent columns are
   formatted, and clicking a column header sorts by it (numeric-aware);
