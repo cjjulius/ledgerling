@@ -152,7 +152,7 @@ import tempfile
 import time
 from datetime import datetime, date, timedelta
 
-__version__ = "1.207.0"
+__version__ = "1.208.0"
 
 # --------------------------------------------------------------------------- #
 # Sandbox + storage
@@ -385,6 +385,15 @@ def check_month(m):
     """Exit with a clear message if a --month filter is malformed."""
     if m is not None and not _MONTH_RE.match(m):
         sys.exit(f"error: '{m}' is not a valid month (use YYYY-MM)")
+
+
+def require_positive(value, flag):
+    """Exit with a uniform message when a window-size option is below 1, and
+    return the value so callers can assign it inline. Centralizes the identical
+    guard the many --months / --days / --weeks / --count commands share."""
+    if value < 1:
+        sys.exit(f"error: {flag} must be at least 1")
+    return value
 
 
 def filter_month(rows, month):
@@ -1568,9 +1577,7 @@ def cmd_import(args):
 
 def cmd_report(args):
     data = load()
-    months = args.months
-    if months < 1:
-        sys.exit("error: --months must be at least 1")
+    months = require_positive(args.months, "--months")
 
     first_this = date.today().replace(day=1)
     keys = [month_of(add_months(first_this, -i).isoformat())
@@ -2831,9 +2838,7 @@ def cmd_tip(args):
     pct = args.pct
     if pct < 0:
         sys.exit("error: --pct cannot be negative")
-    split = args.split
-    if split < 1:
-        sys.exit("error: --split must be at least 1")
+    split = require_positive(args.split, "--split")
 
     bill_cents = round(args.amount * 100)
     tip_cents = round(bill_cents * pct / 100)
@@ -3544,9 +3549,7 @@ def cmd_nettrend(args):
     """Month-by-month income, expenses and net over the last N months, with a
     bar of each month's net. Complements `net` (a single period) and `trend` (a
     single category) by showing the whole cash picture over time."""
-    months = args.months
-    if months < 1:
-        sys.exit("error: --months must be at least 1")
+    months = require_positive(args.months, "--months")
     data = load()
     keys = _recent_months(months)
     agg = {k: {"income": 0.0, "expenses": 0.0} for k in keys}
@@ -3814,9 +3817,7 @@ def cmd_payee(args):
     lowercased and whitespace-collapsed, falling back to the category in
     parentheses - so the name is case-insensitive."""
     data = load()
-    months = args.months
-    if months < 1:
-        sys.exit("error: --months must be at least 1")
+    months = require_positive(args.months, "--months")
     want = " ".join((args.payee or "").split()).strip().lower()
     if not want:
         sys.exit("error: payee must not be empty")
@@ -3870,9 +3871,7 @@ def cmd_payee(args):
 
 def cmd_trend(args):
     cat = clean_category(args.category)
-    months = args.months
-    if months < 1:
-        sys.exit("error: --months must be at least 1")
+    months = require_positive(args.months, "--months")
     data = load()
     keys = _recent_months(months)
     totals = _monthly_totals(
@@ -3906,9 +3905,7 @@ def cmd_trend(args):
 
 
 def cmd_matrix(args):
-    months = args.months
-    if months < 1:
-        sys.exit("error: --months must be at least 1")
+    months = require_positive(args.months, "--months")
     data = load()
     keys = _recent_months(months)
 
@@ -3955,9 +3952,7 @@ def cmd_matrix(args):
 
 
 def cmd_tagmatrix(args):
-    months = args.months
-    if months < 1:
-        sys.exit("error: --months must be at least 1")
+    months = require_positive(args.months, "--months")
     data = load()
     keys = _recent_months(months)
 
@@ -4008,9 +4003,7 @@ def cmd_tagtrend(args):
     tag = normalize_tag(args.tag)
     if not tag:
         sys.exit("error: tag must not be empty")
-    months = args.months
-    if months < 1:
-        sys.exit("error: --months must be at least 1")
+    months = require_positive(args.months, "--months")
     data = load()
     keys = _recent_months(months)
 
@@ -4186,9 +4179,7 @@ def _tags_profile(args, rows, name):
 
 
 def cmd_upcoming(args):
-    days = args.days
-    if days < 1:
-        sys.exit("error: --days must be at least 1")
+    days = require_positive(args.days, "--days")
     data = load()
     today = date.today()
     horizon = today + timedelta(days=days)
@@ -4306,9 +4297,7 @@ def cmd_cashflow(args):
     override it with --start-balance. Paused rules and skipped occurrences are
     excluded, since they won't actually happen.
     """
-    days = args.days
-    if days < 1:
-        sys.exit("error: --days must be at least 1")
+    days = require_positive(args.days, "--days")
     data = load()
     today = date.today()
     horizon = today + timedelta(days=days)
@@ -4407,9 +4396,7 @@ def _recent_category_averages(data, months):
 
 
 def cmd_suggest(args):
-    months = args.months
-    if months < 1:
-        sys.exit("error: --months must be at least 1")
+    months = require_positive(args.months, "--months")
     data = load()
     averages = _recent_category_averages(data, months)
 
@@ -4444,9 +4431,7 @@ def cmd_suggest(args):
 
 
 def cmd_autobudget(args):
-    months = args.months
-    if months < 1:
-        sys.exit("error: --months must be at least 1")
+    months = require_positive(args.months, "--months")
     data = load()
     averages = _recent_category_averages(data, months)
 
@@ -4535,9 +4520,7 @@ def cmd_category(args):
     the active span, a recent monthly trend, and budget status if one is set."""
     data = load()
     cat = clean_category(args.category)
-    months = args.months
-    if months < 1:
-        sys.exit("error: --months must be at least 1")
+    months = require_positive(args.months, "--months")
 
     exp = expenses_only(data["expenses"])
     rows = [e for e in exp if e["category"] == cat]
@@ -5270,9 +5253,7 @@ def cmd_week(args):
 
 
 def cmd_weekly(args):
-    weeks = args.weeks
-    if weeks < 1:
-        sys.exit("error: --weeks must be at least 1")
+    weeks = require_positive(args.weeks, "--weeks")
     today = date.today()
     monday = today - timedelta(days=today.weekday())
     data = load()
@@ -5391,9 +5372,7 @@ def cmd_today(args):
     income, spending, net = tot["income"], tot["spending"], tot["net"]
     balance = all_time_net(data)
 
-    days = getattr(args, "days", 7) or 7
-    if days < 1:
-        sys.exit("error: --days must be at least 1")
+    days = require_positive(getattr(args, "days", 7) or 7, "--days")
     up = upcoming_items(data, days)
     up_exp = round(sum(i["amount"] for i in up if i["kind"] == "expense"), 2)
     up_inc = round(sum(i["amount"] for i in up if i["kind"] == "income"), 2)
@@ -7203,8 +7182,7 @@ def cmd_config(args):
         cfg["currency"] = cur
         changed = True
     if args.list_limit is not None:
-        if args.list_limit < 1:
-            sys.exit("error: --list-limit must be at least 1")
+        require_positive(args.list_limit, "--list-limit")
         cfg["list_limit"] = args.list_limit
         changed = True
     if getattr(args, "symbol_position", None) is not None:
@@ -7382,8 +7360,7 @@ def cmd_recur_add(args):
         rule["until"] = until
     count = getattr(args, "count", None)
     if count is not None:
-        if count < 1:
-            sys.exit("error: --count must be at least 1")
+        require_positive(count, "--count")
         rule["count"] = count
     data["recurring"].append(rule)
     created = apply_recurring(data)  # catch up immediately
@@ -7419,8 +7396,7 @@ def cmd_recur_from(args):
         rule["until"] = until
     count = getattr(args, "count", None)
     if count is not None:
-        if count < 1:
-            sys.exit("error: --count must be at least 1")
+        require_positive(count, "--count")
         rule["count"] = count
     data["recurring"].append(rule)
     created = apply_recurring(data)  # catch up immediately
@@ -7473,8 +7449,7 @@ def cmd_recur_edit(args):
     if args.no_count:
         r.pop("count", None)
     elif args.count is not None:
-        if args.count < 1:
-            sys.exit("error: --count must be at least 1")
+        require_positive(args.count, "--count")
         r["count"] = args.count
 
     save(data)

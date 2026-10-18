@@ -418,6 +418,16 @@ class PureLogic(unittest.TestCase):
         self.assertEqual(L._monthly_totals([], keys),
                          {"2026-01": 0.0, "2026-02": 0.0})
 
+    def test_require_positive(self):
+        # valid values pass through unchanged
+        self.assertEqual(L.require_positive(1, "--months"), 1)
+        self.assertEqual(L.require_positive(12, "--days"), 12)
+        # below 1 exits with a message naming the flag
+        for bad in (0, -3):
+            with self.assertRaises(SystemExit) as cm:
+                L.require_positive(bad, "--weeks")
+            self.assertIn("--weeks must be at least 1", str(cm.exception))
+
     def test_resolve_scope(self):
         # no selectors -> caller applies its own default
         pred, label, ranged = L._resolve_scope(None, None, None)
