@@ -274,6 +274,8 @@ the drill-down summary stats (total, share, count, average/median, min/max,
 span) that `category` and `tags NAME` share,
 the recent-months window and its per-month totals that the trend and grid
 views (`category`, `payee`, `trend`, `matrix`, `tagmatrix`, `tagtrend`) share,
+the month-or-date-range scope resolution (with its mutual-exclusion rule)
+that `net`, `summary`, and `average` share,
 the common entry filters (kind scope, category, tag, payee, month,
 cleared/pending, recurring/manual) that `list` and `search` share, the date-range and amount-bound filters
 (`--since`/`--until`/`--min`/`--max`) that `list`, `search`, and `top` share,

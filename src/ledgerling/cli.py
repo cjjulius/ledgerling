@@ -151,7 +151,7 @@ import tempfile
 import time
 from datetime import datetime, date, timedelta
 
-__version__ = "1.203.0"
+__version__ = "1.204.0"
 
 # --------------------------------------------------------------------------- #
 # Sandbox + storage
@@ -342,6 +342,30 @@ def _date_bounds(since, until):
     start = parse_date(since) if since else "0000-01-01"
     end = parse_date(until) if until else "9999-12-31"
     return (end, start) if end < start else (start, end)
+
+
+def _resolve_scope(month, since, until):
+    """Resolve a command's optional month / date-range selectors into a single
+    ``(predicate, label, ranged)`` triple:
+
+      predicate  ``entry -> bool`` (True when in scope), or None when no month
+                 or range was given, so the caller applies its own default
+                 (all-time, or the current month);
+      label      a human scope string ("2026-01", "START to END"), or None when
+                 no selector was given;
+      ranged     True when a --since/--until range was used.
+
+    Rejects combining --month with --since/--until. Shared by ``net``,
+    ``summary`` and ``average`` so the exclusivity rule and the range maths live
+    in one place."""
+    if month and (since or until):
+        sys.exit("error: use --month or --since/--until, not both")
+    if since or until:
+        start, end = _date_bounds(since, until)
+        return (lambda e: start <= e["date"] <= end), f"{start} to {end}", True
+    if month:
+        return (lambda e: month_of(e["date"]) == month), month, False
+    return None, None, False
 
 
 def month_of(iso_date):
@@ -1216,16 +1240,12 @@ def cmd_summary(args):
     data = load()
     since = getattr(args, "since", None)
     until = getattr(args, "until", None)
-    if args.month and (since or until):
-        sys.exit("error: use --month or --since/--until, not both")
-    ranged = bool(since or until)
-    if ranged:
-        start, end = _date_bounds(since, until)
-        rows = [e for e in expenses_only(data["expenses"])
-                if start <= e["date"] <= end]
-        period = f"{start} to {end}"
+    pred, scope, ranged = _resolve_scope(args.month, since, until)
+    if pred:
+        rows = [e for e in expenses_only(data["expenses"]) if pred(e)]
+        period = scope
     else:
-        period = args.month or this_month()
+        period = this_month()
         rows = month_expenses(data, period)
     tag = getattr(args, "tag", None)
     if tag:
@@ -3489,15 +3509,9 @@ def cmd_net(args):
     data = load()
     since = getattr(args, "since", None)
     until = getattr(args, "until", None)
-    if args.month and (since or until):
-        sys.exit("error: use --month or --since/--until, not both")
-    if args.month:
-        rows = [e for e in data["expenses"] if month_of(e["date"]) == args.month]
-        scope = args.month
-    elif since or until:
-        start, end = _date_bounds(since, until)
-        rows = [e for e in data["expenses"] if start <= e["date"] <= end]
-        scope = f"{start} to {end}"
+    pred, scope, _ranged = _resolve_scope(args.month, since, until)
+    if pred:
+        rows = [e for e in data["expenses"] if pred(e)]
     else:
         rows = data["expenses"]
         scope = "all time"
@@ -3531,14 +3545,10 @@ def cmd_average(args):
     month = getattr(args, "month", None)
     since = getattr(args, "since", None)
     until = getattr(args, "until", None)
-    if month and (since or until):
-        sys.exit("error: use --month or --since/--until, not both")
+    pred, scope, ranged = _resolve_scope(month, since, until)
     exp = expenses_only(data["expenses"])
-    if since or until:
-        start, end = _date_bounds(since, until)
-        exp = [e for e in exp if start <= e["date"] <= end]
-    else:
-        exp = filter_month(exp, month)
+    if pred:
+        exp = [e for e in exp if pred(e)]
     cat = getattr(args, "category", None)
     if cat:
         cat = clean_category(cat)
@@ -3547,14 +3557,14 @@ def cmd_average(args):
         if getattr(args, "json", False):
             print(json.dumps({"total": 0}, indent=2))
         else:
-            if since or until:
-                where = f" in {start} to {end}"
-            elif month:
-                where = f" for {month}"
+            if ranged:
+                where = f" in {scope}"
+            elif scope:
+                where = f" for {scope}"
             else:
                 where = ""
-            scope = f" on [{cat}]" if cat else ""
-            print(f"no expenses to average{scope}{where}")
+            on_cat = f" on [{cat}]" if cat else ""
+            print(f"no expenses to average{on_cat}{where}")
         return
 
     dates = [date.fromisoformat(e["date"]) for e in exp]
