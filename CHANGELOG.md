@@ -4,6 +4,15 @@ All notable changes to Ledgerling are documented here. The format is based on
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and this project
 adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.206.0] - 2026-10-18
+
+### Added
+
+- New `nettrend` command: month-by-month income, expenses and net over the last
+  N months, with a signed bar for each month's net. Complements `net` (a single
+  period) and `trend` (a single category) by showing the whole cash picture over
+  time. Supports `--months` and `--json`.
+
 ## [1.205.0] - 2026-10-18
 
 ### Added
@@ -2443,6 +2452,7 @@ file, standard library only, strictly confined to its own folder.
   guard (`_within_app`) that refuses any path escaping the app folder; imports
   and restores are reduced to a basename and looked up only within the folder.
 
+[1.206.0]: #12060---2026-10-18
 [1.205.0]: #12050---2026-10-18
 [1.204.0]: #12040---2026-10-18
 [1.203.0]: #12030---2026-10-18

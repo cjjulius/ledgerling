@@ -191,7 +191,8 @@ use):
   `search` (plain or `--regex`), your most recently recorded entries (`recent`),
   a category `summary` (for a month, a date range, by tag, or top-N),
   `average` spending per day, week and month (whole history, a month, a date
-  range, or a single category), and rollups by week, month, quarter, year, and
+  range, or a single category), a month-by-month income/expenses/`net`
+  picture with `nettrend`, and rollups by week, month, quarter, year, and
   weekday.
 - **Budgets and goals**: monthly `budget`s (with a spent-vs-budgeted total),
   `pace` and daily `allowance`, a savings `goal`, `networth` tracking, savings
