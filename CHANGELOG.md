@@ -4,6 +4,14 @@ All notable changes to Ledgerling are documented here. The format is based on
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and this project
 adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.211.1] - 2026-10-18
+
+### Changed
+
+- Rewrote the README's "Analyze" overview: the long run-on sentence is now a
+  short set of sub-bullets grouped by intent (at a glance, where it goes, over
+  time, find and revisit), so it is easier to scan. Documentation only.
+
 ## [1.211.0] - 2026-10-18
 
 ### Added
@@ -2496,6 +2504,7 @@ file, standard library only, strictly confined to its own folder.
   guard (`_within_app`) that refuses any path escaping the app folder; imports
   and restores are reduced to a basename and looked up only within the folder.
 
+[1.211.1]: #12111---2026-10-18
 [1.211.0]: #12110---2026-10-18
 [1.210.0]: #12100---2026-10-18
 [1.209.0]: #12090---2026-10-18
