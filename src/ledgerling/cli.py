@@ -62,6 +62,7 @@ Commands:
     topdays   Your highest-spending days, ranked
     recent    Entries you most recently recorded (by insertion order)
     net       Income, expenses, net and savings rate (all-time/month/range)
+    nettrend  Monthly income, expenses and net over N months
     average   Average spending per day/week/month and per transaction (+median)
     distribution  Histogram of expense sizes
     anomalies  Flag unusually large expenses within each category
@@ -151,7 +152,7 @@ import tempfile
 import time
 from datetime import datetime, date, timedelta
 
-__version__ = "1.205.0"
+__version__ = "1.206.0"
 
 # --------------------------------------------------------------------------- #
 # Sandbox + storage
@@ -3537,6 +3538,48 @@ def cmd_net(args):
     if rate is not None:
         verb = "saved" if net >= 0 else "overspent by"
         print(f"{verb} {abs(rate):g}% of income")
+
+
+def cmd_nettrend(args):
+    """Month-by-month income, expenses and net over the last N months, with a
+    bar of each month's net. Complements `net` (a single period) and `trend` (a
+    single category) by showing the whole cash picture over time."""
+    months = args.months
+    if months < 1:
+        sys.exit("error: --months must be at least 1")
+    data = load()
+    keys = _recent_months(months)
+    agg = {k: {"income": 0.0, "expenses": 0.0} for k in keys}
+    for e in data["expenses"]:
+        m = month_of(e["date"])
+        if m in agg:
+            side = "income" if kind_of(e) == "income" else "expenses"
+            agg[m][side] = round(agg[m][side] + e["amount"], 2)
+    rows = [{"month": k, "income": agg[k]["income"],
+             "expenses": agg[k]["expenses"],
+             "net": round(agg[k]["income"] - agg[k]["expenses"], 2)}
+            for k in keys]
+    tot_inc = round(sum(r["income"] for r in rows), 2)
+    tot_exp = round(sum(r["expenses"] for r in rows), 2)
+    tot_net = round(tot_inc - tot_exp, 2)
+
+    if getattr(args, "json", False):
+        print(json.dumps({"months": rows, "income": tot_inc,
+                          "expenses": tot_exp, "net": tot_net}, indent=2))
+        return
+
+    print(f"Net trend - last {months} month{'' if months == 1 else 's'}")
+    print("=" * 62)
+    print(f"{'month':<9}{'income':>12}{'expenses':>12}{'net':>12}")
+    print("-" * 62)
+    peak = max((abs(r["net"]) for r in rows), default=0.0) or 1.0
+    for r in rows:
+        sign = "+" if r["net"] >= 0 else "-"
+        print(f"{r['month']:<9}{money(r['income']):>12}{money(r['expenses']):>12}"
+              f"{money(r['net']):>12}  {sign}{bar(abs(r['net']) / peak, 10)}")
+    print("-" * 62)
+    print(f"{'total':<9}{money(tot_inc):>12}{money(tot_exp):>12}"
+          f"{money(tot_net):>12}")
 
 
 def cmd_average(args):
@@ -8295,6 +8338,14 @@ def build_parser():
     nt.add_argument("--json", action="store_true", help="output JSON instead of text")
     nt.set_defaults(func=cmd_net)
 
+    ntr = sub.add_parser("nettrend",
+                         help="monthly income, expenses and net over N months")
+    ntr.add_argument("--months", type=int, default=6,
+                     help="how many months to show (default 6)")
+    ntr.add_argument("--json", action="store_true",
+                     help="output JSON instead of text")
+    ntr.set_defaults(func=cmd_nettrend)
+
     av = sub.add_parser("average", help="average spending per day/week/month")
     av.add_argument("--month", help="restrict to a month, YYYY-MM")
     av.add_argument("--since", help="range start (YYYY-MM-DD/today), with --until")
@@ -8726,7 +8777,8 @@ CATCHUP_COMMANDS = frozenset({
     "balance", "commitments", "savings", "heatmap", "suggest", "insights",
     "tagtrend", "range", "matrix", "cumulative", "allowance", "tagmatrix",
     "weekly", "years", "anomalies", "roundup", "cashflow", "target", "runway",
-    "net", "subscriptions", "payees", "overbudget", "today", "worthtrend",
+    "net", "nettrend", "subscriptions", "payees", "overbudget", "today",
+    "worthtrend",
     "topdays", "recent",
     "statement", "reconcile", "scorecard", "scoretrend", "category", "payee",
     "savingsplan", "bills", "challenge", "achievements", "onthisday", "mascot",

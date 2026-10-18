@@ -2863,6 +2863,26 @@ class CLI(TempAppCase):
         self.assertEqual(d["net"], -10.0)
         self.assertIsNone(d["savings_rate"])
 
+    def test_nettrend_json(self):
+        this = date.today().isoformat()[:7]
+        last = L.add_months(date.today().replace(day=1), -1).isoformat()[:7]
+        self._main(["income", "1000", "salary", "pay", "--date", f"{last}-05"])
+        self._main(["add", "300", "rent", "a", "--date", f"{last}-10"])
+        self._main(["add", "200", "food", "b", "--date", f"{this}-03"])
+        d = json.loads(self._main(["nettrend", "--months", "2", "--json"]))
+        self.assertEqual([m["month"] for m in d["months"]], [last, this])
+        prev, cur = d["months"]
+        self.assertEqual((prev["income"], prev["expenses"], prev["net"]),
+                         (1000.0, 300.0, 700.0))
+        self.assertEqual((cur["income"], cur["expenses"], cur["net"]),
+                         (0.0, 200.0, -200.0))
+        # window totals aggregate the shown months
+        self.assertEqual((d["income"], d["expenses"], d["net"]),
+                         (1000.0, 500.0, 500.0))
+        # bad --months is rejected
+        with self.assertRaises(SystemExit):
+            self._main(["nettrend", "--months", "0"])
+
     def test_average_json(self):
         self._main(["add", "100", "food", "a", "--date", "2026-01-01"])
         self._main(["add", "100", "food", "b", "--date", "2026-01-11"])  # 11-day span
