@@ -4,6 +4,15 @@ All notable changes to Ledgerling are documented here. The format is based on
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and this project
 adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.205.0] - 2026-10-18
+
+### Added
+
+- `payees` accepts `--since` and `--until` to rank merchants over an arbitrary
+  date range, not just a month. Built on the shared scope helper, so the
+  mutual-exclusion rule with `--month` is consistent with `net`/`summary`/
+  `average`.
+
 ## [1.204.0] - 2026-10-18
 
 ### Changed
@@ -2434,6 +2443,7 @@ file, standard library only, strictly confined to its own folder.
   guard (`_within_app`) that refuses any path escaping the app folder; imports
   and restores are reduced to a basename and looked up only within the folder.
 
+[1.205.0]: #12050---2026-10-18
 [1.204.0]: #12040---2026-10-18
 [1.203.0]: #12030---2026-10-18
 [1.202.0]: #12020---2026-10-18
