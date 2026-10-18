@@ -506,7 +506,7 @@ function toggleGroup(g) {
 const GROUP_DEFS = [
   ['Record', ['add', 'income', 'edit', 'delete', 'split', 'clone', 'note', 'refund',
     'template use', 'template add', 'template list', 'template remove', 'template rename']],
-  ['Analyze', ['today', 'month', 'insights', 'scorecard', 'scoretrend', 'range', 'summary', 'report', 'statement', 'receipt', 'stats', 'week', 'weekly', 'day', 'onthisday', 'year', 'years',
+  ['Analyze', ['today', 'month', 'insights', 'scorecard', 'scoretrend', 'range', 'summary', 'report', 'statement', 'receipt', 'stats', 'week', 'weekly', 'day', 'onthisday', 'year', 'years', 'ytd',
     'quarter', 'weekday', 'persona', 'trend', 'tagtrend', 'matrix', 'tagmatrix', 'cumulative', 'top', 'topdays', 'compare', 'vsaverage', 'average', 'distribution',
     'balance', 'savings', 'heatmap', 'streak', 'pace', 'forecast', 'sources', 'anomalies', 'cashflow', 'net', 'nettrend', 'subscriptions',
     'categories', 'category', 'payees', 'payee', 'worthtrend', 'tags', 'untagged', 'search', 'list', 'recent']],

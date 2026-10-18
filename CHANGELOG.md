@@ -4,6 +4,15 @@ All notable changes to Ledgerling are documented here. The format is based on
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and this project
 adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.214.0] - 2026-10-18
+
+### Added
+
+- New `ytd` command: year-to-date income, expenses and net from January 1st
+  through today, a per-day rate, and - for the current year - a projection of the
+  full-year spending at that pace, plus a top-category breakdown. A past `--year`
+  runs the whole Jan-Dec span. Supports `--json`.
+
 ## [1.213.0] - 2026-10-18
 
 ### Changed
@@ -2521,6 +2530,7 @@ file, standard library only, strictly confined to its own folder.
   guard (`_within_app`) that refuses any path escaping the app folder; imports
   and restores are reduced to a basename and looked up only within the folder.
 
+[1.214.0]: #12140---2026-10-18
 [1.213.0]: #12130---2026-10-18
 [1.212.0]: #12120---2026-10-18
 [1.211.1]: #12111---2026-10-18
