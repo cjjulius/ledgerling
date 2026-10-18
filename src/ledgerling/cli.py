@@ -151,7 +151,7 @@ import tempfile
 import time
 from datetime import datetime, date, timedelta
 
-__version__ = "1.199.0"
+__version__ = "1.200.0"
 
 # --------------------------------------------------------------------------- #
 # Sandbox + storage
@@ -1214,8 +1214,19 @@ def cmd_split(args):
 def cmd_summary(args):
     check_month(args.month)
     data = load()
-    period = args.month or this_month()
-    rows = month_expenses(data, period)
+    since = getattr(args, "since", None)
+    until = getattr(args, "until", None)
+    if args.month and (since or until):
+        sys.exit("error: use --month or --since/--until, not both")
+    ranged = bool(since or until)
+    if ranged:
+        start, end = _date_bounds(since, until)
+        rows = [e for e in expenses_only(data["expenses"])
+                if start <= e["date"] <= end]
+        period = f"{start} to {end}"
+    else:
+        period = args.month or this_month()
+        rows = month_expenses(data, period)
     tag = getattr(args, "tag", None)
     if tag:
         want = normalize_tag(tag)
@@ -1240,7 +1251,8 @@ def cmd_summary(args):
     scope = f"{period} #{want}" if tag else period
 
     if getattr(args, "json", False):
-        out = {"month": period, "total": grand, "categories": cats}
+        out = ({"scope": period, "total": grand, "categories": cats} if ranged
+               else {"month": period, "total": grand, "categories": cats})
         if tag:
             out["tag"] = want
         print(json.dumps(out, indent=2))
@@ -7718,6 +7730,8 @@ def build_parser():
 
     s = sub.add_parser("summary", help="totals by category with a chart")
     s.add_argument("--month", help="month to summarize, YYYY-MM (default: current)")
+    s.add_argument("--since", help="range start (YYYY-MM-DD/today), with --until")
+    s.add_argument("--until", help="range end (YYYY-MM-DD/today), with --since")
     s.add_argument("--tag", help="only entries carrying this #tag")
     s.add_argument("--limit", type=int,
                    help="show only the top N categories, rest rolled into (other)")

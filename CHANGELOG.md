@@ -4,6 +4,14 @@ All notable changes to Ledgerling are documented here. The format is based on
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and this project
 adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.200.0] - 2026-10-18
+
+### Added
+
+- `summary` accepts `--since` and `--until` to total spending by category over an
+  arbitrary date range, not just a whole month. Either end may be left open, and
+  it cannot be combined with `--month`.
+
 ## [1.199.0] - 2026-10-18
 
 ### Changed
@@ -2393,6 +2401,7 @@ file, standard library only, strictly confined to its own folder.
   guard (`_within_app`) that refuses any path escaping the app folder; imports
   and restores are reduced to a basename and looked up only within the folder.
 
+[1.200.0]: #12000---2026-10-18
 [1.199.0]: #11990---2026-10-18
 [1.198.0]: #11980---2026-10-04
 [1.197.0]: #11970---2026-10-04

@@ -186,8 +186,8 @@ use):
   an `onthisday` flashback, your highest-spending days (`topdays`), a printable
   `receipt` for any day or entry, a playful `persona` read of your habits,
   `search` (plain or `--regex`), your most recently recorded entries (`recent`),
-  a category `summary` (optionally by tag or top-N), and rollups by week, month,
-  quarter, year, and weekday.
+  a category `summary` (for a month, a date range, by tag, or top-N), and
+  rollups by week, month, quarter, year, and weekday.
 - **Budgets and goals**: monthly `budget`s (with a spent-vs-budgeted total),
   `pace` and daily `allowance`, a savings `goal`, `networth` tracking, savings
   `pot`s (sinking funds) with optional target dates and a combined `savingsplan`,
