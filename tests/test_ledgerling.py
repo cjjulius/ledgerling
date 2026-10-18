@@ -904,6 +904,28 @@ class WebUI(TempAppCase):
         self.assertEqual(set(seen), set(gui.THEMES))              # visited all
         self.assertEqual(gui._next_theme("nonsense"), gui.THEME_ORDER[0])
 
+    def test_gui_chart_series(self):
+        from ledgerling import gui
+        # rows: a text label column + a money column -> (label, value) pairs
+        rows = [{"month": "2026-01", "total": 100.0, "count": 3},
+                {"month": "2026-02", "total": 250.0, "count": 5}]
+        s = gui.chart_series("rows", ["month", "total", "count"], rows)
+        self.assertEqual(s, [("2026-01", 100.0), ("2026-02", 250.0)])
+        # fields: numeric values only (strings/None skipped)
+        f = gui.chart_series("fields", ["field", "value"],
+                             [{"field": "income", "value": 100.0},
+                              {"field": "net", "value": -5.0},
+                              {"field": "scope", "value": "all time"}])
+        self.assertEqual(f, [("income", 100.0), ("net", -5.0)])
+        # nothing to chart: no numeric column, or no rows
+        self.assertIsNone(gui.chart_series("rows", ["a"],
+                                           [{"a": "x"}, {"a": "y"}]))
+        self.assertIsNone(gui.chart_series("rows", ["total"], []))
+        # max_points caps the series length
+        many = [{"m": str(i), "v": i} for i in range(40)]
+        self.assertEqual(len(gui.chart_series("rows", ["m", "v"], many,
+                                              max_points=10)), 10)
+
     def test_gui_collect_suggestions(self):
         from ledgerling import gui
         data = {"expenses": [

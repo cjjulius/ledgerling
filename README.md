@@ -64,10 +64,11 @@ standard library only — no extra dependencies). It opens a real OS window with
   the CLI, so every current and future command appears automatically), with
   category, tag and payee fields offering an autocomplete dropdown of the values
   already in your ledger (you can still type a new one), a
-  results area with an **Output** tab (text, with Copy and Save buttons) and a
-  **Table** tab, and a **status bar** whose right side always shows an
-  at-a-glance summary of the current month (spent, net, entry count) that
-  refreshes after every command;
+  results area with an **Output** tab (text, with Copy and Save buttons), a
+  **Table** tab, and a **Chart** tab that draws a quick bar chart whenever the
+  result has something to plot (months, categories, and the like), and a
+  **status bar** whose right side always shows an at-a-glance summary of the
+  current month (spent, net, entry count) that refreshes after every command;
 - **save any result to a file** — Ctrl+S (or the Save button) writes the output
   as plain text, or as CSV when the Table tab is showing data;
 - a **sortable results table**: for any command that supports `--json`, the
