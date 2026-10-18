@@ -61,7 +61,9 @@ standard library only — no extra dependencies). It opens a real OS window with
   (new users land on today's briefing, auto-run so real numbers show right
   away), and the window title reflects the current command;
 - a **schema-driven form** for the selected command (it generates itself from
-  the CLI, so every current and future command appears automatically), a
+  the CLI, so every current and future command appears automatically), with
+  category, tag and payee fields offering an autocomplete dropdown of the values
+  already in your ledger (you can still type a new one), a
   results area with an **Output** tab (text, with Copy and Save buttons) and a
   **Table** tab, and a **status bar** whose right side always shows an
   at-a-glance summary of the current month (spent, net, entry count) that

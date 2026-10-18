@@ -329,6 +329,24 @@ def build_argv(cmd, values):
     return list(cmd["argv"]) + positionals + options
 
 
+def collect_suggestions(data):
+    """Distinct known categories, tags and payees from the ledger, each sorted,
+    for autocompleting the matching form fields. Pure (takes the loaded data
+    dict), so it is unit-tested without Tk."""
+    cats, tags, payees = set(), set(), set()
+    for e in data.get("expenses", []):
+        if e.get("category"):
+            cats.add(e["category"])
+        for t in e.get("tags", []) or []:
+            tags.add(t)
+        try:
+            payees.add(L._normalize_payee(e))
+        except Exception:
+            pass
+    return {"category": sorted(cats), "tag": sorted(tags),
+            "payee": sorted(payees)}
+
+
 def _safe_json(text):
     try:
         return json.loads(text)
@@ -466,6 +484,7 @@ class LedgerlingGUI:
         self._focus_items = []    # launcher cards for keyboard navigation
         self._focus_idx = -1      # currently key-focused card (-1 = none)
         self._focus_cols = 3      # columns in the current launcher grid
+        self._suggest = {}        # autocomplete values for category/tag/payee
         self._alive = True
         self._spin = 0
         self._spinning = False
@@ -507,6 +526,7 @@ class LedgerlingGUI:
         self._build_statusbar()
         self.apply_theme(self.theme_name, animate=False)
         self._bind_shortcuts()
+        self._refresh_suggestions()
         self._poll_results()
         root.protocol("WM_DELETE_WINDOW", self._on_close)
 
@@ -835,6 +855,14 @@ class LedgerlingGUI:
             self.summary.config(text=txt)
         except Exception:
             pass
+
+    def _refresh_suggestions(self):
+        """Reload the category/tag/payee autocomplete values from the ledger.
+        Best-effort - a failure just leaves the fields as plain entries."""
+        try:
+            self._suggest = collect_suggestions(L.load())
+        except Exception:
+            self._suggest = {}
 
     # ----- launcher (search + category tiles -> command cards) ------------ #
     def _filter_query(self):
@@ -1169,7 +1197,13 @@ class LedgerlingGUI:
             combo._var = var
             return combo
         var = tk.StringVar(value="")
-        ent = ttk.Entry(parent, textvariable=var)
+        # For category/tag/payee fields, offer the values already in the ledger
+        # as an editable dropdown (you can still type a brand-new one).
+        sugg = self._suggest.get(a["dest"]) if hasattr(self, "_suggest") else None
+        if sugg:
+            ent = ttk.Combobox(parent, textvariable=var, values=sugg)
+        else:
+            ent = ttk.Entry(parent, textvariable=var)
         ent.grid(row=row, column=1, sticky="ew", pady=7)
         ent._var = var
         if a.get("help"):
@@ -1229,6 +1263,7 @@ class LedgerlingGUI:
         self._set_status(f"{' '.join(argv)}  —  {verb}")
         if ok:
             self._refresh_summary()   # keep the month summary current after edits
+            self._refresh_suggestions()   # pick up any new category/tag/payee
 
     def _set_output(self, text, err=False):
         self.output.config(state="normal")

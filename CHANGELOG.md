@@ -4,6 +4,15 @@ All notable changes to Ledgerling are documented here. The format is based on
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and this project
 adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.210.0] - 2026-10-18
+
+### Added
+
+- Desktop app: category, tag and payee form fields now autocomplete from the
+  values already in your ledger (an editable dropdown - you can still type a new
+  one), which cuts typos and speeds up data entry. The list refreshes after each
+  command.
+
 ## [1.209.0] - 2026-10-18
 
 ### Added
@@ -2477,6 +2486,7 @@ file, standard library only, strictly confined to its own folder.
   guard (`_within_app`) that refuses any path escaping the app folder; imports
   and restores are reduced to a basename and looked up only within the folder.
 
+[1.210.0]: #12100---2026-10-18
 [1.209.0]: #12090---2026-10-18
 [1.208.0]: #12080---2026-10-18
 [1.207.0]: #12070---2026-10-18
