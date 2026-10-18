@@ -152,7 +152,7 @@ import tempfile
 import time
 from datetime import datetime, date, timedelta
 
-__version__ = "1.208.0"
+__version__ = "1.209.0"
 
 # --------------------------------------------------------------------------- #
 # Sandbox + storage
@@ -1771,18 +1771,27 @@ def cmd_search(args):
     }[sort]
     rows = sorted(rows, key=keyfn, reverse=getattr(args, "desc", False))
 
+    match_count = len(rows)
+    total = round(sum(e["amount"] for e in rows), 2)
+    limit = getattr(args, "limit", None)
+    shown = rows[:limit] if limit and limit > 0 else rows
+
     if getattr(args, "json", False):
-        print(json.dumps(rows, indent=2))
+        print(json.dumps(shown, indent=2))
         return
 
     if not rows:
         print("no matching entries")
         return
 
-    for e in rows:
+    for e in shown:
         print(_entry_line(e))
     print("-" * 50)
-    print(f"{len(rows)} match(es), total {money(sum(e['amount'] for e in rows))}")
+    if len(shown) < match_count:
+        print(f"showing first {len(shown)} of {match_count} match(es), "
+              f"total {money(total)}")
+    else:
+        print(f"{match_count} match(es), total {money(total)}")
 
 
 def _median(values):
@@ -7878,6 +7887,8 @@ def build_parser():
     sr.add_argument("--sort", choices=["date", "amount", "category"],
                     default="date", help="sort order (default date)")
     sr.add_argument("--desc", action="store_true", help="sort descending")
+    sr.add_argument("--limit", type=int,
+                    help="show only the first N matches (the total still counts all)")
     sr.add_argument("--json", action="store_true", help="output JSON instead of text")
     sr.set_defaults(func=cmd_search)
 

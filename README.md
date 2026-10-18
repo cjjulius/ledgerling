@@ -190,7 +190,8 @@ use):
   date range), an `onthisday` flashback, your highest-spending days (`topdays`),
   a printable
   `receipt` for any day or entry, a playful `persona` read of your habits,
-  `search` (plain or `--regex`), your most recently recorded entries (`recent`),
+  `search` (plain or `--regex`, with an optional result `--limit`), your most
+  recently recorded entries (`recent`),
   a category `summary` (for a month, a date range, by tag, or top-N),
   `average` spending per day, week and month (whole history, a month, a date
   range, or a single category), a month-by-month income/expenses/`net`

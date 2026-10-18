@@ -4,6 +4,14 @@ All notable changes to Ledgerling are documented here. The format is based on
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and this project
 adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.209.0] - 2026-10-18
+
+### Added
+
+- `search` accepts `--limit` to show only the first N matches (after sorting),
+  while the summary line still counts and totals every match. Handy for narrowing
+  long result lists.
+
 ## [1.208.0] - 2026-10-18
 
 ### Changed
@@ -2469,6 +2477,7 @@ file, standard library only, strictly confined to its own folder.
   guard (`_within_app`) that refuses any path escaping the app folder; imports
   and restores are reduced to a basename and looked up only within the folder.
 
+[1.209.0]: #12090---2026-10-18
 [1.208.0]: #12080---2026-10-18
 [1.207.0]: #12070---2026-10-18
 [1.206.0]: #12060---2026-10-18
