@@ -833,6 +833,27 @@ class WebUI(TempAppCase):
         self.assertEqual(set(seen), set(gui.THEMES))              # visited all
         self.assertEqual(gui._next_theme("nonsense"), gui.THEME_ORDER[0])
 
+    def test_gui_text_zoom(self):
+        from ledgerling import gui
+        lo, hi, step = (gui.TEXT_SCALE_MIN, gui.TEXT_SCALE_MAX,
+                        gui.TEXT_SCALE_STEP)
+        # clamp keeps values in range and coerces junk to 1.0
+        self.assertEqual(gui.clamp_text_scale(1.0), 1.0)
+        self.assertEqual(gui.clamp_text_scale(99), hi)
+        self.assertEqual(gui.clamp_text_scale(0.01), lo)
+        self.assertEqual(gui.clamp_text_scale("nope"), 1.0)
+        # stepping larger/smaller moves by one step, 0 resets to 1.0
+        self.assertAlmostEqual(gui.step_text_scale(1.0, 1), round(1.0 + step, 2))
+        self.assertAlmostEqual(gui.step_text_scale(1.0, -1), round(1.0 - step, 2))
+        self.assertEqual(gui.step_text_scale(1.7, 0), 1.0)
+        # stepping never escapes the clamp range
+        self.assertEqual(gui.step_text_scale(hi, 1), hi)
+        self.assertEqual(gui.step_text_scale(lo, -1), lo)
+        # the three zoom keys are advertised as shortcuts, with unique actions
+        actions = [s[3] for s in gui.SHORTCUTS]
+        for a in ("zoomin", "zoomout", "zoomreset"):
+            self.assertIn(a, actions)
+
     def test_gui_has_required_args(self):
         from ledgerling import gui, web
         cmds = {c["name"]: c for c in web.describe()["commands"]}

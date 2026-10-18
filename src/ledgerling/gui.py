@@ -117,8 +117,36 @@ SHORTCUTS = [
     ("Ctrl+T", "<Control-t>", "Cycle the theme (light / dark / high-contrast)",
      "theme"),
     ("Ctrl+N", "<Control-n>", "Open a new command window", "new"),
+    ("Ctrl+=", "<Control-equal>", "Enlarge the results text", "zoomin"),
+    ("Ctrl+-", "<Control-minus>", "Shrink the results text", "zoomout"),
+    ("Ctrl+0", "<Control-0>", "Reset the results text size", "zoomreset"),
     ("Ctrl+Q", "<Control-q>", "Quit", "quit"),
 ]
+
+# Accessibility: runtime zoom for the results text (output + table), so a
+# low-vision user can enlarge just the figures without restarting to change the
+# config ui_scale. Clamped to a sensible range.
+TEXT_SCALE_MIN, TEXT_SCALE_MAX, TEXT_SCALE_STEP = 0.8, 2.2, 0.1
+
+
+def clamp_text_scale(v):
+    """Coerce a results-text zoom factor into [MIN, MAX], 2dp. Bad input -> 1.0.
+    Pure."""
+    try:
+        v = float(v)
+    except (TypeError, ValueError):
+        return 1.0
+    return round(min(TEXT_SCALE_MAX, max(TEXT_SCALE_MIN, v)), 2)
+
+
+def step_text_scale(current, direction):
+    """Next results-text zoom level: direction > 0 larger, < 0 smaller, 0 resets
+    to 1.0. Clamped to [MIN, MAX]. Pure, so the zoom keys are unit-tested."""
+    if direction == 0:
+        return 1.0
+    base = clamp_text_scale(current)
+    return clamp_text_scale(base + (TEXT_SCALE_STEP if direction > 0
+                                    else -TEXT_SCALE_STEP))
 
 
 def _next_theme(current):
@@ -417,6 +445,7 @@ class LedgerlingGUI:
         self.pinned = [n for n in (state.get("pinned") or [])
                        if n in self.commands]
         self.onboarded = bool(state.get("onboarded"))
+        self.text_scale = clamp_text_scale(state.get("text_scale", 1.0))
         self._initial = state.get("last_command")   # reopen where you left off
 
         # Make callback errors non-fatal. In a windowed (no-console) build
@@ -521,6 +550,13 @@ class LedgerlingGUI:
                           accelerator="Ctrl+T", command=self.toggle_theme)
         viewm.add_command(label="Focus command search", accelerator="Ctrl+K",
                           command=self._focus_filter)
+        viewm.add_separator()
+        viewm.add_command(label="Enlarge results text", accelerator="Ctrl+=",
+                          command=lambda: self.zoom_text(1))
+        viewm.add_command(label="Shrink results text", accelerator="Ctrl+-",
+                          command=lambda: self.zoom_text(-1))
+        viewm.add_command(label="Reset results text size", accelerator="Ctrl+0",
+                          command=lambda: self.zoom_text(0))
         bar.add_cascade(label="View", menu=viewm)
 
         helpm = tk.Menu(bar, tearoff=0)
@@ -1288,6 +1324,11 @@ class LedgerlingGUI:
             pass
         self.root.configure(background=c["bg"])
         base_font = ("Segoe UI", 10)
+        # Results-area fonts scale with the runtime text zoom (Ctrl+= / Ctrl+-).
+        scale = clamp_text_scale(getattr(self, "text_scale", 1.0))
+        data_font = ("Segoe UI", max(7, round(10 * scale)))
+        out_font = ("Consolas", max(7, round(10 * scale)))
+        row_h = max(18, round(30 * scale))
         style.configure(".", background=c["bg"], foreground=c["ink"],
                         fieldbackground=c["field"], bordercolor=c["line"],
                         font=base_font)
@@ -1334,7 +1375,7 @@ class LedgerlingGUI:
         style.configure("TCheckbutton", background=c["bg"], foreground=c["ink"])
         style.configure("Data.Treeview", background=c["field"],
                         fieldbackground=c["field"], foreground=c["ink"],
-                        borderwidth=0, rowheight=30, font=base_font)
+                        borderwidth=0, rowheight=row_h, font=data_font)
         style.configure("Data.Treeview.Heading", background=c["panel"],
                         foreground=c["muted"], relief="flat", padding=(10, 8),
                         font=("Segoe UI Semibold", 9))
@@ -1359,7 +1400,7 @@ class LedgerlingGUI:
         if hasattr(self, "output"):
             self.output.configure(background=c["field"], foreground=c["ink"],
                                   insertbackground=c["ink"],
-                                  selectbackground=c["sel"])
+                                  selectbackground=c["sel"], font=out_font)
             self.output.tag_configure("err", foreground=c["err"])
         if hasattr(self, "header"):
             self._draw_header_static()
@@ -1374,6 +1415,15 @@ class LedgerlingGUI:
         self.apply_theme(_next_theme(self.theme_name), animate=True)
         self._persist()
 
+    def zoom_text(self, direction):
+        """Enlarge (>0), shrink (<0) or reset (0) the results text size, then
+        re-skin so the output and table pick up the new font."""
+        new = step_text_scale(self.text_scale, direction)
+        self.text_scale = new
+        self._apply_colors()
+        self._persist()
+        self._set_status(f"results text size {round(new * 100)}%")
+
     def _current_geometry(self):
         try:
             return self.root.winfo_geometry()
@@ -1384,6 +1434,7 @@ class LedgerlingGUI:
         _save_state({"theme": self.theme_name,
                      "geometry": self._current_geometry(),
                      "pinned": self.pinned, "onboarded": self.onboarded,
+                     "text_scale": self.text_scale,
                      "last_command": self.current})
 
     def _on_close(self):
@@ -1394,9 +1445,17 @@ class LedgerlingGUI:
     def _bind_shortcuts(self):
         actions = {"run": self.run_current, "filter": self._focus_filter,
                    "theme": self.toggle_theme, "new": self.new_window,
+                   "zoomin": lambda: self.zoom_text(1),
+                   "zoomout": lambda: self.zoom_text(-1),
+                   "zoomreset": lambda: self.zoom_text(0),
                    "quit": self._on_close}
         for _acc, event, _desc, name in SHORTCUTS:
             self.root.bind(event, lambda _e, f=actions[name]: f())
+        # Extra aliases for the zoom keys (shifted '+', and the numeric keypad),
+        # so Ctrl and '+'/'-' work however the user's keyboard produces them.
+        for ev in ("<Control-plus>", "<Control-KP_Add>"):
+            self.root.bind(ev, lambda _e: self.zoom_text(1))
+        self.root.bind("<Control-KP_Subtract>", lambda _e: self.zoom_text(-1))
 
     def _shortcuts(self):
         from tkinter import messagebox
@@ -1734,8 +1793,9 @@ class _Assistant:
          "can run things side by side. 'Pop out current command' detaches the "
          "one you're viewing."),
         ("Make it yours",
-         "Toggle the light / green and dark-green themes with Ctrl+T. Explore "
-         "the Almanac group - today's briefing, a fortune, a horoscope, and live "
+         "Cycle the light, dark and high-contrast themes with Ctrl+T, and resize "
+         "the results text with Ctrl+= and Ctrl+- (Ctrl+0 resets). Explore the "
+         "Almanac group - today's briefing, a fortune, a horoscope, and live "
          "weather. Enjoy!"),
     ]
 

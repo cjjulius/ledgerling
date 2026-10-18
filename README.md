@@ -32,6 +32,8 @@ standard library only — no extra dependencies). It opens a real OS window with
 
 - three **themes** — light, dark, and a high-contrast theme for low-vision
   readability — cycled with Ctrl+T through a short colour crossfade;
+- adjustable **results text size** for easier reading — enlarge with Ctrl+=,
+  shrink with Ctrl+-, reset with Ctrl+0; your choice is remembered;
 - a **menu bar** — File (Run, open web UI, Quit), a **Commands** menu with every
   command organized into submenus, View (toggle light/dark, focus search), and
   Help;
