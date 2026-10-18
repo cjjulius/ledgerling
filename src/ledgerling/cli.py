@@ -54,6 +54,7 @@ Commands:
     year      Calendar-year rollup by month (spending, income, net)
     years     Multi-year rollup (spending, income, net per year)
     compare   Compare two months side by side (with per-category deltas)
+    vsaverage  Compare a month to the average of the months before it
     trend     Monthly spending trend for one category
     tagtrend  Monthly spending trend for one #tag
     matrix    Category x month spending grid (pivot table)
@@ -152,7 +153,7 @@ import tempfile
 import time
 from datetime import datetime, date, timedelta
 
-__version__ = "1.210.0"
+__version__ = "1.211.0"
 
 # --------------------------------------------------------------------------- #
 # Sandbox + storage
@@ -2168,6 +2169,76 @@ def cmd_compare(args):
         for c, v in by_cat.items():
             print(f"{c:<12}{money(v['a']):>14}{money(v['b']):>14}"
                   f"{_signed(v['delta']):>16}")
+
+
+def month_vs_average(data, target, months):
+    """Compare one month's spending to the per-category average of the `months`
+    months immediately before it. Returns overall totals and a by-category list
+    (this, average, delta), sorted by largest absolute delta. Pure (reads the
+    loaded data dict), so it is unit-tested directly."""
+    ty, tm = int(target[:4]), int(target[5:7])
+    tdate = date(ty, tm, 1)
+    base_keys = [add_months(tdate, -i).isoformat()[:7]
+                 for i in range(1, months + 1)]
+    base_set = set(base_keys)
+    this, base = {}, {}
+    for e in expenses_only(data["expenses"]):
+        m = month_of(e["date"])
+        if m == target:
+            this[e["category"]] = round(this.get(e["category"], 0.0)
+                                        + e["amount"], 2)
+        elif m in base_set:
+            base[e["category"]] = round(base.get(e["category"], 0.0)
+                                        + e["amount"], 2)
+    rows = []
+    for c in set(this) | set(base):
+        t = round(this.get(c, 0.0), 2)
+        a = round(base.get(c, 0.0) / months, 2)
+        rows.append({"category": c, "this": t, "average": a,
+                     "delta": round(t - a, 2)})
+    rows.sort(key=lambda r: (-abs(r["delta"]), r["category"]))
+    this_total = round(sum(this.values()), 2)
+    avg_total = round(sum(base.values()) / months, 2)
+    return {"month": target, "baseline_months": months,
+            "this_total": this_total, "avg_total": avg_total,
+            "delta": round(this_total - avg_total, 2), "by_category": rows}
+
+
+def cmd_vsaverage(args):
+    """Compare a month's spending to your recent norm - the per-category average
+    of the N months before it - overall and by category, so you can see where
+    you are running above or below typical. Complements `compare` (two specific
+    months) and `pace` (this month's run-rate projection)."""
+    check_month(args.month)
+    months = require_positive(args.months, "--months")
+    data = load()
+    target = args.month or this_month()
+    res = month_vs_average(data, target, months)
+    rate = (round(res["delta"] / res["avg_total"] * 100, 1)
+            if res["avg_total"] > 0 else None)
+
+    if getattr(args, "json", False):
+        print(json.dumps({**res, "pct_change": rate}, indent=2))
+        return
+
+    print(f"{target} vs typical (avg of previous {months} month"
+          f"{'' if months == 1 else 's'})")
+    print("=" * 52)
+    print(f"  this month   {money(res['this_total']):>14}")
+    print(f"  typical      {money(res['avg_total']):>14}")
+    tail = f"  ({rate:+g}%)" if rate is not None else ""
+    print(f"  difference   {_signed(res['delta']):>14}{tail}")
+
+    movers = [r for r in res["by_category"] if r["delta"]]
+    limit = args.limit if args.limit and args.limit > 0 else 10
+    movers = movers[:limit]
+    if movers:
+        print()
+        print("By category (biggest changes vs typical)")
+        print("-" * 52)
+        for r in movers:
+            print(f"  {r['category']:<14} this {money(r['this']):>10}  "
+                  f"typ {money(r['average']):>10}  {_signed(r['delta']):>12}")
 
 
 def cmd_duplicates(args):
@@ -8421,6 +8492,17 @@ def build_parser():
     cm.add_argument("--json", action="store_true", help="output JSON instead of text")
     cm.set_defaults(func=cmd_compare)
 
+    va = sub.add_parser("vsaverage",
+                        help="compare a month to the average of the months before it")
+    va.add_argument("--month", help="the month to assess, YYYY-MM (default: current)")
+    va.add_argument("--months", type=int, default=3,
+                    help="how many previous months form the baseline (default 3)")
+    va.add_argument("--limit", type=int,
+                    help="show only the top N changed categories (default 10)")
+    va.add_argument("--json", action="store_true",
+                    help="output JSON instead of text")
+    va.set_defaults(func=cmd_vsaverage)
+
     rc = sub.add_parser("recategorize",
                         help="rename a category across all records")
     rc.add_argument("old", help="existing category name")
@@ -8764,7 +8846,7 @@ CATCHUP_COMMANDS = frozenset({
     "tagtrend", "range", "matrix", "cumulative", "allowance", "tagmatrix",
     "weekly", "years", "anomalies", "roundup", "cashflow", "target", "runway",
     "net", "nettrend", "subscriptions", "payees", "overbudget", "today",
-    "worthtrend",
+    "worthtrend", "vsaverage",
     "topdays", "recent",
     "statement", "reconcile", "scorecard", "scoretrend", "category", "payee",
     "savingsplan", "bills", "challenge", "achievements", "onthisday", "mascot",

@@ -428,6 +428,34 @@ class PureLogic(unittest.TestCase):
                 L.require_positive(bad, "--weeks")
             self.assertIn("--weeks must be at least 1", str(cm.exception))
 
+    def test_month_vs_average(self):
+        data = {"expenses": [
+            # baseline: Jan + Feb (2 months)
+            {"date": "2026-01-10", "amount": 100.0, "category": "food"},
+            {"date": "2026-02-10", "amount": 200.0, "category": "food"},
+            {"date": "2026-01-15", "amount": 60.0, "category": "rent"},
+            {"date": "2026-02-15", "amount": 60.0, "category": "rent"},
+            # target month: March
+            {"date": "2026-03-10", "amount": 400.0, "category": "food"},
+            {"date": "2026-03-20", "amount": 50.0, "category": "fun"},
+        ]}
+        r = L.month_vs_average(data, "2026-03", 2)
+        self.assertEqual(r["this_total"], 450.0)          # 400 + 50
+        # baseline totals: food 300, rent 120 -> avg over 2 = 150 + 60 = 210
+        self.assertEqual(r["avg_total"], 210.0)
+        self.assertEqual(r["delta"], 240.0)
+        by = {x["category"]: x for x in r["by_category"]}
+        # food: this 400 vs avg 150 -> +250
+        self.assertEqual((by["food"]["this"], by["food"]["average"],
+                          by["food"]["delta"]), (400.0, 150.0, 250.0))
+        # rent: this 0 vs avg 60 -> -60
+        self.assertEqual((by["rent"]["this"], by["rent"]["average"],
+                          by["rent"]["delta"]), (0.0, 60.0, -60.0))
+        # fun: new this month, no baseline
+        self.assertEqual((by["fun"]["this"], by["fun"]["average"]), (50.0, 0.0))
+        # sorted by largest absolute delta first
+        self.assertEqual(r["by_category"][0]["category"], "food")
+
     def test_resolve_scope(self):
         # no selectors -> caller applies its own default
         pred, label, ranged = L._resolve_scope(None, None, None)

@@ -4,6 +4,16 @@ All notable changes to Ledgerling are documented here. The format is based on
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and this project
 adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.211.0] - 2026-10-18
+
+### Added
+
+- New `vsaverage` command: compare a month's spending to your recent norm - the
+  per-category average of the N months before it - overall and by category, so
+  you can see where you are running above or below typical. Complements `compare`
+  (two specific months) and `pace` (this month's run-rate). Supports `--month`,
+  `--months`, `--limit` and `--json`.
+
 ## [1.210.0] - 2026-10-18
 
 ### Added
@@ -2486,6 +2496,7 @@ file, standard library only, strictly confined to its own folder.
   guard (`_within_app`) that refuses any path escaping the app folder; imports
   and restores are reduced to a basename and looked up only within the folder.
 
+[1.211.0]: #12110---2026-10-18
 [1.210.0]: #12100---2026-10-18
 [1.209.0]: #12090---2026-10-18
 [1.208.0]: #12080---2026-10-18
