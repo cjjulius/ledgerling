@@ -289,8 +289,9 @@ the formatted entry line (`#id date amount [category] …` with its markers)
 that `list` and `search` share,
 the current-month value (`YYYY-MM`) that the many commands defaulting to this
 month share, the single-month expense selection that the many per-month
-reports share, and the positive-window-size check (`--months`/`--days`/
-`--weeks`/`--count`) that the windowed commands share.
+reports share, the positive-window-size check (`--months`/`--days`/
+`--weeks`/`--count`) that the windowed commands share, and the "top N or a
+default" `--limit` resolution that the ranking commands share.
 
 Config loading is defensive: a stored setting is only accepted when its type
 matches the default (a corrupt or hand-edited value falls back to that default
