@@ -394,6 +394,30 @@ class PureLogic(unittest.TestCase):
         self.assertEqual((z["total"], z["count"], z["min"], z["share_pct"]),
                          (0.0, 0, None, 0.0))
 
+    def test_recent_months_and_monthly_totals(self):
+        from datetime import date
+        # oldest-first window ending on the current month; day doesn't matter
+        self.assertEqual(L._recent_months(3, today=date(2026, 3, 15)),
+                         ["2026-01", "2026-02", "2026-03"])
+        # crosses a year boundary correctly
+        self.assertEqual(L._recent_months(2, today=date(2026, 1, 10)),
+                         ["2025-12", "2026-01"])
+        self.assertEqual(L._recent_months(1, today=date(2026, 5, 1)), ["2026-05"])
+        # summing rows into those keys: in-window months accumulate, out-of-window
+        # entries are ignored, empty months stay 0.0, rounding is 2dp
+        keys = ["2026-01", "2026-02"]
+        rows = [
+            {"date": "2026-01-05", "amount": 10.10},
+            {"date": "2026-01-25", "amount": 5.05},
+            {"date": "2026-02-01", "amount": 2.0},
+            {"date": "2025-12-31", "amount": 99.0},   # before the window
+            {"date": "2026-03-01", "amount": 77.0},   # after the window
+        ]
+        self.assertEqual(L._monthly_totals(rows, keys),
+                         {"2026-01": 15.15, "2026-02": 2.0})
+        self.assertEqual(L._monthly_totals([], keys),
+                         {"2026-01": 0.0, "2026-02": 0.0})
+
     def test_category_totals(self):
         rows = [
             {"category": "food", "amount": 10.0},
