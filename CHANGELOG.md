@@ -4,6 +4,15 @@ All notable changes to Ledgerling are documented here. The format is based on
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and this project
 adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.212.0] - 2026-10-18
+
+### Added
+
+- New `discount` calculator: apply one or more percentage discounts to a price in
+  sequence (e.g. 20 then an extra 10), see the amount saved and the effective
+  single-discount percent, and optionally add tax at the end with `--tax`. Pure
+  arithmetic in cents so the steps reconcile; supports `--json`.
+
 ## [1.211.1] - 2026-10-18
 
 ### Changed
@@ -2504,6 +2513,7 @@ file, standard library only, strictly confined to its own folder.
   guard (`_within_app`) that refuses any path escaping the app folder; imports
   and restores are reduced to a basename and looked up only within the folder.
 
+[1.212.0]: #12120---2026-10-18
 [1.211.1]: #12111---2026-10-18
 [1.211.0]: #12110---2026-10-18
 [1.210.0]: #12100---2026-10-18

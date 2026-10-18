@@ -205,7 +205,8 @@ use):
 - **Recurring and bills**: define `recur`ring charges or income, see what is due
   soon (`upcoming`) or scheduled across a month (`bills`), export them to a
   calendar file, and preview what a catch-up would add with `recur run --dry-run`.
-- **Calculators**: `tip` splitting, `loan` and compound-`interest` estimates,
+- **Calculators**: `tip` splitting, a `discount` helper (stacked percentages
+  plus optional tax), `loan` and compound-`interest` estimates,
   a `fire` (financial-independence) number and the `rule72` doubling-time rule,
   a `lattefactor` habit-cost projector, an `inflation` adjuster for comparing
   money across years, a `words` helper that spells an amount out as on a cheque,

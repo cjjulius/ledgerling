@@ -73,6 +73,7 @@ Commands:
     onthisday  Flashback: entries on this day-of-month in earlier months
     mascot    An ASCII companion whose mood reflects your month's health
     tip       Tip calculator and even bill splitter
+    discount  Apply percentage discounts to a price (and optional tax)
     interest  Compound-growth / future-value calculator
     loan      Loan payment / amortization calculator
     fire      Estimate your financial-independence (FIRE) number
@@ -153,7 +154,7 @@ import tempfile
 import time
 from datetime import datetime, date, timedelta
 
-__version__ = "1.211.1"
+__version__ = "1.212.0"
 
 # --------------------------------------------------------------------------- #
 # Sandbox + storage
@@ -2959,6 +2960,65 @@ def cmd_tip(args):
                   f"{extra} x {money(high_share)}")
         else:
             print(f"split {split} ways  {money(high_share)} each")
+
+
+def apply_discounts(amount, percents, tax=None):
+    """Apply one or more percentage discounts to a price in sequence, then an
+    optional tax at the end. Returns the list price, each discount step (percent,
+    amount off, running price), the discounted price, the amount saved and the
+    effective single-discount percent, plus the tax and final price. Works in
+    cents so the steps always reconcile. Pure, so it is unit-tested directly."""
+    cents = round(amount * 100)
+    running = cents
+    steps = []
+    for p in percents:
+        off = round(running * p / 100)
+        running -= off
+        steps.append({"percent": p, "amount_off": round(off / 100, 2),
+                      "running": round(running / 100, 2)})
+    discounted = running
+    saved = cents - discounted
+    eff = round(saved / cents * 100, 1) if cents else 0.0
+    tax_cents = round(discounted * tax / 100) if tax else 0
+    final = discounted + tax_cents
+    return {"list_price": round(cents / 100, 2), "steps": steps,
+            "discounted": round(discounted / 100, 2),
+            "saved": round(saved / 100, 2), "effective_pct": eff,
+            "tax": tax, "tax_amount": round(tax_cents / 100, 2),
+            "final": round(final / 100, 2)}
+
+
+def cmd_discount(args):
+    """Work out a sale price: apply one or more percentage discounts in sequence
+    (e.g. 20 then an extra 10), show what you save, and optionally add tax at the
+    end. Pure arithmetic -- touches no stored data."""
+    if args.amount < 0:
+        sys.exit("error: amount cannot be negative")
+    for p in args.percents:
+        if p < 0 or p > 100:
+            sys.exit("error: each discount percent must be between 0 and 100")
+    tax = args.tax
+    if tax is not None and tax < 0:
+        sys.exit("error: --tax cannot be negative")
+    res = apply_discounts(args.amount, args.percents, tax)
+
+    if getattr(args, "json", False):
+        print(json.dumps(res, indent=2))
+        return
+
+    print("Discount")
+    print("=" * 40)
+    print(f"{'list price':<14} {money(res['list_price']):>14}")
+    for s in res["steps"]:
+        print(f"{'-' + format(s['percent'], 'g') + '%':<14} "
+              f"{('-' + money(s['amount_off'])):>14}   -> {money(s['running'])}")
+    print(f"{'you save':<14} {money(res['saved']):>14}   "
+          f"({res['effective_pct']:g}% off)")
+    if tax:
+        print(f"{'+ tax ' + format(tax, 'g') + '%':<14} "
+              f"{money(res['tax_amount']):>14}")
+    print("-" * 40)
+    print(f"{'you pay':<14} {money(res['final']):>14}")
 
 
 def cmd_loan(args):
@@ -8270,6 +8330,16 @@ def build_parser():
     tip.add_argument("--json", action="store_true", help="output JSON instead of text")
     tip.set_defaults(func=cmd_tip)
 
+    dc = sub.add_parser("discount",
+                        help="apply percentage discounts to a price (and optional tax)")
+    dc.add_argument("amount", type=float, help="the list price")
+    dc.add_argument("percents", type=float, nargs="+",
+                    help="one or more discount percentages, applied in sequence")
+    dc.add_argument("--tax", type=float, help="tax percent to add after discounts")
+    dc.add_argument("--json", action="store_true",
+                    help="output JSON instead of text")
+    dc.set_defaults(func=cmd_discount)
+
     it = sub.add_parser("interest",
                         help="compound-growth / future-value calculator")
     it.add_argument("principal", type=float, help="starting amount")
@@ -8857,7 +8927,8 @@ MUTATING_COMMANDS = frozenset({
     "untag", "retag", "recategorize", "unbudget", "goal", "networth",
     "autobudget", "clear", "unclear", "pot", "transfer",
     "import", "restore", "backup", "dedupe", "undo", "config", "recur",
-    "completion", "version", "web", "gui", "where", "tip", "split", "fx",
+    "completion", "version", "web", "gui", "where", "tip", "discount", "split",
+    "fx",
     "check", "interest", "loan", "rule72", "lattefactor", "inflation", "words",
     "template",
     "fortune", "horoscope", "weather", "eightball",   # almanac modes

@@ -511,7 +511,7 @@ const GROUP_DEFS = [
     'balance', 'savings', 'heatmap', 'streak', 'pace', 'forecast', 'sources', 'anomalies', 'cashflow', 'net', 'nettrend', 'subscriptions',
     'categories', 'category', 'payees', 'payee', 'worthtrend', 'tags', 'untagged', 'search', 'list', 'recent']],
   ['Budgets & goals', ['budget', 'unbudget', 'allowance', 'overbudget', 'goal', 'networth', 'pot', 'transfer', 'savingsplan', 'challenge', 'achievements', 'suggest', 'autobudget', 'commitments', 'upcoming', 'bills']],
-  ['Calculators', ['tip', 'interest', 'loan', 'fire', 'rule72', 'lattefactor', 'inflation', 'words', 'countdown', 'target', 'runway', 'roundup',
+  ['Calculators', ['tip', 'discount', 'interest', 'loan', 'fire', 'rule72', 'lattefactor', 'inflation', 'words', 'countdown', 'target', 'runway', 'roundup',
     'fx convert', 'fx set', 'fx list', 'fx rm']],
   ['Recurring', ['recur add', 'recur from', 'recur list', 'recur edit', 'recur remove', 'recur run', 'recur skip', 'recur unskip', 'recur pause', 'recur resume']],
   ['Data', ['export', 'import', 'backup', 'restore', 'dedupe', 'duplicates',
