@@ -151,7 +151,7 @@ import tempfile
 import time
 from datetime import datetime, date, timedelta
 
-__version__ = "1.198.0"
+__version__ = "1.199.0"
 
 # --------------------------------------------------------------------------- #
 # Sandbox + storage
@@ -3608,6 +3608,28 @@ def daily_totals(rows):
     return agg
 
 
+def _recent_months(months, today=None):
+    """The last `months` month keys ('YYYY-MM'), oldest first and ending with
+    the current month. Pure; `today` is injectable for tests. The monthly
+    trend/grid commands (category, payee, trend, matrix, tagmatrix, tagtrend)
+    all build their window from this one place."""
+    first = (today or date.today()).replace(day=1)
+    return [add_months(first, -i).isoformat()[:7]
+            for i in range(months - 1, -1, -1)]
+
+
+def _monthly_totals(rows, keys):
+    """Sum entry amounts into the given month keys, returning {key: total} with
+    2dp rounding; months with no matching entry stay 0.0 and entries outside the
+    window are ignored. Pure; callers pass rows already scoped/filtered."""
+    totals = {k: 0.0 for k in keys}
+    for e in rows:
+        m = month_of(e["date"])
+        if m in totals:
+            totals[m] = round(totals[m] + e["amount"], 2)
+    return totals
+
+
 def cmd_topdays(args):
     """Your highest-spending days: entry amounts grouped by date and ranked,
     honoring the shared filters (month / date-range / category / tag / kind)."""
@@ -3716,16 +3738,10 @@ def cmd_payee(args):
     lo, hi = stats["min"], stats["max"]
     first, last, active_months = stats["first"], stats["last"], stats["active_months"]
 
-    # Group this payee's charges by month once, then read off each shown month.
-    by_month = {}
-    for e in rows:
-        m = month_of(e["date"])
-        by_month[m] = round(by_month.get(m, 0.0) + e["amount"], 2)
-    first_month = date.today().replace(day=1)
-    monthly = [{"month": add_months(first_month, -i).isoformat()[:7],
-                "total": by_month.get(add_months(first_month, -i).isoformat()[:7],
-                                      0.0)}
-               for i in range(months - 1, -1, -1)]
+    # Recent monthly trend for this payee's charges.
+    keys = _recent_months(months)
+    totals = _monthly_totals(rows, keys)
+    monthly = [{"month": k, "total": totals[k]} for k in keys]
 
     if getattr(args, "json", False):
         print(json.dumps({
@@ -3766,16 +3782,10 @@ def cmd_trend(args):
     if months < 1:
         sys.exit("error: --months must be at least 1")
     data = load()
-    first = date.today().replace(day=1)
-    keys = [month_of(add_months(first, -i).isoformat())
-            for i in range(months - 1, -1, -1)]
-
-    totals = {k: 0.0 for k in keys}
-    for e in expenses_only(data["expenses"]):
-        if e["category"] == cat:
-            m = month_of(e["date"])
-            if m in totals:
-                totals[m] = round(totals[m] + e["amount"], 2)
+    keys = _recent_months(months)
+    totals = _monthly_totals(
+        [e for e in expenses_only(data["expenses"]) if e["category"] == cat],
+        keys)
 
     window_total = round(sum(totals.values()), 2)
     average = round(window_total / months, 2)
@@ -3808,9 +3818,7 @@ def cmd_matrix(args):
     if months < 1:
         sys.exit("error: --months must be at least 1")
     data = load()
-    first = date.today().replace(day=1)
-    keys = [month_of(add_months(first, -i).isoformat())
-            for i in range(months - 1, -1, -1)]
+    keys = _recent_months(months)
 
     grid = {}  # category -> {month: total}
     for e in expenses_only(data["expenses"]):
@@ -3859,9 +3867,7 @@ def cmd_tagmatrix(args):
     if months < 1:
         sys.exit("error: --months must be at least 1")
     data = load()
-    first = date.today().replace(day=1)
-    keys = [month_of(add_months(first, -i).isoformat())
-            for i in range(months - 1, -1, -1)]
+    keys = _recent_months(months)
 
     grid = {}  # tag -> {month: total}
     for e in expenses_only(data["expenses"]):
@@ -3914,9 +3920,7 @@ def cmd_tagtrend(args):
     if months < 1:
         sys.exit("error: --months must be at least 1")
     data = load()
-    first = date.today().replace(day=1)
-    keys = [month_of(add_months(first, -i).isoformat())
-            for i in range(months - 1, -1, -1)]
+    keys = _recent_months(months)
 
     totals = {k: 0.0 for k in keys}
     for e in expenses_only(data["expenses"]):
@@ -4452,17 +4456,10 @@ def cmd_category(args):
     lo, hi = stats["min"], stats["max"]
     first, last, active_months = stats["first"], stats["last"], stats["active_months"]
 
-    # Group this category's entries by month once, then read off each displayed
-    # month, instead of re-scanning the ledger per month.
-    by_month = {}
-    for e in rows:
-        m = month_of(e["date"])
-        by_month[m] = round(by_month.get(m, 0.0) + e["amount"], 2)
-    first_month = date.today().replace(day=1)
-    monthly = [{"month": add_months(first_month, -i).isoformat()[:7],
-                "total": by_month.get(add_months(first_month, -i).isoformat()[:7],
-                                      0.0)}
-               for i in range(months - 1, -1, -1)]
+    # Recent monthly trend for this category.
+    keys = _recent_months(months)
+    totals = _monthly_totals(rows, keys)
+    monthly = [{"month": k, "total": totals[k]} for k in keys]
 
     budget = data["budgets"].get(cat)
     budget_info = None

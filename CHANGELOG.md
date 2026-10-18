@@ -4,6 +4,15 @@ All notable changes to Ledgerling are documented here. The format is based on
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and this project
 adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.199.0] - 2026-10-18
+
+### Changed
+
+- Consolidated the recent-months trend logic that the drill-down and grid views
+  (`category`, `payee`, `trend`, `matrix`, `tagmatrix`, `tagtrend`) each built
+  separately into two shared, unit-tested helpers. No change in behaviour; less
+  duplicated code to drift out of sync.
+
 ## [1.198.0] - 2026-10-04
 
 ### Added
@@ -2384,6 +2393,7 @@ file, standard library only, strictly confined to its own folder.
   guard (`_within_app`) that refuses any path escaping the app folder; imports
   and restores are reduced to a basename and looked up only within the folder.
 
+[1.199.0]: #11990---2026-10-18
 [1.198.0]: #11980---2026-10-04
 [1.197.0]: #11970---2026-10-04
 [1.196.0]: #11960---2026-10-04
