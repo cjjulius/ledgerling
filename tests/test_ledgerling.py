@@ -2528,6 +2528,25 @@ class CLI(TempAppCase):
         # leading '#' tolerated; heading reflects the tag
         self.assertIn("#work", self._main(["summary", "--tag", "#work"]))
 
+    def test_summary_date_range(self):
+        self._main(["add", "30", "food", "a", "--date", "2026-01-10"])
+        self._main(["add", "20", "food", "b", "--date", "2026-02-15"])
+        self._main(["add", "50", "rent", "c", "--date", "2026-03-20"])
+        # a bounded range scopes the totals and reports a "scope" (not "month")
+        d = json.loads(self._main(["summary", "--since", "2026-01-01",
+                                   "--until", "2026-02-28", "--json"]))
+        self.assertEqual(d["scope"], "2026-01-01 to 2026-02-28")
+        self.assertNotIn("month", d)
+        self.assertEqual(d["total"], 50.0)                 # jan + feb food only
+        self.assertEqual([c["category"] for c in d["categories"]], ["food"])
+        # an open-ended range (only --since) runs to the far future
+        d2 = json.loads(self._main(["summary", "--since", "2026-03-01",
+                                    "--json"]))
+        self.assertEqual(d2["total"], 50.0)                # just the march rent
+        # --month and --since/--until cannot be combined
+        with self.assertRaises(SystemExit):
+            self._main(["summary", "--month", "2026-01", "--since", "2026-01-01"])
+
     def test_summary_limit_rolls_up_other(self):
         t = date.today().isoformat()
         for amt, cat in [(100, "rent"), (40, "food"), (20, "fun"), (10, "misc")]:
