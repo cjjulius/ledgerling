@@ -151,7 +151,7 @@ import tempfile
 import time
 from datetime import datetime, date, timedelta
 
-__version__ = "1.202.0"
+__version__ = "1.203.0"
 
 # --------------------------------------------------------------------------- #
 # Sandbox + storage
@@ -3539,6 +3539,10 @@ def cmd_average(args):
         exp = [e for e in exp if start <= e["date"] <= end]
     else:
         exp = filter_month(exp, month)
+    cat = getattr(args, "category", None)
+    if cat:
+        cat = clean_category(cat)
+        exp = [e for e in exp if e["category"] == cat]
     if not exp:
         if getattr(args, "json", False):
             print(json.dumps({"total": 0}, indent=2))
@@ -3549,7 +3553,8 @@ def cmd_average(args):
                 where = f" for {month}"
             else:
                 where = ""
-            print(f"no expenses to average{where}")
+            scope = f" on [{cat}]" if cat else ""
+            print(f"no expenses to average{scope}{where}")
         return
 
     dates = [date.fromisoformat(e["date"]) for e in exp]
@@ -3566,16 +3571,19 @@ def cmd_average(args):
     median_txn = round(_median([e["amount"] for e in exp]), 2)
 
     if getattr(args, "json", False):
-        print(json.dumps({
+        out = {
             "first": first.isoformat(), "last": last.isoformat(),
             "days": span, "total": total, "per_day": per_day,
             "per_week": per_week, "per_month": per_month,
             "transactions": count, "per_transaction": per_txn,
             "median_transaction": median_txn,
-        }, indent=2))
+        }
+        if cat:
+            out["category"] = cat
+        print(json.dumps(out, indent=2))
         return
 
-    print("Average spending")
+    print("Average spending" + (f" on [{cat}]" if cat else ""))
     print("=" * 48)
     print(f"{'range':<14} {first.isoformat()} to {last.isoformat()} "
           f"({span} day(s))")
@@ -8276,6 +8284,7 @@ def build_parser():
     av.add_argument("--month", help="restrict to a month, YYYY-MM")
     av.add_argument("--since", help="range start (YYYY-MM-DD/today), with --until")
     av.add_argument("--until", help="range end (YYYY-MM-DD/today), with --since")
+    av.add_argument("--category", help="only average this category's spending")
     av.add_argument("--json", action="store_true", help="output JSON instead of text")
     av.set_defaults(func=cmd_average)
 

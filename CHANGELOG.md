@@ -4,6 +4,14 @@ All notable changes to Ledgerling are documented here. The format is based on
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and this project
 adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.203.0] - 2026-10-18
+
+### Added
+
+- `average` accepts `--category` to average just one category's spending (e.g.
+  typical weekly grocery spend). It composes with `--month` and `--since`/
+  `--until`.
+
 ## [1.202.0] - 2026-10-18
 
 ### Added
@@ -2418,6 +2426,7 @@ file, standard library only, strictly confined to its own folder.
   guard (`_within_app`) that refuses any path escaping the app folder; imports
   and restores are reduced to a basename and looked up only within the folder.
 
+[1.203.0]: #12030---2026-10-18
 [1.202.0]: #12020---2026-10-18
 [1.201.0]: #12010---2026-10-18
 [1.200.0]: #12000---2026-10-18

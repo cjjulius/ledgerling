@@ -2898,6 +2898,26 @@ class CLI(TempAppCase):
         with self.assertRaises(SystemExit):
             self._main(["average", "--month", "2026-01", "--until", "2026-02-28"])
 
+    def test_average_category_filter(self):
+        self._main(["add", "30", "food", "a", "--date", "2026-01-10"])
+        self._main(["add", "70", "rent", "b", "--date", "2026-01-10"])
+        self._main(["add", "20", "food", "c", "--date", "2026-01-20"])
+        # only the food entries are averaged, and the category is echoed back
+        d = json.loads(self._main(["average", "--category", "food", "--json"]))
+        self.assertEqual(d["category"], "food")
+        self.assertEqual(d["total"], 50.0)
+        self.assertEqual(d["transactions"], 2)
+        self.assertEqual(d["per_transaction"], 25.0)
+        # composes with a date range (narrow it to the first food entry)
+        d2 = json.loads(self._main(["average", "--category", "food",
+                                    "--since", "2026-01-01", "--until",
+                                    "2026-01-15", "--json"]))
+        self.assertEqual(d2["total"], 30.0)
+        self.assertEqual(d2["transactions"], 1)
+        # an unknown category is a clean message naming it
+        self.assertIn("no expenses to average on [nope]",
+                      self._main(["average", "--category", "nope"]))
+
     def test_top_json(self):
         for amt, cat in [(10, "food"), (500, "rent"), (30, "food"),
                          (200, "travel"), (5, "coffee")]:
