@@ -418,6 +418,27 @@ class PureLogic(unittest.TestCase):
         self.assertEqual(L._monthly_totals([], keys),
                          {"2026-01": 0.0, "2026-02": 0.0})
 
+    def test_resolve_scope(self):
+        # no selectors -> caller applies its own default
+        pred, label, ranged = L._resolve_scope(None, None, None)
+        self.assertEqual((pred, label, ranged), (None, None, False))
+        # month selector -> predicate matches that month, label is the month
+        pred, label, ranged = L._resolve_scope("2026-02", None, None)
+        self.assertEqual((label, ranged), ("2026-02", False))
+        self.assertTrue(pred({"date": "2026-02-15"}))
+        self.assertFalse(pred({"date": "2026-03-01"}))
+        # range selector -> predicate matches the inclusive bounds, ranged True
+        pred, label, ranged = L._resolve_scope(None, "2026-01-01", "2026-01-31")
+        self.assertEqual((label, ranged), ("2026-01-01 to 2026-01-31", True))
+        self.assertTrue(pred({"date": "2026-01-31"}))
+        self.assertFalse(pred({"date": "2026-02-01"}))
+        # an open end still works (only --since given)
+        pred, label, _ = L._resolve_scope(None, "2026-06-01", None)
+        self.assertTrue(pred({"date": "2027-01-01"}))
+        # combining --month with a range is rejected
+        with self.assertRaises(SystemExit):
+            L._resolve_scope("2026-01", "2026-01-01", None)
+
     def test_category_totals(self):
         rows = [
             {"category": "food", "amount": 10.0},
