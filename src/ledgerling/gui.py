@@ -417,6 +417,34 @@ def _tabular(data):
     return None
 
 
+def _is_number(v):
+    return isinstance(v, (int, float)) and not isinstance(v, bool)
+
+
+def chart_series(mode, cols, rows, max_points=24):
+    """Pick a (label, value) series to bar-chart from a results table, or None
+    when nothing sensible can be charted. Works for the common shapes: a text
+    label column plus exactly the right numeric column ('rows'), or the numeric
+    entries of a field/value dict ('fields'). Pure, so it is unit-tested."""
+    if not rows:
+        return None
+    if mode == "fields":
+        pairs = [(str(r.get("field")), float(r.get("value")))
+                 for r in rows if _is_number(r.get("value"))]
+        return pairs[:max_points] or None
+    if mode != "rows" or not cols:
+        return None
+    numeric = [c for c in cols if all(_is_number(r.get(c)) for r in rows)]
+    text = [c for c in cols if c not in numeric]
+    if not numeric or not text:
+        return None
+    label_col = text[0]
+    # Prefer a money-ish numeric column (total/amount/net/...), else the first.
+    value_col = next((c for c in numeric if _is_money_key(c)), numeric[0])
+    pairs = [(str(r.get(label_col)), float(r.get(value_col))) for r in rows]
+    return pairs[:max_points] or None
+
+
 def _has_required_args(cmd):
     """True if the command has a required (non-optional) positional, so it can't
     be run with an empty form (used to decide whether to auto-run on open)."""
@@ -822,6 +850,17 @@ class LedgerlingGUI:
         self._table_rows, self._table_cols, self._table_mode = [], [], "rows"
         self._sort_state = {}
         self.results.hide(self._table_tab)
+
+        # A lightweight bar chart for chartable results (a label column plus one
+        # numeric column, e.g. month/total or category/total).
+        chartwrap = ttk.Frame(self.results, style="Main.TFrame")
+        self.chart = tk.Canvas(chartwrap, highlightthickness=0, bd=0)
+        self.chart.pack(side="top", fill="both", expand=True)
+        self.chart.bind("<Configure>", lambda _e: self._draw_chart())
+        self.results.add(chartwrap, text="Chart")
+        self._chart_tab = chartwrap
+        self._chart_series = None
+        self.results.hide(self._chart_tab)
 
     def _bind_wheel(self, widget):
         def on_wheel(e):
@@ -1345,6 +1384,7 @@ class LedgerlingGUI:
     # ----- table view ------------------------------------------------------ #
     def _populate_table(self, data):
         shaped = _tabular(data) if data is not None else None
+        self._populate_chart(shaped)
         if not shaped or not shaped[2]:
             self.table.delete(*self.table.get_children())
             self._table_rows = []
@@ -1365,6 +1405,55 @@ class LedgerlingGUI:
                               stretch=True)
         self._fill_rows(rows)
         self.results.tab(self._table_tab, state="normal")
+
+    def _populate_chart(self, shaped):
+        series = chart_series(*shaped) if shaped else None
+        self._chart_series = series
+        try:
+            if series:
+                self.results.tab(self._chart_tab, state="normal")
+                self._after(30, self._draw_chart)   # after layout, so sizes real
+            else:
+                self.results.tab(self._chart_tab, state="hidden")
+        except Exception:
+            pass
+
+    def _draw_chart(self):
+        series = getattr(self, "_chart_series", None)
+        cv = getattr(self, "chart", None)
+        if not series or cv is None:
+            return
+        c = self.colors
+        try:
+            cv.delete("all")
+            cv.configure(background=c["bg"])
+            width = cv.winfo_width() or 600
+            height = cv.winfo_height() or 320
+        except Exception:
+            return
+        pad = 12
+        label_w = 130
+        n = len(series)
+        row_h = max(16, min(36, (height - 2 * pad) / max(1, n)))
+        peak = max((abs(v) for _l, v in series), default=0.0) or 1.0
+        bar_max = max(10, width - label_w - 110)
+        y = pad
+        for label, v in series:
+            w = max(1, int(bar_max * (abs(v) / peak)))
+            try:
+                cv.create_text(pad, y + row_h / 2, anchor="w",
+                               text=(label[:18]), fill=c["ink"],
+                               font=("Segoe UI", 9))
+                colour = c["accent"] if v >= 0 else c["err"]
+                cv.create_rectangle(label_w, y + 3, label_w + w, y + row_h - 3,
+                                    fill=colour, outline="")
+                shown = (f"{v:,.2f}" if isinstance(v, float) and v != int(v)
+                         else f"{int(v):,}")
+                cv.create_text(label_w + w + 6, y + row_h / 2, anchor="w",
+                               text=shown, fill=c["muted"], font=("Segoe UI", 9))
+            except Exception:
+                pass
+            y += row_h
 
     def _fill_rows(self, rows):
         self.table.delete(*self.table.get_children())
@@ -1519,6 +1608,8 @@ class LedgerlingGUI:
             self._render_launcher()
         if hasattr(self, "pin_btn"):
             self._update_pin_btn()
+        if hasattr(self, "chart"):
+            self._draw_chart()
         if hasattr(self, "pinbar"):
             self._render_pins()
 
