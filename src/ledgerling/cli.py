@@ -154,7 +154,7 @@ import tempfile
 import time
 from datetime import datetime, date, timedelta
 
-__version__ = "1.212.0"
+__version__ = "1.213.0"
 
 # --------------------------------------------------------------------------- #
 # Sandbox + storage
@@ -396,6 +396,14 @@ def require_positive(value, flag):
     if value < 1:
         sys.exit(f"error: {flag} must be at least 1")
     return value
+
+
+def resolve_limit(args, default):
+    """The effective row limit for a ranked report: the --limit value when it is
+    a positive integer, otherwise `default`. Centralizes the 'show top N' idiom
+    the ranking commands (recent / top / topdays / payees / vsaverage) share."""
+    value = getattr(args, "limit", None)
+    return value if value and value > 0 else default
 
 
 def filter_month(rows, month):
@@ -985,7 +993,7 @@ def cmd_recent(args):
     data = load()
     rows = _filter_entries(data["expenses"], args)   # kind scope (income/all)
     rows = sorted(rows, key=lambda e: e["id"], reverse=True)
-    limit = args.limit if args.limit and args.limit > 0 else 10
+    limit = resolve_limit(args, 10)
     rows = rows[:limit]
 
     if getattr(args, "json", False):
@@ -2231,7 +2239,7 @@ def cmd_vsaverage(args):
     print(f"  difference   {_signed(res['delta']):>14}{tail}")
 
     movers = [r for r in res["by_category"] if r["delta"]]
-    limit = args.limit if args.limit and args.limit > 0 else 10
+    limit = resolve_limit(args, 10)
     movers = movers[:limit]
     if movers:
         print()
@@ -3799,7 +3807,7 @@ def cmd_top(args):
     # amount-bound filters, then rank by amount.
     rows = _filter_range_amount(_filter_entries(data["expenses"], args), args)
     rows = sorted(rows, key=lambda e: e["amount"], reverse=True)
-    limit = args.limit if args.limit and args.limit > 0 else 10
+    limit = resolve_limit(args, 10)
     rows = rows[:limit]
 
     if getattr(args, "all", False):
@@ -3869,7 +3877,7 @@ def cmd_topdays(args):
     agg = daily_totals(rows)
     days = sorted(agg.items(), key=lambda kv: (kv[1]["total"], kv[0]),
                   reverse=True)
-    limit = args.limit if args.limit and args.limit > 0 else 10
+    limit = resolve_limit(args, 10)
     days = days[:limit]
     out = [{"date": d, "total": v["total"], "count": v["count"]}
            for d, v in days]
@@ -3916,7 +3924,7 @@ def cmd_payees(args):
             a["last"] = e["date"]
 
     ranked = sorted(agg.items(), key=lambda kv: (-kv[1]["total"], kv[0]))
-    limit = args.limit if args.limit and args.limit > 0 else 20
+    limit = resolve_limit(args, 20)
     payees = [{"payee": p, "count": v["count"], "total": v["total"],
                "average": round(v["total"] / v["count"], 2) if v["count"] else 0.0,
                "first": v["first"], "last": v["last"]}

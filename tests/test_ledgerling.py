@@ -456,6 +456,18 @@ class PureLogic(unittest.TestCase):
         # sorted by largest absolute delta first
         self.assertEqual(r["by_category"][0]["category"], "food")
 
+    def test_resolve_limit(self):
+        import argparse
+        # a positive --limit wins over the default
+        a = argparse.Namespace(limit=5)
+        self.assertEqual(L.resolve_limit(a, 10), 5)
+        # None, 0 or negative fall back to the default
+        self.assertEqual(L.resolve_limit(argparse.Namespace(limit=None), 10), 10)
+        self.assertEqual(L.resolve_limit(argparse.Namespace(limit=0), 20), 20)
+        self.assertEqual(L.resolve_limit(argparse.Namespace(limit=-3), 10), 10)
+        # a missing attribute is treated as unset
+        self.assertEqual(L.resolve_limit(argparse.Namespace(), 7), 7)
+
     def test_resolve_scope(self):
         # no selectors -> caller applies its own default
         pred, label, ranged = L._resolve_scope(None, None, None)
