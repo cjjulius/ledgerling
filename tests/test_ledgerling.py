@@ -2857,6 +2857,26 @@ class CLI(TempAppCase):
         self.assertIn("no expenses to average for 2026-03",
                       self._main(["average", "--month", "2026-03"]))
 
+    def test_average_date_range(self):
+        self._main(["add", "30", "food", "a", "--date", "2026-01-10"])
+        self._main(["add", "90", "rent", "b", "--date", "2026-02-10"])
+        self._main(["add", "60", "fun", "c", "--date", "2026-03-10"])
+        # a bounded range scopes the data and the per-day span comes from the
+        # actual first/last entries inside it (Jan 10 .. Feb 10 = 32 days)
+        d = json.loads(self._main(["average", "--since", "2026-01-01",
+                                   "--until", "2026-02-28", "--json"]))
+        self.assertEqual(d["total"], 120.0)              # jan + feb
+        self.assertEqual(d["transactions"], 2)
+        self.assertEqual((d["first"], d["last"]), ("2026-01-10", "2026-02-10"))
+        self.assertEqual(d["days"], 32)
+        # an empty range is a clean message, not a crash
+        self.assertIn("no expenses to average in 2026-06-01 to 2026-06-30",
+                      self._main(["average", "--since", "2026-06-01",
+                                  "--until", "2026-06-30"]))
+        # --month and --since/--until cannot be combined
+        with self.assertRaises(SystemExit):
+            self._main(["average", "--month", "2026-01", "--until", "2026-02-28"])
+
     def test_top_json(self):
         for amt, cat in [(10, "food"), (500, "rent"), (30, "food"),
                          (200, "travel"), (5, "coffee")]:

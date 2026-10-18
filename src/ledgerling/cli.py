@@ -151,7 +151,7 @@ import tempfile
 import time
 from datetime import datetime, date, timedelta
 
-__version__ = "1.200.0"
+__version__ = "1.201.0"
 
 # --------------------------------------------------------------------------- #
 # Sandbox + storage
@@ -3528,13 +3528,27 @@ def cmd_net(args):
 def cmd_average(args):
     check_month(getattr(args, "month", None))
     data = load()
-    exp = filter_month(expenses_only(data["expenses"]),
-                       getattr(args, "month", None))
+    month = getattr(args, "month", None)
+    since = getattr(args, "since", None)
+    until = getattr(args, "until", None)
+    if month and (since or until):
+        sys.exit("error: use --month or --since/--until, not both")
+    exp = expenses_only(data["expenses"])
+    if since or until:
+        start, end = _date_bounds(since, until)
+        exp = [e for e in exp if start <= e["date"] <= end]
+    else:
+        exp = filter_month(exp, month)
     if not exp:
         if getattr(args, "json", False):
             print(json.dumps({"total": 0}, indent=2))
         else:
-            where = f" for {args.month}" if getattr(args, "month", None) else ""
+            if since or until:
+                where = f" in {start} to {end}"
+            elif month:
+                where = f" for {month}"
+            else:
+                where = ""
             print(f"no expenses to average{where}")
         return
 
@@ -8260,6 +8274,8 @@ def build_parser():
 
     av = sub.add_parser("average", help="average spending per day/week/month")
     av.add_argument("--month", help="restrict to a month, YYYY-MM")
+    av.add_argument("--since", help="range start (YYYY-MM-DD/today), with --until")
+    av.add_argument("--until", help="range end (YYYY-MM-DD/today), with --since")
     av.add_argument("--json", action="store_true", help="output JSON instead of text")
     av.set_defaults(func=cmd_average)
 
