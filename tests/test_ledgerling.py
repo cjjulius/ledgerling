@@ -3739,6 +3739,23 @@ class CLI(TempAppCase):
         d = json.loads(self._main(["search", "--sort", "amount", "--desc", "--json"]))
         self.assertEqual([e["amount"] for e in d], [80.0, 30.0, 10.0])
 
+    def test_search_limit(self):
+        for i, amt in enumerate([10, 80, 30, 50], start=1):
+            self._main(["add", str(amt), "food", f"e{i}",
+                        "--date", f"2026-05-0{i}"])
+        # --limit caps the returned rows (after sorting) ...
+        d = json.loads(self._main(["search", "--sort", "amount", "--desc",
+                                   "--limit", "2", "--json"]))
+        self.assertEqual([e["amount"] for e in d], [80.0, 50.0])
+        # ... but the text summary still counts and totals every match
+        out = self._main(["search", "--limit", "2"])
+        self.assertIn("showing first 2 of 4 match(es)", out)
+        self.assertIn(L.money(170.0), out)             # 10+80+30+50
+        # a limit >= match count shows them all with the plain summary
+        full = self._main(["search", "--limit", "10"])
+        self.assertIn("4 match(es)", full)
+        self.assertNotIn("showing first", full)
+
     def test_search_regex(self):
         self._main(["add", "10", "food", "coffee at cafe", "--date", "2026-05-01"])
         self._main(["add", "20", "food", "tea at cafe", "--date", "2026-05-02"])
