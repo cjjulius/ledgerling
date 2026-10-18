@@ -4,6 +4,14 @@ All notable changes to Ledgerling are documented here. The format is based on
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and this project
 adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.207.0] - 2026-10-18
+
+### Added
+
+- Desktop app: save the current results to a file (Ctrl+S, the Save button, or
+  File -> Save results). Writes the Output tab as plain text, or the data table
+  as CSV (raw values, spreadsheet-friendly) when the Table tab is showing.
+
 ## [1.206.0] - 2026-10-18
 
 ### Added
@@ -2452,6 +2460,7 @@ file, standard library only, strictly confined to its own folder.
   guard (`_within_app`) that refuses any path escaping the app folder; imports
   and restores are reduced to a basename and looked up only within the folder.
 
+[1.207.0]: #12070---2026-10-18
 [1.206.0]: #12060---2026-10-18
 [1.205.0]: #12050---2026-10-18
 [1.204.0]: #12040---2026-10-18
