@@ -440,26 +440,43 @@ def _is_number(v):
     return isinstance(v, (int, float)) and not isinstance(v, bool)
 
 
-def chart_series(mode, cols, rows, max_points=24):
-    """Pick a (label, value) series to bar-chart from a results table, or None
-    when nothing sensible can be charted. Works for the common shapes: a text
-    label column plus exactly the right numeric column ('rows'), or the numeric
-    entries of a field/value dict ('fields'). Pure, so it is unit-tested."""
+def chart_columns(mode, cols, rows):
+    """For a 'rows' table, the numeric columns that can be charted against the
+    first text (label) column - for a column picker. [] when nothing charts.
+    Pure."""
+    if mode != "rows" or not rows or not cols:
+        return []
+    numeric = [c for c in cols if all(_is_number(r.get(c)) for r in rows)]
+    text = [c for c in cols if c not in numeric]
+    return numeric if (numeric and text) else []
+
+
+def default_chart_column(mode, cols, rows):
+    """The numeric column charted by default: the first money-ish one, else the
+    first numeric. None when nothing charts. Pure."""
+    numeric = chart_columns(mode, cols, rows)
+    if not numeric:
+        return None
+    return next((c for c in numeric if _is_money_key(c)), numeric[0])
+
+
+def chart_series(mode, cols, rows, value_col=None, max_points=24):
+    """A (label, value) series to bar-chart from a results table, or None when
+    nothing sensible can be charted. 'fields' charts the numeric field/value
+    entries; 'rows' charts `value_col` (defaulting to the money-ish column)
+    against the first text column. Pure, so it is unit-tested."""
     if not rows:
         return None
     if mode == "fields":
         pairs = [(str(r.get("field")), float(r.get("value")))
                  for r in rows if _is_number(r.get("value"))]
         return pairs[:max_points] or None
-    if mode != "rows" or not cols:
+    numeric = chart_columns(mode, cols, rows)
+    if not numeric:
         return None
-    numeric = [c for c in cols if all(_is_number(r.get(c)) for r in rows)]
-    text = [c for c in cols if c not in numeric]
-    if not numeric or not text:
-        return None
-    label_col = text[0]
-    # Prefer a money-ish numeric column (total/amount/net/...), else the first.
-    value_col = next((c for c in numeric if _is_money_key(c)), numeric[0])
+    label_col = next(c for c in cols if c not in numeric)
+    if value_col not in numeric:
+        value_col = default_chart_column(mode, cols, rows)
     pairs = [(str(r.get(label_col)), float(r.get(value_col))) for r in rows]
     return pairs[:max_points] or None
 
@@ -894,14 +911,24 @@ class LedgerlingGUI:
         self.table.bind("<Button-3>", self._table_context_menu)
 
         # A lightweight bar chart for chartable results (a label column plus one
-        # numeric column, e.g. month/total or category/total).
+        # numeric column, e.g. month/total or category/total). When several
+        # numeric columns are available, a picker chooses which to plot.
         chartwrap = ttk.Frame(self.results, style="Main.TFrame")
+        self._chart_bar = ttk.Frame(chartwrap, style="Main.TFrame")
+        self._chart_bar.pack(side="top", fill="x", pady=(2, 2))
+        self._chart_col_lbl = ttk.Label(self._chart_bar, text="Plot:",
+                                        style="Muted.TLabel")
+        self.chart_col_var = tk.StringVar()
+        self.chart_col = ttk.Combobox(self._chart_bar, state="readonly",
+                                      textvariable=self.chart_col_var, width=18)
+        self.chart_col.bind("<<ComboboxSelected>>",
+                            lambda _e: self._draw_chart())
         self.chart = tk.Canvas(chartwrap, highlightthickness=0, bd=0)
         self.chart.pack(side="top", fill="both", expand=True)
         self.chart.bind("<Configure>", lambda _e: self._draw_chart())
         self.results.add(chartwrap, text="Chart")
         self._chart_tab = chartwrap
-        self._chart_series = None
+        self._chart_shaped = None
         self.results.hide(self._chart_tab)
 
     def _bind_wheel(self, widget):
@@ -1531,21 +1558,36 @@ class LedgerlingGUI:
         self.results.tab(self._table_tab, state="normal")
 
     def _populate_chart(self, shaped):
+        self._chart_shaped = shaped
         series = chart_series(*shaped) if shaped else None
-        self._chart_series = series
         try:
-            if series:
-                self.results.tab(self._chart_tab, state="normal")
-                self._after(30, self._draw_chart)   # after layout, so sizes real
-            else:
+            if not series:
                 self.results.tab(self._chart_tab, state="hidden")
+                self._chart_bar.pack_forget()
+                return
+            self.results.tab(self._chart_tab, state="normal")
+            # Offer a column picker only when there's a real choice (rows mode
+            # with more than one numeric column).
+            cols = chart_columns(*shaped)
+            self.chart_col_var.set(default_chart_column(*shaped) or "")
+            if len(cols) > 1:
+                self.chart_col["values"] = cols
+                self._chart_col_lbl.pack(side="left", padx=(2, 4))
+                self.chart_col.pack(side="left")
+            else:
+                self._chart_bar.pack_forget()
+            self._after(30, self._draw_chart)   # after layout, so sizes real
         except Exception:
             pass
 
     def _draw_chart(self):
-        series = getattr(self, "_chart_series", None)
+        shaped = getattr(self, "_chart_shaped", None)
         cv = getattr(self, "chart", None)
-        if not series or cv is None:
+        if not shaped or cv is None:
+            return
+        value_col = self.chart_col_var.get() or None
+        series = chart_series(shaped[0], shaped[1], shaped[2], value_col)
+        if not series:
             return
         c = self.colors
         try:

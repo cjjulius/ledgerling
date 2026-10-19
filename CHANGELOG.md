@@ -4,6 +4,14 @@ All notable changes to Ledgerling are documented here. The format is based on
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and this project
 adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.227.0] - 2026-10-19
+
+### Added
+
+- Desktop app: the Chart tab now has a column picker. When a result has more than
+  one numeric column (e.g. nettrend's income/expenses/net), a dropdown lets you
+  choose which one to plot; it defaults to the money-ish column as before.
+
 ## [1.226.0] - 2026-10-19
 
 ### Added
@@ -2658,6 +2666,7 @@ file, standard library only, strictly confined to its own folder.
   guard (`_within_app`) that refuses any path escaping the app folder; imports
   and restores are reduced to a basename and looked up only within the folder.
 
+[1.227.0]: #12270---2026-10-19
 [1.226.0]: #12260---2026-10-19
 [1.225.0]: #12250---2026-10-19
 [1.224.1]: #12241---2026-10-19
