@@ -158,7 +158,7 @@ import tempfile
 import time
 from datetime import datetime, date, timedelta
 
-__version__ = "1.224.0"
+__version__ = "1.224.1"
 
 # --------------------------------------------------------------------------- #
 # Sandbox + storage
@@ -1839,6 +1839,47 @@ def _profile_stats(rows, universe_total):
             "median": median, "share_pct": share, "min": lo, "max": hi,
             "first": first, "last": last,
             "active_months": len({month_of(e["date"]) for e in rows})}
+
+
+def _profile_payload(name_key, name, stats, monthly):
+    """The shared JSON shape for a drill-down profile (category / payee /
+    source). Callers add any command-specific keys (e.g. category's budget)."""
+    return {name_key: name, "total": stats["total"],
+            "share_pct": stats["share_pct"], "count": stats["count"],
+            "average": stats["average"], "median": stats["median"],
+            "min": stats["min"], "max": stats["max"], "first": stats["first"],
+            "last": stats["last"], "active_months": stats["active_months"],
+            "monthly": monthly}
+
+
+def _print_profile(title, verb, universe_noun, count_label, stats, monthly,
+                   months, extra=None):
+    """Shared text rendering for a drill-down profile: the header, totals,
+    extremes, active span, any `extra` lines, and the recent monthly trend. The
+    category / payee / source commands all build on this."""
+    print(title)
+    print("=" * 56)
+    print(f"  {verb:<13}{money(stats['total']):>12}   "
+          f"({stats['share_pct']:g}% of all {universe_noun})")
+    print(f"  {count_label:<13}{stats['count']:>12}   "
+          f"avg {money(stats['average'])}, median {money(stats['median'])}")
+    lo, hi = stats["min"], stats["max"]
+    if lo and hi:
+        print(f"  {'Smallest':<13}{money(lo['amount']):>12}   on {lo['date']}")
+        print(f"  {'Largest':<13}{money(hi['amount']):>12}   on {hi['date']}")
+    if stats["first"]:
+        am = stats["active_months"]
+        print(f"  {'Active':<13}{am:>12} month{'' if am == 1 else 's'}   "
+              f"first {stats['first']}, last {stats['last']}")
+    for line in (extra or []):
+        print(line)
+    nonzero = [m for m in monthly if m["total"]]
+    if nonzero:
+        peak = max(m["total"] for m in monthly) or 1.0
+        print(f"  Last {months} months:")
+        for m in monthly:
+            print(f"    {m['month']}  {money(m['total']):>11}  "
+                  f"{bar(m['total'] / peak, 20)}")
 
 
 def cmd_stats(args):
@@ -4053,10 +4094,6 @@ def cmd_payee(args):
     rows = [e for e in exp if _normalize_payee(e) == want]
     total_all = round(sum(e["amount"] for e in exp), 2)
     stats = _profile_stats(rows, total_all)
-    total, count = stats["total"], stats["count"]
-    average, median, share = stats["average"], stats["median"], stats["share_pct"]
-    lo, hi = stats["min"], stats["max"]
-    first, last, active_months = stats["first"], stats["last"], stats["active_months"]
 
     # Recent monthly trend for this payee's charges.
     keys = _recent_months(months)
@@ -4064,36 +4101,16 @@ def cmd_payee(args):
     monthly = [{"month": k, "total": totals[k]} for k in keys]
 
     if getattr(args, "json", False):
-        print(json.dumps({
-            "payee": want, "total": total, "share_pct": share, "count": count,
-            "average": average, "median": median, "min": lo, "max": hi,
-            "first": first, "last": last, "active_months": active_months,
-            "monthly": monthly}, indent=2))
+        print(json.dumps(_profile_payload("payee", want, stats, monthly),
+                         indent=2))
         return
 
-    if not count:
+    if not stats["count"]:
         print(f'no spending recorded for payee "{want}"')
         return
 
-    print(f"Payee: {want}")
-    print("=" * 56)
-    print(f"  Spent        {money(total):>12}   ({share:g}% of all spending)")
-    print(f"  Charges      {count:>12}   avg {money(average)}, "
-          f"median {money(median)}")
-    if lo and hi:
-        print(f"  Smallest     {money(lo['amount']):>12}   on {lo['date']}")
-        print(f"  Largest      {money(hi['amount']):>12}   on {hi['date']}")
-    if first:
-        print(f"  Active       {active_months:>12} month"
-              f"{'' if active_months == 1 else 's'}   "
-              f"first {first}, last {last}")
-    nonzero = [m for m in monthly if m["total"]]
-    if nonzero:
-        peak = max(m["total"] for m in monthly) or 1.0
-        print(f"  Last {months} months:")
-        for m in monthly:
-            print(f"    {m['month']}  {money(m['total']):>11}  "
-                  f"{bar(m['total'] / peak, 20)}")
+    _print_profile(f"Payee: {want}", "Spent", "spending", "Charges",
+                   stats, monthly, months)
 
 
 def cmd_trend(args):
@@ -4312,46 +4329,22 @@ def cmd_source(args):
     rows = [e for e in inc if e["category"] == src]
     total_all = round(sum(e["amount"] for e in inc), 2)
     stats = _profile_stats(rows, total_all)
-    total, count = stats["total"], stats["count"]
-    average, median, share = stats["average"], stats["median"], stats["share_pct"]
-    lo, hi = stats["min"], stats["max"]
-    first, last, active_months = stats["first"], stats["last"], stats["active_months"]
 
     keys = _recent_months(months)
     totals = _monthly_totals(rows, keys)
     monthly = [{"month": k, "total": totals[k]} for k in keys]
 
     if getattr(args, "json", False):
-        print(json.dumps({
-            "source": src, "total": total, "share_pct": share, "count": count,
-            "average": average, "median": median, "min": lo, "max": hi,
-            "first": first, "last": last, "active_months": active_months,
-            "monthly": monthly}, indent=2))
+        print(json.dumps(_profile_payload("source", src, stats, monthly),
+                         indent=2))
         return
 
-    if not count:
+    if not stats["count"]:
         print(f"no income recorded for source [{src}]")
         return
 
-    print(f"Source: {src}")
-    print("=" * 56)
-    print(f"  Received     {money(total):>12}   ({share:g}% of all income)")
-    print(f"  Entries      {count:>12}   avg {money(average)}, "
-          f"median {money(median)}")
-    if lo and hi:
-        print(f"  Smallest     {money(lo['amount']):>12}   on {lo['date']}")
-        print(f"  Largest      {money(hi['amount']):>12}   on {hi['date']}")
-    if first:
-        print(f"  Active       {active_months:>12} month"
-              f"{'' if active_months == 1 else 's'}   "
-              f"first {first}, last {last}")
-    nonzero = [m for m in monthly if m["total"]]
-    if nonzero:
-        peak = max(m["total"] for m in monthly) or 1.0
-        print(f"  Last {months} months:")
-        for m in monthly:
-            print(f"    {m['month']}  {money(m['total']):>11}  "
-                  f"{bar(m['total'] / peak, 20)}")
+    _print_profile(f"Source: {src}", "Received", "income", "Entries",
+                   stats, monthly, months)
 
 
 def cmd_untagged(args):
@@ -4808,10 +4801,7 @@ def cmd_category(args):
     rows = [e for e in exp if e["category"] == cat]
     total_all = round(sum(e["amount"] for e in exp), 2)
     stats = _profile_stats(rows, total_all)
-    total, count = stats["total"], stats["count"]
-    average, median, share = stats["average"], stats["median"], stats["share_pct"]
-    lo, hi = stats["min"], stats["max"]
-    first, last, active_months = stats["first"], stats["last"], stats["active_months"]
+    count = stats["count"]
 
     # Recent monthly trend for this category.
     keys = _recent_months(months)
@@ -4828,40 +4818,22 @@ def cmd_category(args):
                        if budget else 0.0}
 
     if getattr(args, "json", False):
-        print(json.dumps({
-            "category": cat, "total": total, "share_pct": share, "count": count,
-            "average": average, "median": median, "min": lo, "max": hi,
-            "first": first, "last": last, "active_months": active_months,
-            "monthly": monthly, "budget": budget_info}, indent=2))
+        payload = _profile_payload("category", cat, stats, monthly)
+        payload["budget"] = budget_info
+        print(json.dumps(payload, indent=2))
         return
 
     if not count and not budget:
         print(f"no spending recorded for [{cat}]")
         return
 
-    print(f"Category: {cat}")
-    print("=" * 56)
-    print(f"  Spent        {money(total):>12}   ({share:g}% of all spending)")
-    print(f"  Entries      {count:>12}   avg {money(average)}, "
-          f"median {money(median)}")
-    if lo and hi:
-        print(f"  Smallest     {money(lo['amount']):>12}   on {lo['date']}")
-        print(f"  Largest      {money(hi['amount']):>12}   on {hi['date']}")
-    if first:
-        print(f"  Active       {active_months:>12} month"
-              f"{'' if active_months == 1 else 's'}   "
-              f"first {first}, last {last}")
+    extra = []
     if budget_info:
-        print(f"  Budget       {money(budget_info['limit']):>12}/mo  "
-              f"this month {money(budget_info['spent'])} "
-              f"({budget_info['percent']:g}%)")
-    nonzero = [m for m in monthly if m["total"]]
-    if nonzero:
-        peak = max(m["total"] for m in monthly) or 1.0
-        print(f"  Last {months} months:")
-        for m in monthly:
-            print(f"    {m['month']}  {money(m['total']):>11}  "
-                  f"{bar(m['total'] / peak, 20)}")
+        extra.append(f"  Budget       {money(budget_info['limit']):>12}/mo  "
+                     f"this month {money(budget_info['spent'])} "
+                     f"({budget_info['percent']:g}%)")
+    _print_profile(f"Category: {cat}", "Spent", "spending", "Entries",
+                   stats, monthly, months, extra)
 
 
 _WEEKDAY_NAMES = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"]
