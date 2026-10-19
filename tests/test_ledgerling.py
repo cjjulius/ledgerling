@@ -428,6 +428,26 @@ class PureLogic(unittest.TestCase):
                 L.require_positive(bad, "--weeks")
             self.assertIn("--weeks must be at least 1", str(cm.exception))
 
+    def test_split_fixed_variable(self):
+        rows = [
+            {"amount": 300.0, "category": "rent", "recur_id": 1},
+            {"amount": 15.0, "category": "ent", "recur_id": 2},
+            {"amount": 40.0, "category": "food"},            # manual
+            {"amount": 10.0, "category": "food"},            # manual
+        ]
+        r = L.split_fixed_variable(rows)
+        self.assertEqual(r["total"], 365.0)
+        self.assertEqual(r["fixed"]["total"], 315.0)
+        self.assertEqual(r["fixed"]["count"], 2)
+        self.assertEqual(r["variable"]["total"], 50.0)
+        self.assertEqual(r["variable"]["count"], 2)
+        self.assertAlmostEqual(r["fixed"]["pct"], round(315 / 365 * 100, 1))
+        self.assertAlmostEqual(r["variable"]["pct"], round(50 / 365 * 100, 1))
+        self.assertEqual(r["variable"]["by_category"], {"food": 50.0})
+        # empty input is safe (no division by zero)
+        z = L.split_fixed_variable([])
+        self.assertEqual((z["total"], z["fixed"]["pct"]), (0.0, 0.0))
+
     def test_month_vs_average(self):
         data = {"expenses": [
             # baseline: Jan + Feb (2 months)
