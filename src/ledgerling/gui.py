@@ -515,6 +515,7 @@ class LedgerlingGUI:
         self._focus_idx = -1      # currently key-focused card (-1 = none)
         self._focus_cols = 3      # columns in the current launcher grid
         self._suggest = {}        # autocomplete values for category/tag/payee
+        self._field_cache = {}    # per-command form values (session-only)
         self._alive = True
         self._spin = 0
         self._spinning = False
@@ -1178,6 +1179,14 @@ class LedgerlingGUI:
     def open_command(self, name):
         if name not in self.commands:
             return
+        # Remember what was typed in the command we're leaving, so returning to
+        # it later restores the inputs (session-only convenience).
+        if self.current and self.fields:
+            try:
+                self._field_cache[self.current] = {
+                    d: w._var.get() for d, (w, _a) in self.fields.items()}
+            except Exception:
+                pass
         self.current = name
         self._view = "detail"
         # Swap the browse view out for the single-command detail pane.
@@ -1207,6 +1216,14 @@ class LedgerlingGUI:
         if not cmd["args"]:
             self.ttk.Label(self.form, text="No options — just run it.",
                            style="Muted.TLabel").grid(row=0, column=0, sticky="w")
+        # Restore any values typed earlier this session for this command.
+        cached = self._field_cache.get(name, {})
+        for d, (w, _a) in self.fields.items():
+            if d in cached:
+                try:
+                    w._var.set(cached[d])
+                except Exception:
+                    pass
         self.form.columnconfigure(1, weight=1)
         for _dest, (w, a) in self.fields.items():
             if a.get("type") != "bool":

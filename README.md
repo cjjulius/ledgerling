@@ -74,7 +74,9 @@ standard library only — no extra dependencies). It opens a real OS window with
 - a **sortable results table**: for any command that supports `--json`, the
   Table tab fills from its structured output — money and percent columns are
   formatted, and clicking a column header sorts by it (numeric-aware);
-- it **remembers** your theme and window size/position between launches;
+- it **remembers** your theme and window size/position between launches, and
+  keeps whatever you typed in each command's form as you move between commands
+  during a session;
 - **keyboard shortcuts**: `Ctrl+Enter` to run, `Ctrl+K` to focus the filter,
   `Ctrl+T` to cycle the theme, `Ctrl+N` for a new window, `Ctrl+Q` to quit — and
   Enter in any field runs the command. Help → Keyboard shortcuts lists them all;
