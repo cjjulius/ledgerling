@@ -289,7 +289,8 @@ month income/spending/net totals that `compare`, `today`, and `statement` share,
 the category-totals accumulation (`{category: total}` with running 2dp rounding)
 that `summary`, `insights`, `scorecard`, and `range` share,
 the drill-down summary stats (total, share, count, average/median, min/max,
-span) that `category` and `tags NAME` share,
+span) that `category` and `tags NAME` share, plus the shared JSON shape and
+text rendering that the `category`, `payee` and `source` profiles share,
 the recent-months window and its per-month totals that the trend and grid
 views (`category`, `payee`, `trend`, `matrix`, `tagmatrix`, `tagtrend`) share,
 the month-or-date-range scope resolution (with its mutual-exclusion rule) and
