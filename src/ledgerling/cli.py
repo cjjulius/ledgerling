@@ -67,6 +67,7 @@ Commands:
     recent    Entries you most recently recorded (by insertion order)
     net       Income, expenses, net and savings rate (all-time/month/range)
     nettrend  Monthly income, expenses and net over N months
+    savingsrate  Monthly savings rate (net as a share of income)
     average   Average spending per day/week/month and per transaction (+median)
     distribution  Histogram of expense sizes
     anomalies  Flag unusually large expenses within each category
@@ -158,7 +159,7 @@ import tempfile
 import time
 from datetime import datetime, date, timedelta
 
-__version__ = "1.224.1"
+__version__ = "1.225.0"
 
 # --------------------------------------------------------------------------- #
 # Sandbox + storage
@@ -3801,23 +3802,29 @@ def cmd_net(args):
         print(f"{verb} {abs(rate):g}% of income")
 
 
-def cmd_nettrend(args):
-    """Month-by-month income, expenses and net over the last N months, with a
-    bar of each month's net. Complements `net` (a single period) and `trend` (a
-    single category) by showing the whole cash picture over time."""
-    months = require_positive(args.months, "--months")
-    data = load()
-    keys = _recent_months(months)
+def monthly_cashflow(data, keys):
+    """Per-month income, expenses and net for the given 'YYYY-MM' keys, in key
+    order. Pure (reads the loaded data dict); shared by `nettrend` and
+    `savingsrate`."""
     agg = {k: {"income": 0.0, "expenses": 0.0} for k in keys}
     for e in data["expenses"]:
         m = month_of(e["date"])
         if m in agg:
             side = "income" if kind_of(e) == "income" else "expenses"
             agg[m][side] = round(agg[m][side] + e["amount"], 2)
-    rows = [{"month": k, "income": agg[k]["income"],
+    return [{"month": k, "income": agg[k]["income"],
              "expenses": agg[k]["expenses"],
              "net": round(agg[k]["income"] - agg[k]["expenses"], 2)}
             for k in keys]
+
+
+def cmd_nettrend(args):
+    """Month-by-month income, expenses and net over the last N months, with a
+    bar of each month's net. Complements `net` (a single period) and `trend` (a
+    single category) by showing the whole cash picture over time."""
+    months = require_positive(args.months, "--months")
+    data = load()
+    rows = monthly_cashflow(data, _recent_months(months))
     tot_inc = round(sum(r["income"] for r in rows), 2)
     tot_exp = round(sum(r["expenses"] for r in rows), 2)
     tot_net = round(tot_inc - tot_exp, 2)
@@ -3839,6 +3846,44 @@ def cmd_nettrend(args):
     print("-" * 62)
     print(f"{'total':<9}{money(tot_inc):>12}{money(tot_exp):>12}"
           f"{money(tot_net):>12}")
+
+
+def cmd_savingsrate(args):
+    """Your monthly savings rate (net saved as a share of income) over the last N
+    months, with a bar for each month and the window average. A key number for
+    anyone tracking how much of what they earn they actually keep."""
+    months = require_positive(args.months, "--months")
+    data = load()
+    rows = monthly_cashflow(data, _recent_months(months))
+    for r in rows:
+        r["savings_rate"] = (round(r["net"] / r["income"] * 100, 1)
+                             if r["income"] > 0 else None)
+    rated = [r for r in rows if r["savings_rate"] is not None]
+    avg_rate = (round(sum(r["savings_rate"] for r in rated) / len(rated), 1)
+                if rated else None)
+
+    if getattr(args, "json", False):
+        print(json.dumps({"months": rows, "average_rate": avg_rate}, indent=2))
+        return
+
+    if not rated:
+        print(f"no income in the last {months} month(s) to compute a rate")
+        return
+
+    print(f"Savings rate - last {months} month{'' if months == 1 else 's'}")
+    print("=" * 56)
+    for r in rows:
+        rate = r["savings_rate"]
+        if rate is None:
+            print(f"  {r['month']}  {'(no income)':>10}")
+            continue
+        chart = bar(min(1.0, max(0.0, rate / 100)), 16)
+        tail = "" if rate >= 0 else "  (overspent)"
+        print(f"  {r['month']}  {rate:>6.1f}%   {chart}{tail}")
+    print("-" * 56)
+    if avg_rate is not None:
+        print(f"  average over {len(rated)} month"
+              f"{'' if len(rated) == 1 else 's'} with income: {avg_rate:g}%")
 
 
 def cmd_average(args):
@@ -8746,6 +8791,14 @@ def build_parser():
                      help="output JSON instead of text")
     ntr.set_defaults(func=cmd_nettrend)
 
+    sr_ = sub.add_parser("savingsrate",
+                         help="monthly savings rate (net as a share of income)")
+    sr_.add_argument("--months", type=int, default=6,
+                     help="how many months to show (default 6)")
+    sr_.add_argument("--json", action="store_true",
+                     help="output JSON instead of text")
+    sr_.set_defaults(func=cmd_savingsrate)
+
     av = sub.add_parser("average", help="average spending per day/week/month")
     av.add_argument("--month", help="restrict to a month, YYYY-MM")
     _add_scope_range(av)
@@ -9191,7 +9244,8 @@ CATCHUP_COMMANDS = frozenset({
     "tagtrend", "range", "matrix", "cumulative", "allowance", "tagmatrix",
     "weekly", "years", "ytd", "anomalies", "roundup", "cashflow", "target",
     "runway",
-    "net", "nettrend", "subscriptions", "payees", "overbudget", "today",
+    "net", "nettrend", "savingsrate", "subscriptions", "payees", "overbudget",
+    "today",
     "worthtrend", "vsaverage",
     "topdays", "recent",
     "statement", "reconcile", "scorecard", "scoretrend", "category", "payee",

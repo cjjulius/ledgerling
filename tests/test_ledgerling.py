@@ -3081,6 +3081,38 @@ class CLI(TempAppCase):
         with self.assertRaises(SystemExit):
             self._main(["nettrend", "--months", "0"])
 
+    def test_savingsrate_json(self):
+        this = date.today().isoformat()[:7]
+        last = L.add_months(date.today().replace(day=1), -1).isoformat()[:7]
+        # last month: 1000 income, 300 spend -> saved 700 -> 70%
+        self._main(["income", "1000", "salary", "pay", "--date", f"{last}-05"])
+        self._main(["add", "300", "rent", "a", "--date", f"{last}-10"])
+        # this month: 200 spend, no income -> rate is null (not counted)
+        self._main(["add", "200", "food", "b", "--date", f"{this}-03"])
+        d = json.loads(self._main(["savingsrate", "--months", "2", "--json"]))
+        rates = {m["month"]: m["savings_rate"] for m in d["months"]}
+        self.assertEqual(rates[last], 70.0)
+        self.assertIsNone(rates[this])                # no income
+        self.assertEqual(d["average_rate"], 70.0)     # only the rated month
+        # bad --months is rejected
+        with self.assertRaises(SystemExit):
+            self._main(["savingsrate", "--months", "0"])
+
+    def test_monthly_cashflow_pure(self):
+        data = {"expenses": [
+            {"date": "2026-01-05", "amount": 1000.0, "category": "salary",
+             "kind": "income"},
+            {"date": "2026-01-10", "amount": 300.0, "category": "rent"},
+            {"date": "2026-02-02", "amount": 50.0, "category": "food"},
+            {"date": "2025-12-30", "amount": 999.0, "category": "food"},  # outside
+        ]}
+        rows = L.monthly_cashflow(data, ["2026-01", "2026-02"])
+        self.assertEqual([r["month"] for r in rows], ["2026-01", "2026-02"])
+        self.assertEqual((rows[0]["income"], rows[0]["expenses"], rows[0]["net"]),
+                         (1000.0, 300.0, 700.0))
+        self.assertEqual((rows[1]["income"], rows[1]["expenses"], rows[1]["net"]),
+                         (0.0, 50.0, -50.0))
+
     def test_average_json(self):
         self._main(["add", "100", "food", "a", "--date", "2026-01-01"])
         self._main(["add", "100", "food", "b", "--date", "2026-01-11"])  # 11-day span

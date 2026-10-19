@@ -4,6 +4,16 @@ All notable changes to Ledgerling are documented here. The format is based on
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and this project
 adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.225.0] - 2026-10-19
+
+### Added
+
+- New `savingsrate` command: your monthly savings rate (net saved as a share of
+  income) over the last N months, with a bar for each month and the window
+  average (counting only months that had income). Supports `--months` and
+  `--json`. The per-month income/expenses/net tally that `nettrend` did inline is
+  now a shared helper both commands use.
+
 ## [1.224.1] - 2026-10-19
 
 ### Changed
@@ -2640,6 +2650,7 @@ file, standard library only, strictly confined to its own folder.
   guard (`_within_app`) that refuses any path escaping the app folder; imports
   and restores are reduced to a basename and looked up only within the folder.
 
+[1.225.0]: #12250---2026-10-19
 [1.224.1]: #12241---2026-10-19
 [1.224.0]: #12240---2026-10-19
 [1.223.0]: #12230---2026-10-19
