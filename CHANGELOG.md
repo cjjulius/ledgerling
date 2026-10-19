@@ -4,6 +4,15 @@ All notable changes to Ledgerling are documented here. The format is based on
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and this project
 adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.223.0] - 2026-10-19
+
+### Added
+
+- New `source` command: a full drill-down profile for a single income source
+  (total received and share of all income, entry count, average/median,
+  smallest/largest payments, active span, and a recent monthly trend), mirroring
+  `category`/`payee` on the income side. Supports `--months` and `--json`.
+
 ## [1.222.1] - 2026-10-19
 
 ### Changed
@@ -2614,6 +2623,7 @@ file, standard library only, strictly confined to its own folder.
   guard (`_within_app`) that refuses any path escaping the app folder; imports
   and restores are reduced to a basename and looked up only within the folder.
 
+[1.223.0]: #12230---2026-10-19
 [1.222.1]: #12221---2026-10-19
 [1.222.0]: #12220---2026-10-19
 [1.221.0]: #12210---2026-10-19

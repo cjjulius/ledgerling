@@ -194,9 +194,10 @@ use):
 - **Analyze** it, grouped by what you want to know:
   - at a glance: a month `dashboard`, plain-language `insights`, an A-to-F health
     `scorecard` (and its `scoretrend`), and a playful `persona` read of your habits;
-  - where it goes: per-`category`, per-`payee` and per-`tag` profiles, your
-    merchants ranked by spend (`payees`), a category `summary`, and a fixed-vs-
-    variable breakdown (`recurringsplit`) showing how much is committed spending;
+  - where it goes: per-`category`, per-`payee`, per-`tag` and per-income-`source`
+    profiles, your merchants ranked by spend (`payees`), a category `summary`,
+    and a fixed-vs-variable breakdown (`recurringsplit`) showing how much is
+    committed spending;
   - over time: `average` spending per day, week and month (or income, or just
     one category or tag), a month-by-month income/expenses/net picture
     (`nettrend`),
