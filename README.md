@@ -67,7 +67,8 @@ standard library only — no extra dependencies). It opens a real OS window with
   shows the focused field's description so the help is reachable by keyboard, a
   results area with an **Output** tab (text, with Copy and Save buttons), a
   **Table** tab, and a **Chart** tab that draws a quick bar chart whenever the
-  result has something to plot (months, categories, and the like), and a
+  result has something to plot (months, categories, and the like), with a picker
+  to choose which column to plot when there's more than one, and a
   **status bar** whose right side always shows an at-a-glance summary of the
   current month (spent, net, entry count) that refreshes after every command;
 - **save any result to a file** — Ctrl+S (or the Save button) writes the output

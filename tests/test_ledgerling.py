@@ -976,6 +976,23 @@ class WebUI(TempAppCase):
         many = [{"m": str(i), "v": i} for i in range(40)]
         self.assertEqual(len(gui.chart_series("rows", ["m", "v"], many,
                                               max_points=10)), 10)
+        # choosing a specific numeric column to plot
+        s2 = gui.chart_series("rows", ["month", "total", "count"], rows,
+                              value_col="count")
+        self.assertEqual(s2, [("2026-01", 3.0), ("2026-02", 5.0)])
+        # an invalid value_col falls back to the default (money-ish) column
+        s3 = gui.chart_series("rows", ["month", "total", "count"], rows,
+                              value_col="nope")
+        self.assertEqual(s3, [("2026-01", 100.0), ("2026-02", 250.0)])
+        # chart_columns lists the numeric columns; default prefers money-ish
+        cols = ["month", "total", "count"]
+        self.assertEqual(gui.chart_columns("rows", cols, rows), ["total", "count"])
+        self.assertEqual(gui.default_chart_column("rows", cols, rows), "total")
+        # no picker for a non-rows or unchartable table
+        self.assertEqual(gui.chart_columns("fields", ["field", "value"],
+                                           [{"field": "a", "value": 1}]), [])
+        self.assertIsNone(gui.default_chart_column("rows", ["a"],
+                                                   [{"a": "x"}]))
 
     def test_gui_collect_suggestions(self):
         from ledgerling import gui
