@@ -157,7 +157,7 @@ import tempfile
 import time
 from datetime import datetime, date, timedelta
 
-__version__ = "1.222.0"
+__version__ = "1.222.1"
 
 # --------------------------------------------------------------------------- #
 # Sandbox + storage
@@ -2347,9 +2347,12 @@ def cmd_pace(args):
     elapsed = today.day if period == today.isoformat()[:7] else days_in_month
     frac_time = elapsed / days_in_month
 
+    # Tally the month's spend per category once, then read each budget off it,
+    # rather than re-scanning the whole ledger per budgeted category.
+    month_cats = category_totals(month_expenses(data, period))
     cats = {}
     for cat, limit in sorted(data["budgets"].items()):
-        spent = category_spent(data, cat, period)
+        spent = month_cats.get(cat, 0.0)
         expected = round(limit * frac_time, 2)
         projected = round(spent / elapsed * days_in_month, 2) if elapsed else 0.0
         cats[cat] = {"spent": round(spent, 2), "limit": round(limit, 2),
@@ -2398,10 +2401,12 @@ def cmd_allowance(args):
     else:
         days_left = 0
 
+    # One pass over the month's expenses, then look up each budgeted category.
+    month_cats = category_totals(month_expenses(data, period))
     cats = {}
     total_remaining = 0.0
     for cat, limit in sorted(data["budgets"].items()):
-        spent = category_spent(data, cat, period)
+        spent = month_cats.get(cat, 0.0)
         remaining = round(limit - spent, 2)
         total_remaining = round(total_remaining + remaining, 2)
         cats[cat] = {"limit": round(limit, 2), "spent": round(spent, 2),
