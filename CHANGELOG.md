@@ -4,6 +4,14 @@ All notable changes to Ledgerling are documented here. The format is based on
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and this project
 adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.219.0] - 2026-10-18
+
+### Added
+
+- `average` accepts `--income` to average income instead of expenses (e.g. typical
+  monthly income), composing with the month/range/category/tag filters. The title
+  and empty-state message adapt, and the JSON gains a "kind" field in income mode.
+
 ## [1.218.1] - 2026-10-18
 
 ### Changed
@@ -2572,6 +2580,7 @@ file, standard library only, strictly confined to its own folder.
   guard (`_within_app`) that refuses any path escaping the app folder; imports
   and restores are reduced to a basename and looked up only within the folder.
 
+[1.219.0]: #12190---2026-10-18
 [1.218.1]: #12181---2026-10-18
 [1.218.0]: #12180---2026-10-18
 [1.217.0]: #12170---2026-10-18

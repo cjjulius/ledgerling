@@ -195,8 +195,9 @@ use):
   - where it goes: per-`category`, per-`payee` and per-`tag` profiles, your
     merchants ranked by spend (`payees`), a category `summary`, and a fixed-vs-
     variable breakdown (`recurringsplit`) showing how much is committed spending;
-  - over time: `average` spending per day, week and month (and for just one
-    category or tag), a month-by-month income/expenses/net picture (`nettrend`),
+  - over time: `average` spending per day, week and month (or income, or just
+    one category or tag), a month-by-month income/expenses/net picture
+    (`nettrend`),
     a two-month `compare`, a `vsaverage`
     check against your recent norm, a `ytd` year-to-date view with a year-end
     projection, and rollups by week, quarter, year and weekday;
