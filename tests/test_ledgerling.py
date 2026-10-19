@@ -428,6 +428,26 @@ class PureLogic(unittest.TestCase):
                 L.require_positive(bad, "--weeks")
             self.assertIn("--weeks must be at least 1", str(cm.exception))
 
+    def test_weekend_split(self):
+        # 2026-01-02 is a Friday (weekday), 03 Sat + 04 Sun (weekend)
+        rows = [
+            {"date": "2026-01-02", "amount": 40.0, "category": "food"},
+            {"date": "2026-01-03", "amount": 100.0, "category": "fun"},
+            {"date": "2026-01-04", "amount": 60.0, "category": "fun"},
+        ]
+        r = L.weekend_split(rows)
+        self.assertEqual(r["total"], 200.0)
+        self.assertEqual((r["weekday"]["total"], r["weekday"]["count"]),
+                         (40.0, 1))
+        self.assertEqual((r["weekend"]["total"], r["weekend"]["count"]),
+                         (160.0, 2))
+        self.assertEqual(r["weekend"]["average"], 80.0)
+        self.assertEqual(r["weekday"]["pct"], 20.0)
+        self.assertEqual(r["weekend"]["pct"], 80.0)
+        # empty input is safe
+        z = L.weekend_split([])
+        self.assertEqual((z["total"], z["weekend"]["pct"]), (0.0, 0.0))
+
     def test_budget_coverage(self):
         data = {
             "expenses": [
