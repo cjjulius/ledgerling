@@ -4,6 +4,14 @@ All notable changes to Ledgerling are documented here. The format is based on
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and this project
 adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.220.0] - 2026-10-19
+
+### Added
+
+- Desktop app: a hint line under the form shows the focused field's description,
+  updating as you Tab between fields. Field help is now reachable by keyboard
+  instead of only through a hover tooltip (an accessibility improvement).
+
 ## [1.219.0] - 2026-10-18
 
 ### Added
@@ -2580,6 +2588,7 @@ file, standard library only, strictly confined to its own folder.
   guard (`_within_app`) that refuses any path escaping the app folder; imports
   and restores are reduced to a basename and looked up only within the folder.
 
+[1.220.0]: #12200---2026-10-19
 [1.219.0]: #12190---2026-10-18
 [1.218.1]: #12181---2026-10-18
 [1.218.0]: #12180---2026-10-18
