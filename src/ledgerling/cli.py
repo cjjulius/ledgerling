@@ -159,7 +159,7 @@ import tempfile
 import time
 from datetime import datetime, date, timedelta
 
-__version__ = "1.225.0"
+__version__ = "1.226.0"
 
 # --------------------------------------------------------------------------- #
 # Sandbox + storage
@@ -4828,10 +4828,15 @@ def cmd_categories(args):
     print("=" * 56)
     ranked = sorted(result.items(), key=lambda kv: kv[1]["total"], reverse=True)
     peak = max((v["total"] for _, v in ranked), default=0.0) or 1.0
-    for cat, v in ranked:
+    limit = getattr(args, "limit", None)
+    shown = ranked[:limit] if limit and limit > 0 else ranked
+    for cat, v in shown:
         budget = f"  budget {money(v['budget'])}" if v["budget"] else ""
         print(f"{cat:<14} {v['count']:>3} item(s)  {money(v['total']):>12}  "
               f"{bar(v['total'] / peak, 14)}{budget}")
+    hidden = len(ranked) - len(shown)
+    if hidden > 0:
+        print(f"... and {hidden} more categor{'y' if hidden == 1 else 'ies'}")
 
 
 def cmd_category(args):
@@ -8500,6 +8505,8 @@ def build_parser():
 
     ct = sub.add_parser("categories", help="list categories with counts and totals")
     ct.add_argument("--month", help="restrict to a month, YYYY-MM")
+    ct.add_argument("--limit", type=int,
+                    help="show only the top N categories in the text view")
     ct.add_argument("--json", action="store_true", help="output JSON instead of text")
     ct.set_defaults(func=cmd_categories)
 

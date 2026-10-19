@@ -1487,6 +1487,22 @@ class CLI(TempAppCase):
         # rent has a budget but no expenses -> still listed
         self.assertEqual(d["rent"], {"count": 0, "total": 0.0, "budget": 800.0})
 
+    def test_categories_limit(self):
+        for amt, cat in [(100, "rent"), (40, "food"), (20, "fun"), (10, "misc")]:
+            self._main(["add", str(amt), cat, "x"])
+        out = self._main(["categories", "--limit", "2"])
+        # top 2 by total shown, the rest summarized
+        self.assertIn("rent", out)
+        self.assertIn("food", out)
+        self.assertNotIn("misc", out)
+        self.assertIn("and 2 more categories", out)
+        # JSON is unaffected by --limit (all categories present)
+        d = json.loads(self._main(["categories", "--limit", "2", "--json"]))
+        self.assertEqual(set(d), {"rent", "food", "fun", "misc"})
+        # a limit at/above the count shows them all, no "more" line
+        full = self._main(["categories", "--limit", "10"])
+        self.assertNotIn("more categor", full)
+
     def test_category_profile_json(self):
         this = date.today().isoformat()[:7]
         self._main(["add", "10", "food", "cheap", "--date", f"{this}-03"])
