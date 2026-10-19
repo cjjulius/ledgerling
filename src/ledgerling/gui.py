@@ -121,6 +121,9 @@ SHORTCUTS = [
     ("Ctrl+T", "<Control-t>", "Cycle the theme (light / dark / high-contrast)",
      "theme"),
     ("Ctrl+N", "<Control-n>", "Open a new command window", "new"),
+    ("Ctrl+1", "<Control-Key-1>", "Show the Output tab", "tab_output"),
+    ("Ctrl+2", "<Control-Key-2>", "Show the Table tab", "tab_table"),
+    ("Ctrl+3", "<Control-Key-3>", "Show the Chart tab", "tab_chart"),
     ("Ctrl+S", "<Control-s>", "Save the results to a file", "save"),
     ("Ctrl+=", "<Control-equal>", "Enlarge the results text", "zoomin"),
     ("Ctrl+-", "<Control-minus>", "Shrink the results text", "zoomout"),
@@ -836,6 +839,11 @@ class LedgerlingGUI:
 
         self.results = ttk.Notebook(right)
         self.results.pack(side="top", fill="both", expand=True)
+        # Ctrl+Tab / Ctrl+Shift+Tab move between the result tabs by keyboard.
+        try:
+            self.results.enable_traversal()
+        except Exception:
+            pass
 
         outwrap = ttk.Frame(self.results, style="Main.TFrame")
         self.output = tk.Text(outwrap, wrap="none", height=13, borderwidth=0,
@@ -852,6 +860,7 @@ class LedgerlingGUI:
         outwrap.rowconfigure(0, weight=1)
         outwrap.columnconfigure(0, weight=1)
         self.results.add(outwrap, text="Output")
+        self._output_tab = outwrap
 
         tabwrap = ttk.Frame(self.results, style="Main.TFrame")
         self.table = ttk.Treeview(tabwrap, show="headings", selectmode="browse",
@@ -1731,6 +1740,17 @@ class LedgerlingGUI:
         self.apply_theme(_next_theme(self.theme_name), animate=True)
         self._persist()
 
+    def _show_result_tab(self, tab):
+        """Select a results tab by keyboard, unless it's hidden (no table/chart
+        for the current result)."""
+        try:
+            if str(self.results.tab(tab, "state")) == "hidden":
+                self._set_status("that view has no content for this result")
+                return
+            self.results.select(tab)
+        except Exception:
+            pass
+
     def zoom_text(self, direction):
         """Enlarge (>0), shrink (<0) or reset (0) the results text size, then
         re-skin so the output and table pick up the new font."""
@@ -1762,6 +1782,9 @@ class LedgerlingGUI:
         actions = {"run": self.run_current, "filter": self._focus_filter,
                    "theme": self.toggle_theme, "new": self.new_window,
                    "save": self._save_results,
+                   "tab_output": lambda: self._show_result_tab(self._output_tab),
+                   "tab_table": lambda: self._show_result_tab(self._table_tab),
+                   "tab_chart": lambda: self._show_result_tab(self._chart_tab),
                    "zoomin": lambda: self.zoom_text(1),
                    "zoomout": lambda: self.zoom_text(-1),
                    "zoomreset": lambda: self.zoom_text(0),
