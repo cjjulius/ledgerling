@@ -294,6 +294,12 @@ def _csv_cell(v):
     return v
 
 
+def row_to_tsv(values):
+    """Join one table row's displayed cell values into a tab-separated line for
+    the clipboard, flattening any embedded tabs/newlines to spaces. Pure."""
+    return "\t".join(" ".join(str(v).split()) for v in values)
+
+
 def table_to_csv(cols, rows, mode="rows"):
     """Serialize the results table (columns + row dicts) to CSV text, using the
     raw values rather than the on-screen money formatting so the file imports
@@ -865,6 +871,16 @@ class LedgerlingGUI:
         self._table_rows, self._table_cols, self._table_mode = [], [], "rows"
         self._sort_state = {}
         self.results.hide(self._table_tab)
+        # Copy from the table: Ctrl+C / double-click copies the selected row;
+        # right-click offers that plus copying the whole table as CSV.
+        self.table.bind("<Control-c>", lambda _e: self._copy_table_row())
+        self.table.bind("<Double-1>", lambda _e: self._copy_table_row())
+        self._table_menu = tk.Menu(self.table, tearoff=0)
+        self._table_menu.add_command(label="Copy row",
+                                     command=self._copy_table_row)
+        self._table_menu.add_command(label="Copy table (CSV)",
+                                     command=self._copy_table_all)
+        self.table.bind("<Button-3>", self._table_context_menu)
 
         # A lightweight bar chart for chartable results (a label column plus one
         # numeric column, e.g. month/total or category/total).
@@ -1373,6 +1389,50 @@ class LedgerlingGUI:
         self.root.clipboard_clear()
         self.root.clipboard_append(text)
         self._set_status("output copied to clipboard")
+
+    def _copy_table_row(self):
+        """Copy the selected table row to the clipboard as tab-separated text."""
+        try:
+            sel = self.table.selection() or (self.table.focus(),)
+            iid = sel[0] if sel else ""
+            if not iid:
+                return "break"
+            values = self.table.item(iid, "values")
+        except Exception:
+            return "break"
+        try:
+            self.root.clipboard_clear()
+            self.root.clipboard_append(row_to_tsv(values))
+            self._set_status("row copied to clipboard")
+        except Exception:
+            pass
+        return "break"
+
+    def _copy_table_all(self):
+        """Copy the whole results table to the clipboard as CSV."""
+        if not self._table_rows:
+            return
+        try:
+            self.root.clipboard_clear()
+            self.root.clipboard_append(
+                table_to_csv(self._table_cols, self._table_rows,
+                             self._table_mode))
+            self._set_status("table copied to clipboard (CSV)")
+        except Exception:
+            pass
+
+    def _table_context_menu(self, event):
+        try:
+            iid = self.table.identify_row(event.y)
+            if iid:
+                self.table.selection_set(iid)
+                self.table.focus(iid)
+            self._table_menu.tk_popup(event.x_root, event.y_root)
+        finally:
+            try:
+                self._table_menu.grab_release()
+            except Exception:
+                pass
 
     def _save_results(self, path=None):
         """Save the current results to a file: CSV when the Table tab is showing

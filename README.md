@@ -74,7 +74,8 @@ standard library only — no extra dependencies). It opens a real OS window with
   as plain text, or as CSV when the Table tab is showing data;
 - a **sortable results table**: for any command that supports `--json`, the
   Table tab fills from its structured output — money and percent columns are
-  formatted, and clicking a column header sorts by it (numeric-aware);
+  formatted, clicking a column header sorts by it (numeric-aware), and you can
+  copy a row with Ctrl+C or copy the whole table as CSV from the right-click menu;
 - it **remembers** your theme and window size/position between launches, and
   keeps whatever you typed in each command's form as you move between commands
   during a session;
