@@ -206,7 +206,8 @@ use):
     (`recent`), your highest-spending days (`topdays`), an `onthisday` flashback,
     and a printable `receipt` for any day or entry.
 - **Budgets and goals**: monthly `budget`s (with a spent-vs-budgeted total),
-  `pace` and daily `allowance`, a savings `goal`, `networth` tracking, savings
+  `pace` and daily `allowance`, a `coverage` check of how much spending sits
+  outside any budget, a savings `goal`, `networth` tracking, savings
   `pot`s (sinking funds) with optional target dates and a combined `savingsplan`,
   gamified savings `challenge`s (52-week, no-spend, round-up jar), and
   `achievements` badges you unlock from your history.

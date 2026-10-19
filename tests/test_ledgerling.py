@@ -428,6 +428,28 @@ class PureLogic(unittest.TestCase):
                 L.require_positive(bad, "--weeks")
             self.assertIn("--weeks must be at least 1", str(cm.exception))
 
+    def test_budget_coverage(self):
+        data = {
+            "expenses": [
+                {"date": "2026-04-05", "amount": 300.0, "category": "rent"},
+                {"date": "2026-04-10", "amount": 100.0, "category": "food"},
+                {"date": "2026-04-20", "amount": 40.0, "category": "fun"},
+                {"date": "2026-03-01", "amount": 999.0, "category": "food"},  # other mo
+            ],
+            "budgets": {"rent": 1200.0, "food": 400.0},   # fun is unbudgeted
+        }
+        r = L.budget_coverage(data, "2026-04")
+        self.assertEqual(r["total"], 440.0)
+        self.assertEqual(r["covered"], 400.0)             # rent + food
+        self.assertEqual(r["uncovered"], 40.0)            # fun
+        self.assertAlmostEqual(r["covered_pct"], round(400 / 440 * 100, 1))
+        self.assertEqual(r["uncovered_categories"],
+                         [{"category": "fun", "total": 40.0}])
+        # no spending -> zero, empty list, no division error
+        z = L.budget_coverage({"expenses": [], "budgets": {}}, "2026-04")
+        self.assertEqual((z["total"], z["covered_pct"], z["uncovered_categories"]),
+                         (0.0, 0.0, []))
+
     def test_split_fixed_variable(self):
         rows = [
             {"amount": 300.0, "category": "rent", "recur_id": 1},

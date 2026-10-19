@@ -113,6 +113,7 @@ Commands:
     unbudget  Remove a category's budget (or --all)
     pace      Budget pace: spent vs day-adjusted expected, projected EOM
     allowance  How much you can still spend per day to stay on budget
+    coverage  How much of your spending is covered by a budget (vs not)
     overbudget  Budget breaches across every month of history
     goal      Set / view a monthly savings goal
     networth  Track account balances (assets/debts) and net worth
@@ -156,7 +157,7 @@ import tempfile
 import time
 from datetime import datetime, date, timedelta
 
-__version__ = "1.220.0"
+__version__ = "1.221.0"
 
 # --------------------------------------------------------------------------- #
 # Sandbox + storage
@@ -2425,6 +2426,64 @@ def cmd_allowance(args):
     if daily is not None:
         print(f"{days_left} day(s) left -> spend up to {money(daily)}/day "
               "to stay on budget")
+
+
+def budget_coverage(data, period):
+    """Split a month's spending into amounts in categories that have a budget
+    ('covered') versus those that don't ('uncovered'), with the uncovered
+    categories ranked by spend. Pure (reads data). Returns totals, the covered
+    share, and the list of unbudgeted categories with spending."""
+    rows = month_expenses(data, period)
+    budgets = data.get("budgets", {})
+    cats = category_totals(rows)
+    covered = round(sum(t for c, t in cats.items() if c in budgets), 2)
+    uncovered = round(sum(t for c, t in cats.items() if c not in budgets), 2)
+    total = round(covered + uncovered, 2)
+    uncovered_cats = sorted(
+        ({"category": c, "total": t}
+         for c, t in cats.items() if c not in budgets),
+        key=lambda r: (-r["total"], r["category"]))
+    return {"month": period, "total": total, "covered": covered,
+            "uncovered": uncovered,
+            "covered_pct": round(covered / total * 100, 1) if total else 0.0,
+            "uncovered_categories": uncovered_cats}
+
+
+def cmd_coverage(args):
+    """How much of a month's spending falls in categories you've set a budget for
+    ('covered') versus not, plus the unbudgeted categories ranked by spend - a
+    quick check for budget blind spots. Complements `pace`/`allowance`, which
+    only look at categories that already have a budget."""
+    check_month(args.month)
+    data = load()
+    period = args.month or this_month()
+    res = budget_coverage(data, period)
+
+    if getattr(args, "json", False):
+        print(json.dumps(res, indent=2))
+        return
+
+    if res["total"] == 0:
+        print(f"no spending in {period}")
+        return
+
+    uncov_pct = round(100 - res["covered_pct"], 1)
+    print(f"Budget coverage - {period}")
+    print("=" * 52)
+    peak = max(res["covered"], res["uncovered"]) or 1.0
+    print(f"{'covered':<12}{money(res['covered']):>12}  {res['covered_pct']:>5.1f}%"
+          f"  {bar(res['covered'] / peak, 12)}")
+    print(f"{'not covered':<12}{money(res['uncovered']):>12}  {uncov_pct:>5.1f}%"
+          f"  {bar(res['uncovered'] / peak, 12)}")
+    print("-" * 52)
+    print(f"{'total':<12}{money(res['total']):>12}")
+    uncov = res["uncovered_categories"]
+    if uncov:
+        print()
+        print("Unbudgeted categories (set one with "
+              "`budget --category X --amount N`):")
+        for r in uncov[:10]:
+            print(f"  {r['category']:<14} {money(r['total']):>12}")
 
 
 _DIST_EDGES = [10, 25, 50, 100, 250]
@@ -8416,6 +8475,13 @@ def build_parser():
     al.add_argument("--json", action="store_true", help="output JSON instead of text")
     al.set_defaults(func=cmd_allowance)
 
+    cov = sub.add_parser("coverage",
+                         help="how much spending is covered by a budget (vs not)")
+    cov.add_argument("--month", help="which month, YYYY-MM (default: current)")
+    cov.add_argument("--json", action="store_true",
+                     help="output JSON instead of text")
+    cov.set_defaults(func=cmd_coverage)
+
     ob = sub.add_parser("overbudget",
                         help="list budget breaches across every month of history")
     ob.add_argument("--month", help="only check this month, YYYY-MM")
@@ -9076,7 +9142,7 @@ def build_parser():
 CATCHUP_COMMANDS = frozenset({
     "list", "summary", "budget", "export", "report", "stats", "search",
     "categories", "tags", "month", "upcoming", "compare", "trend", "top",
-    "pace", "duplicates", "week", "streak", "weekday", "day", "year",
+    "pace", "coverage", "duplicates", "week", "streak", "weekday", "day", "year",
     "untagged", "average", "distribution", "sources", "quarter", "forecast",
     "balance", "commitments", "savings", "heatmap", "suggest", "insights",
     "tagtrend", "range", "matrix", "cumulative", "allowance", "tagmatrix",
