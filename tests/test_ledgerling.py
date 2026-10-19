@@ -924,6 +924,15 @@ class WebUI(TempAppCase):
         self.assertEqual(set(seen), set(gui.THEMES))              # visited all
         self.assertEqual(gui._next_theme("nonsense"), gui.THEME_ORDER[0])
 
+    def test_gui_field_hint_text(self):
+        from ledgerling import gui
+        self.assertEqual(gui.field_hint_text("Amount", "the bill amount"),
+                         "Amount - the bill amount")
+        # no help -> just the label; whitespace-only help is treated as empty
+        self.assertEqual(gui.field_hint_text("Category", ""), "Category")
+        self.assertEqual(gui.field_hint_text("Category", "   "), "Category")
+        self.assertEqual(gui.field_hint_text("Note", None), "Note")
+
     def test_gui_chart_series(self):
         from ledgerling import gui
         # rows: a text label column + a money column -> (label, value) pairs

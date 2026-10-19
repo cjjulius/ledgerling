@@ -217,6 +217,13 @@ def _humanize(dest):
     return dest.replace("_", " ").strip().capitalize()
 
 
+def field_hint_text(label, help_text):
+    """A one-line hint for the focused form field: 'Label - help text', or just
+    the label when the argument has no help. Pure, so it is unit-tested."""
+    help_text = (help_text or "").strip()
+    return f"{label} - {help_text}" if help_text else label
+
+
 def _lerp(c1, c2, t):
     """Blend two #rrggbb colours; t in [0,1]. Used for animated transitions."""
     c1, c2 = c1.lstrip("#"), c2.lstrip("#")
@@ -797,6 +804,12 @@ class LedgerlingGUI:
         self.form = ttk.Frame(right, style="Main.TFrame")
         self.form.pack(side="top", fill="x")
 
+        # Keyboard-reachable help: the focused field's description shows here, so
+        # it is not hidden behind a hover-only tooltip.
+        self.field_hint = ttk.Label(right, text="", style="Muted.TLabel",
+                                    wraplength=680, justify="left")
+        self.field_hint.pack(side="top", anchor="w", pady=(4, 0))
+
         runbar = ttk.Frame(right, style="Main.TFrame")
         runbar.pack(side="top", fill="x", pady=(12, 8))
         self.run_btn = ttk.Button(runbar, text="▶  Run   (Ctrl+Enter)",
@@ -1216,6 +1229,9 @@ class LedgerlingGUI:
         if not cmd["args"]:
             self.ttk.Label(self.form, text="No options — just run it.",
                            style="Muted.TLabel").grid(row=0, column=0, sticky="w")
+        # Reset the field hint; focusing the first field repopulates it.
+        self._set_field_hint("Tab through the fields — each one's description "
+                             "shows here." if cmd["args"] else "")
         # Restore any values typed earlier this session for this command.
         cached = self._field_cache.get(name, {})
         for d, (w, _a) in self.fields.items():
@@ -1246,6 +1262,7 @@ class LedgerlingGUI:
             chk = ttk.Checkbutton(parent, variable=var, style="Field.TCheckbutton")
             chk.grid(row=row, column=1, sticky="w", pady=7)
             chk._var = var
+            self._bind_hint(chk, a)
             return chk
         if a.get("type") == "choice":
             var = tk.StringVar(value="")
@@ -1253,6 +1270,7 @@ class LedgerlingGUI:
                                  values=[""] + [str(c) for c in a["choices"]])
             combo.grid(row=row, column=1, sticky="ew", pady=7)
             combo._var = var
+            self._bind_hint(combo, a)
             return combo
         var = tk.StringVar(value="")
         # For category/tag/payee fields, offer the values already in the ledger
@@ -1267,7 +1285,24 @@ class LedgerlingGUI:
         if a.get("help"):
             _Tooltip(ent, a["help"])
         ent.bind("<Return>", lambda _e: self.run_current())
+        self._bind_hint(ent, a)
         return ent
+
+    def _bind_hint(self, widget, a):
+        """Show this field's description in the hint line when it gains focus, so
+        the help is reachable by keyboard (not only via the hover tooltip)."""
+        txt = field_hint_text(_humanize(a["dest"]), a.get("help", ""))
+        try:
+            widget.bind("<FocusIn>", lambda _e, t=txt: self._set_field_hint(t),
+                        add="+")
+        except Exception:
+            pass
+
+    def _set_field_hint(self, text):
+        try:
+            self.field_hint.config(text=text)
+        except Exception:
+            pass
 
     def _collect_argv(self):
         """Build argv from the form via the shared, pure build_argv()."""

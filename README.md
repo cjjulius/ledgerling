@@ -63,7 +63,8 @@ standard library only — no extra dependencies). It opens a real OS window with
 - a **schema-driven form** for the selected command (it generates itself from
   the CLI, so every current and future command appears automatically), with
   category, tag and payee fields offering an autocomplete dropdown of the values
-  already in your ledger (you can still type a new one), a
+  already in your ledger (you can still type a new one), and a hint line that
+  shows the focused field's description so the help is reachable by keyboard, a
   results area with an **Output** tab (text, with Copy and Save buttons), a
   **Table** tab, and a **Chart** tab that draws a quick bar chart whenever the
   result has something to plot (months, categories, and the like), and a
