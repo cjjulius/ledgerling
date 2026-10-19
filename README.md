@@ -204,7 +204,8 @@ use):
     one category or tag), a month-by-month income/expenses/net picture
     (`nettrend`), your monthly `savingsrate`, a two-month `compare`, a
     `vsaverage` check against your recent norm, a `ytd` year-to-date view with a
-    year-end projection, and rollups by week, quarter, year and weekday;
+    year-end projection, rollups by week, quarter, year and weekday, and a
+    weekday-vs-`weekend` split;
   - find and revisit: `search` (plain or `--regex`), your most recent entries
     (`recent`), your highest-spending days (`topdays`), an `onthisday` flashback,
     and a printable `receipt` for any day or entry.

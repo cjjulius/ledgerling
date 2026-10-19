@@ -39,6 +39,7 @@ Commands:
     weekly    Weekly spending trend over the last N weeks
     streak    No-spend-day streaks for a month
     weekday   Spending by day of week (which days you spend most)
+    weekend   Weekday vs weekend spending split
     recurringsplit  Fixed (recurring) vs variable (one-off) spending split
     persona   A playful read of your spending personality (from real data)
     heatmap   Daily-spending calendar for a month (with a web calendar view)
@@ -159,7 +160,7 @@ import tempfile
 import time
 from datetime import datetime, date, timedelta
 
-__version__ = "1.227.0"
+__version__ = "1.228.0"
 
 # --------------------------------------------------------------------------- #
 # Sandbox + storage
@@ -5045,6 +5046,57 @@ def cmd_weekday(args):
         print(f"{w['day']}  {money(w['total']):>12}  ({w['count']:>3})  {chart}")
 
 
+def weekend_split(rows):
+    """Split expense rows into weekday (Mon-Fri) and weekend (Sat/Sun) buckets,
+    each with total, entry count, average per entry and share of the combined
+    total. Pure; callers pass expense rows already scoped to a period."""
+    def bucket(items):
+        total = round(sum(e["amount"] for e in items), 2)
+        n = len(items)
+        return {"total": total, "count": n,
+                "average": round(total / n, 2) if n else 0.0}
+    wk = bucket([e for e in rows
+                 if date.fromisoformat(e["date"]).weekday() < 5])
+    we = bucket([e for e in rows
+                 if date.fromisoformat(e["date"]).weekday() >= 5])
+    total = round(wk["total"] + we["total"], 2)
+    wk["pct"] = round(wk["total"] / total * 100, 1) if total else 0.0
+    we["pct"] = round(we["total"] / total * 100, 1) if total else 0.0
+    return {"total": total, "weekday": wk, "weekend": we}
+
+
+def cmd_weekend(args):
+    """Weekday (Mon-Fri) versus weekend (Sat/Sun) spending: each bucket's total,
+    share, entry count and average purchase size. A quick read on whether the
+    weekend is where the money goes. Complements `weekday` (a seven-day split)."""
+    check_month(args.month)
+    data = load()
+    rows = month_expenses(data, args.month)
+    res = weekend_split(rows)
+    scope = args.month or "all time"
+
+    if getattr(args, "json", False):
+        print(json.dumps({"scope": scope, **res}, indent=2))
+        return
+
+    if res["total"] == 0:
+        print(f"no expenses in {scope}")
+        return
+
+    print(f"Weekday vs weekend ({scope})")
+    print("=" * 56)
+    peak = max(res["weekday"]["total"], res["weekend"]["total"]) or 1.0
+    for label, key in (("weekday (Mon-Fri)", "weekday"),
+                       ("weekend (Sat-Sun)", "weekend")):
+        b = res[key]
+        n = b["count"]
+        print(f"{label:<20}{money(b['total']):>12}  {b['pct']:>5.1f}%  "
+              f"({n} item{'' if n == 1 else 's'}, avg {money(b['average'])})  "
+              f"{bar(b['total'] / peak, 10)}")
+    print("-" * 56)
+    print(f"{'total':<20}{money(res['total']):>12}")
+
+
 _HEATMAP_GLYPHS = [".", ":", "+", "*", "#"]  # none, low, med, high, peak
 
 
@@ -8325,6 +8377,13 @@ def build_parser():
     wd.add_argument("--json", action="store_true", help="output JSON instead of text")
     wd.set_defaults(func=cmd_weekday)
 
+    we = sub.add_parser("weekend",
+                        help="weekday vs weekend spending split")
+    we.add_argument("--month", help="restrict to a month, YYYY-MM")
+    we.add_argument("--json", action="store_true",
+                    help="output JSON instead of text")
+    we.set_defaults(func=cmd_weekend)
+
     rsp = sub.add_parser("recurringsplit",
                          help="fixed (recurring) vs variable (one-off) spending split")
     rsp.add_argument("--month", help="restrict to a month, YYYY-MM")
@@ -9249,7 +9308,8 @@ CATCHUP_COMMANDS = frozenset({
     "forecast",
     "balance", "commitments", "savings", "heatmap", "suggest", "insights",
     "tagtrend", "range", "matrix", "cumulative", "allowance", "tagmatrix",
-    "weekly", "years", "ytd", "anomalies", "roundup", "cashflow", "target",
+    "weekly", "years", "ytd", "weekend", "anomalies", "roundup", "cashflow",
+    "target",
     "runway",
     "net", "nettrend", "savingsrate", "subscriptions", "payees", "overbudget",
     "today",
