@@ -4,6 +4,14 @@ All notable changes to Ledgerling are documented here. The format is based on
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and this project
 adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.222.0] - 2026-10-19
+
+### Added
+
+- Desktop app: copy from the results Table. Ctrl+C (or double-click) copies the
+  selected row as tab-separated text, and a right-click menu adds "Copy row" and
+  "Copy table (CSV)". Keyboard-accessible, complementing the Save-to-file option.
+
 ## [1.221.0] - 2026-10-19
 
 ### Added
@@ -2598,6 +2606,7 @@ file, standard library only, strictly confined to its own folder.
   guard (`_within_app`) that refuses any path escaping the app folder; imports
   and restores are reduced to a basename and looked up only within the folder.
 
+[1.222.0]: #12220---2026-10-19
 [1.221.0]: #12210---2026-10-19
 [1.220.0]: #12200---2026-10-19
 [1.219.0]: #12190---2026-10-18

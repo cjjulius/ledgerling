@@ -995,6 +995,14 @@ class WebUI(TempAppCase):
         self.assertEqual(gui.collect_suggestions({}),
                          {"category": [], "tag": [], "payee": []})
 
+    def test_gui_row_to_tsv(self):
+        from ledgerling import gui
+        self.assertEqual(gui.row_to_tsv(["2026-01", "$100.00", "3"]),
+                         "2026-01\t$100.00\t3")
+        # embedded tabs/newlines in a cell are flattened to single spaces
+        self.assertEqual(gui.row_to_tsv(["a\tb", "c\n d"]), "a b\tc d")
+        self.assertEqual(gui.row_to_tsv([]), "")
+
     def test_gui_table_to_csv(self):
         from ledgerling import gui
         # rows mode: header from cols, raw values (not money-formatted), and
