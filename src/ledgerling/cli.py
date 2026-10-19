@@ -156,7 +156,7 @@ import tempfile
 import time
 from datetime import datetime, date, timedelta
 
-__version__ = "1.218.1"
+__version__ = "1.219.0"
 
 # --------------------------------------------------------------------------- #
 # Sandbox + storage
@@ -3742,7 +3742,10 @@ def cmd_average(args):
     since = getattr(args, "since", None)
     until = getattr(args, "until", None)
     pred, scope, ranged = _resolve_scope(month, since, until)
-    exp = expenses_only(data["expenses"])
+    income = getattr(args, "income", False)
+    noun = "income" if income else "spending"       # for the "Average X" title
+    items_noun = "income" if income else "expenses"  # for the "no X to average"
+    exp = (income_only if income else expenses_only)(data["expenses"])
     if pred:
         exp = [e for e in exp if pred(e)]
     cat = getattr(args, "category", None)
@@ -3765,7 +3768,7 @@ def cmd_average(args):
                 where = f" for {scope}"
             else:
                 where = ""
-            print(f"no expenses to average{on_scope}{where}")
+            print(f"no {items_noun} to average{on_scope}{where}")
         return
 
     dates = [date.fromisoformat(e["date"]) for e in exp]
@@ -3793,10 +3796,12 @@ def cmd_average(args):
             out["category"] = cat
         if tag:
             out["tag"] = tag
+        if income:
+            out["kind"] = "income"
         print(json.dumps(out, indent=2))
         return
 
-    print("Average spending" + on_scope)
+    print(f"Average {noun}" + on_scope)
     print("=" * 48)
     print(f"{'range':<14} {first.isoformat()} to {last.isoformat()} "
           f"({span} day(s))")
@@ -8638,6 +8643,8 @@ def build_parser():
     _add_scope_range(av)
     av.add_argument("--category", help="only average this category's spending")
     av.add_argument("--tag", help="only average entries carrying this #tag")
+    av.add_argument("--income", action="store_true",
+                    help="average income instead of expenses")
     av.add_argument("--json", action="store_true", help="output JSON instead of text")
     av.set_defaults(func=cmd_average)
 

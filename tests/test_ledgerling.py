@@ -3118,6 +3118,20 @@ class CLI(TempAppCase):
         self.assertIn("no expenses to average on [nope]",
                       self._main(["average", "--category", "nope"]))
 
+    def test_average_income_mode(self):
+        self._main(["income", "1000", "salary", "a", "--date", "2026-01-01"])
+        self._main(["income", "500", "freelance", "b", "--date", "2026-01-11"])
+        self._main(["add", "99", "food", "x", "--date", "2026-01-05"])   # expense
+        d = json.loads(self._main(["average", "--income", "--json"]))
+        self.assertEqual(d["kind"], "income")
+        self.assertEqual(d["total"], 1500.0)             # expense excluded
+        self.assertEqual(d["transactions"], 2)
+        self.assertEqual(d["per_transaction"], 750.0)
+        # header says income, and an empty income set names it
+        self.assertIn("Average income", self._main(["average", "--income"]))
+        self.assertIn("no income to average",
+                      self._main(["average", "--income", "--month", "2030-01"]))
+
     def test_average_tag_filter(self):
         self._main(["add", "30", "food", "cafe #coffee", "--date", "2026-01-05"])
         self._main(["add", "10", "food", "diner #coffee", "--date", "2026-01-15"])
