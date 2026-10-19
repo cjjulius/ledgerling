@@ -4,6 +4,15 @@ All notable changes to Ledgerling are documented here. The format is based on
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and this project
 adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.224.0] - 2026-10-19
+
+### Added
+
+- Desktop app: keyboard navigation between the result views. Ctrl+Tab /
+  Ctrl+Shift+Tab move between the Output, Table and Chart tabs, and Ctrl+1 /
+  Ctrl+2 / Ctrl+3 jump straight to one (with a status note if it has no content
+  for the current result). The new shortcuts appear in Help -> Keyboard shortcuts.
+
 ## [1.223.0] - 2026-10-19
 
 ### Added
@@ -2623,6 +2632,7 @@ file, standard library only, strictly confined to its own folder.
   guard (`_within_app`) that refuses any path escaping the app folder; imports
   and restores are reduced to a basename and looked up only within the folder.
 
+[1.224.0]: #12240---2026-10-19
 [1.223.0]: #12230---2026-10-19
 [1.222.1]: #12221---2026-10-19
 [1.222.0]: #12220---2026-10-19

@@ -80,7 +80,8 @@ standard library only — no extra dependencies). It opens a real OS window with
   keeps whatever you typed in each command's form as you move between commands
   during a session;
 - **keyboard shortcuts**: `Ctrl+Enter` to run, `Ctrl+K` to focus the filter,
-  `Ctrl+T` to cycle the theme, `Ctrl+N` for a new window, `Ctrl+Q` to quit — and
+  `Ctrl+T` to cycle the theme, `Ctrl+N` for a new window, `Ctrl+1`/`Ctrl+2`/`Ctrl+3`
+  (or `Ctrl+Tab`) to switch the Output/Table/Chart views, `Ctrl+Q` to quit — and
   Enter in any field runs the command. Help → Keyboard shortcuts lists them all;
 - **adjustable text size** for readability: set a scale with
   `ledgerling config --ui-scale 1.25` (anywhere from 0.5 to 3.0) and the app
