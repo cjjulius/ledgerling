@@ -4,6 +4,16 @@ All notable changes to Ledgerling are documented here. The format is based on
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and this project
 adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.221.0] - 2026-10-19
+
+### Added
+
+- New `coverage` command: shows how much of a month's spending falls in
+  categories you've budgeted ('covered') versus not, with the share of each and
+  the unbudgeted categories ranked by spend - a quick check for budget blind
+  spots. Complements `pace`/`allowance`, which only consider budgeted categories.
+  Supports `--month` and `--json`.
+
 ## [1.220.0] - 2026-10-19
 
 ### Added
@@ -2588,6 +2598,7 @@ file, standard library only, strictly confined to its own folder.
   guard (`_within_app`) that refuses any path escaping the app folder; imports
   and restores are reduced to a basename and looked up only within the folder.
 
+[1.221.0]: #12210---2026-10-19
 [1.220.0]: #12200---2026-10-19
 [1.219.0]: #12190---2026-10-18
 [1.218.1]: #12181---2026-10-18
