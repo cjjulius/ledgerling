@@ -19,6 +19,7 @@ Commands:
     add       Record an expense (supports #tags in the note)
     income    Record an income entry
     sources   Income broken down by source (with a chart)
+    source    A full profile for one income source (drill-down)
     list      Show recent expenses (with optional filters)
     edit      Change fields on an existing expense
     delete    Remove an expense by id
@@ -157,7 +158,7 @@ import tempfile
 import time
 from datetime import datetime, date, timedelta
 
-__version__ = "1.222.1"
+__version__ = "1.223.0"
 
 # --------------------------------------------------------------------------- #
 # Sandbox + storage
@@ -4296,6 +4297,61 @@ def cmd_sources(args):
               f"{bar(v['total'] / peak, 14)}")
     print("-" * 48)
     print(f"{'TOTAL':<16} {'':>3}              {money(round(total, 2)):>12}")
+
+
+def cmd_source(args):
+    """A full profile for one income source: total received and its share of all
+    income, entry count, average/median, smallest/largest payments with dates,
+    the active span, and a recent monthly trend. Mirrors `category`/`payee` for
+    the income side (an income entry's source is stored like a category)."""
+    data = load()
+    src = clean_category(args.source)
+    months = require_positive(args.months, "--months")
+
+    inc = income_only(data["expenses"])
+    rows = [e for e in inc if e["category"] == src]
+    total_all = round(sum(e["amount"] for e in inc), 2)
+    stats = _profile_stats(rows, total_all)
+    total, count = stats["total"], stats["count"]
+    average, median, share = stats["average"], stats["median"], stats["share_pct"]
+    lo, hi = stats["min"], stats["max"]
+    first, last, active_months = stats["first"], stats["last"], stats["active_months"]
+
+    keys = _recent_months(months)
+    totals = _monthly_totals(rows, keys)
+    monthly = [{"month": k, "total": totals[k]} for k in keys]
+
+    if getattr(args, "json", False):
+        print(json.dumps({
+            "source": src, "total": total, "share_pct": share, "count": count,
+            "average": average, "median": median, "min": lo, "max": hi,
+            "first": first, "last": last, "active_months": active_months,
+            "monthly": monthly}, indent=2))
+        return
+
+    if not count:
+        print(f"no income recorded for source [{src}]")
+        return
+
+    print(f"Source: {src}")
+    print("=" * 56)
+    print(f"  Received     {money(total):>12}   ({share:g}% of all income)")
+    print(f"  Entries      {count:>12}   avg {money(average)}, "
+          f"median {money(median)}")
+    if lo and hi:
+        print(f"  Smallest     {money(lo['amount']):>12}   on {lo['date']}")
+        print(f"  Largest      {money(hi['amount']):>12}   on {hi['date']}")
+    if first:
+        print(f"  Active       {active_months:>12} month"
+              f"{'' if active_months == 1 else 's'}   "
+              f"first {first}, last {last}")
+    nonzero = [m for m in monthly if m["total"]]
+    if nonzero:
+        peak = max(m["total"] for m in monthly) or 1.0
+        print(f"  Last {months} months:")
+        for m in monthly:
+            print(f"    {m['month']}  {money(m['total']):>11}  "
+                  f"{bar(m['total'] / peak, 20)}")
 
 
 def cmd_untagged(args):
@@ -8452,6 +8508,15 @@ def build_parser():
     so.add_argument("--json", action="store_true", help="output JSON instead of text")
     so.set_defaults(func=cmd_sources)
 
+    so1 = sub.add_parser("source",
+                         help="a full profile for one income source (drill-down)")
+    so1.add_argument("source", help="the income source to profile, e.g. salary")
+    so1.add_argument("--months", type=int, default=6,
+                     help="months of trend to show (default 6)")
+    so1.add_argument("--json", action="store_true",
+                     help="output JSON instead of text")
+    so1.set_defaults(func=cmd_source)
+
     ut = sub.add_parser("untagged", help="list expenses that have no #tags")
     ut.add_argument("--month", help="restrict to a month, YYYY-MM")
     ut.add_argument("--json", action="store_true", help="output JSON instead of text")
@@ -9148,7 +9213,8 @@ CATCHUP_COMMANDS = frozenset({
     "list", "summary", "budget", "export", "report", "stats", "search",
     "categories", "tags", "month", "upcoming", "compare", "trend", "top",
     "pace", "coverage", "duplicates", "week", "streak", "weekday", "day", "year",
-    "untagged", "average", "distribution", "sources", "quarter", "forecast",
+    "untagged", "average", "distribution", "sources", "source", "quarter",
+    "forecast",
     "balance", "commitments", "savings", "heatmap", "suggest", "insights",
     "tagtrend", "range", "matrix", "cumulative", "allowance", "tagmatrix",
     "weekly", "years", "ytd", "anomalies", "roundup", "cashflow", "target",

@@ -3297,6 +3297,26 @@ class CLI(TempAppCase):
         with self.assertRaises(SystemExit):
             self._main(["payees", "--month", "2026-01", "--since", "2026-01-01"])
 
+    def test_source_profile_json(self):
+        self._main(["income", "3000", "salary", "jan", "--date", "2026-01-25"])
+        self._main(["income", "3200", "salary", "feb", "--date", "2026-02-25"])
+        self._main(["income", "500", "freelance", "gig", "--date", "2026-01-15"])
+        self._main(["add", "99", "food", "x", "--date", "2026-01-05"])   # expense
+        d = json.loads(self._main(["source", "salary", "--months", "3",
+                                   "--json"]))
+        self.assertEqual(d["source"], "salary")
+        self.assertEqual(d["count"], 2)
+        self.assertEqual(d["total"], 6200.0)
+        self.assertEqual(d["average"], 3100.0)
+        self.assertEqual((d["first"], d["last"]), ("2026-01-25", "2026-02-25"))
+        self.assertEqual(d["active_months"], 2)
+        self.assertEqual(len(d["monthly"]), 3)
+        # share is of all income (6200 of 6700), expenses excluded
+        self.assertAlmostEqual(d["share_pct"], round(6200 / 6700 * 100, 1))
+        # unknown source reports nothing rather than erroring
+        self.assertIn("no income recorded for source [nope]",
+                      self._main(["source", "nope"]))
+
     def test_payee_profile_json(self):
         # two netflix charges (one tagged) group together; spotify is separate
         self._main(["add", "15.99", "ent", "Netflix", "--date", "2026-01-05"])
