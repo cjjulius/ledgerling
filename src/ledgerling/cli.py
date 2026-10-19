@@ -156,7 +156,7 @@ import tempfile
 import time
 from datetime import datetime, date, timedelta
 
-__version__ = "1.218.0"
+__version__ = "1.218.1"
 
 # --------------------------------------------------------------------------- #
 # Sandbox + storage
@@ -7934,6 +7934,16 @@ All data stays inside this app's folder; nothing is posted or pushed.
 """
 
 
+def _add_scope_range(parser):
+    """Add the standard --since/--until date-range pair used by the
+    month-or-range reports (net, summary, average, payees), so the two options
+    are always declared together with consistent help."""
+    parser.add_argument("--since",
+                        help="range start (YYYY-MM-DD/today), with --until")
+    parser.add_argument("--until",
+                        help="range end (YYYY-MM-DD/today), with --since")
+
+
 def build_parser():
     p = argparse.ArgumentParser(
         prog="ledgerling",
@@ -8062,8 +8072,7 @@ def build_parser():
 
     s = sub.add_parser("summary", help="totals by category with a chart")
     s.add_argument("--month", help="month to summarize, YYYY-MM (default: current)")
-    s.add_argument("--since", help="range start (YYYY-MM-DD/today), with --until")
-    s.add_argument("--until", help="range end (YYYY-MM-DD/today), with --since")
+    _add_scope_range(s)
     s.add_argument("--tag", help="only entries carrying this #tag")
     s.add_argument("--limit", type=int,
                    help="show only the top N categories, rest rolled into (other)")
@@ -8612,8 +8621,7 @@ def build_parser():
     nt = sub.add_parser("net",
                         help="income, expenses, net and savings rate (all-time, month, or range)")
     nt.add_argument("--month", help="restrict to a month, YYYY-MM")
-    nt.add_argument("--since", help="range start (YYYY-MM-DD/today), with --until")
-    nt.add_argument("--until", help="range end (YYYY-MM-DD/today), with --since")
+    _add_scope_range(nt)
     nt.add_argument("--json", action="store_true", help="output JSON instead of text")
     nt.set_defaults(func=cmd_net)
 
@@ -8627,8 +8635,7 @@ def build_parser():
 
     av = sub.add_parser("average", help="average spending per day/week/month")
     av.add_argument("--month", help="restrict to a month, YYYY-MM")
-    av.add_argument("--since", help="range start (YYYY-MM-DD/today), with --until")
-    av.add_argument("--until", help="range end (YYYY-MM-DD/today), with --since")
+    _add_scope_range(av)
     av.add_argument("--category", help="only average this category's spending")
     av.add_argument("--tag", help="only average entries carrying this #tag")
     av.add_argument("--json", action="store_true", help="output JSON instead of text")
@@ -8665,8 +8672,7 @@ def build_parser():
     pay = sub.add_parser("payees",
                          help="rank spending by payee (merchant), from the note")
     pay.add_argument("--month", help="restrict to a month, YYYY-MM")
-    pay.add_argument("--since", help="range start (YYYY-MM-DD/today), with --until")
-    pay.add_argument("--until", help="range end (YYYY-MM-DD/today), with --since")
+    _add_scope_range(pay)
     pay.add_argument("--limit", type=int, default=20,
                      help="show the top N payees (default 20)")
     pay.add_argument("--json", action="store_true", help="output JSON instead of text")
